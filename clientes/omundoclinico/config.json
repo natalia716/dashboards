@@ -1,6 +1,5 @@
 {
   "nome": "O Mundo Clínico",
-  "subtitulo": "IVC · Meta Ads & Leads — campanha, público, anúncio e respostas",
   "conta": "act_324960456064551",
   "filtroCampanha": "ivc",
   "desde": "2026-01-01",
@@ -9,10 +8,26 @@
     "gid": null
   },
   "etapas": [
-    { "key": "PRE-VENDA", "label": "Pré-venda", "match": "PREVENDA" },
-    { "key": "LOTE01", "label": "Lote 01", "match": "LOTE0*1(?![0-9])" },
-    { "key": "LOTE02", "label": "Lote 02", "match": "LOTE0*2(?![0-9])" },
-    { "key": "LOTE03", "label": "Lote 03", "match": "LOTE0*3(?![0-9])" }
+    {
+      "key": "PRE-VENDA",
+      "label": "Pré-venda",
+      "match": "PREVENDA"
+    },
+    {
+      "key": "LOTE01",
+      "label": "Lote 01",
+      "match": "LOTE0*1(?![0-9])"
+    },
+    {
+      "key": "LOTE02",
+      "label": "Lote 02",
+      "match": "LOTE0*2(?![0-9])"
+    },
+    {
+      "key": "LOTE03",
+      "label": "Lote 03",
+      "match": "LOTE0*3(?![0-9])"
+    }
   ],
   "perguntas": [
     "Área de formação",

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 580" aria-label="ATO" role="img">
+  <g fill="#f0d5a5">
+    <!-- A: seta ↗ — barra superior + haste direita (canto externo arredondado) + diagonal a 45° -->
+    <path d="M95 100 H451 a24 24 0 0 1 24 24 V470 H433 V145 H95 Z" />
+    <path d="M119 429 L436 112 L468 144 L151 461 Z" />
+    <!-- T -->
+    <rect x="550" y="100" width="296" height="45" rx="7" />
+    <rect x="678" y="100" width="43" height="370" />
+    <!-- O -->
+    <circle cx="1064" cy="285" r="165" fill="none" stroke="#f0d5a5" stroke-width="41" />
+  </g>
+  <!-- ponto -->
+  <circle cx="1292" cy="436" r="35" fill="#ff6a13" />
+</svg>

@@ -20,6 +20,8 @@ const PII = new Set(['nome', 'e-mail', 'email', 'telefone', 'instagram', 'whatsa
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const template = read('shared/template.html');
+// a logo vive em shared/logo.svg — trocar o arquivo troca em todas as páginas
+const logoSvg = read('shared/logo.svg').replace(/<\?xml[^>]*\?>\s*/, '').replace('<svg ', '<svg class="logo" ').trim();
 const mapSvg = read('shared/brazil.svg').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
 const PUBLIC = path.join(here, 'public');
 
@@ -50,10 +52,10 @@ function buildClient(slug) {
 
   let html = template
     .split('{{NOME}}').join(esc(cfg.nome))
-    .split('{{SUBTITULO}}').join(esc(cfg.subtitulo || ''))
     .split('{{PLANILHA_URL}}').join(`https://docs.google.com/spreadsheets/d/${cfg.planilha.id}/edit`)
     .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'))
-    .replace('<!--__MAP__-->', mapSvg);
+    .replace('<!--__MAP__-->', mapSvg)
+    .replace('<!--__LOGO__-->', logoSvg);
 
   let outFile;
   if (FULL) {
@@ -68,8 +70,9 @@ function buildClient(slug) {
 
 function buildRoot() {
   fs.mkdirSync(PUBLIC, { recursive: true });
-  fs.writeFileSync(path.join(PUBLIC, 'index.html'), read('shared/root.html'));
-  fs.writeFileSync(path.join(PUBLIC, '404.html'), read('shared/root.html'));
+  const root = read('shared/root.html').replace('<!--__LOGO__-->', logoSvg);
+  fs.writeFileSync(path.join(PUBLIC, 'index.html'), root);
+  fs.writeFileSync(path.join(PUBLIC, '404.html'), root);
   if (fs.existsSync(path.join(here, 'CNAME'))) fs.copyFileSync(path.join(here, 'CNAME'), path.join(PUBLIC, 'CNAME'));
   fs.writeFileSync(path.join(PUBLIC, '.nojekyll'), '');
 }

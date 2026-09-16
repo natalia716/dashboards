@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>ATO · {{NOME}}</title>
 <style>
   /* ============ ATO · dashboard dark (Notion-like) ============ */
@@ -31,6 +37,8 @@
     -webkit-font-smoothing: antialiased;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  img, svg { max-width: 100%; }
   .wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px; }
 
   /* ---- header ---- */
@@ -40,7 +48,6 @@
   .brand { display: flex; align-items: center; gap: 16px; }
   .brand svg.logo { height: 34px; width: auto; display: block; }
   h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; margin: 0; color: #eaeaea; text-wrap: balance; }
-  .subtitle { color: var(--text-2); font-size: 13px; margin-top: 2px; }
   .liveline { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; white-space: nowrap; padding-bottom: 4px; }
   .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); position: relative; flex: none; }
   @media (prefers-reduced-motion: no-preference) {
@@ -51,6 +58,7 @@
 
   /* ---- filtros ---- */
   .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .filters > label:first-child { margin-left: 2px; }
   .filters label { color: var(--text-3); font-size: 12px; margin-right: -2px; }
   select, input[type="date"] {
     background: var(--surface); color: var(--text); border: 1px solid var(--border);
@@ -68,8 +76,59 @@
   .seg button:last-child { border-right: none; }
   .seg button:hover { background: var(--hover); color: var(--text); }
   .seg button.on { background: var(--surface-2); color: #eaeaea; font-weight: 600; }
-  .customRange { display: none; align-items: center; gap: 6px; }
-  .customRange.show { display: inline-flex; }
+  /* ---- período (menu suspenso) ---- */
+  .periodWrap { position: relative; margin-left: auto; }
+  .periodBtn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .periodBtn:hover { background: var(--surface-2); }
+  .periodBtn svg { width: 14px; height: 14px; color: var(--text-2); flex: none; }
+  .periodBtn .periodRange { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .periodBtn .chev { transition: transform .15s; }
+  .periodBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .periodPop {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+    display: flex; background: #1f1f1f; border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.55); overflow: hidden;
+  }
+  .periodPresets { display: flex; flex-direction: column; padding: 6px; border-right: 1px solid var(--border-soft); min-width: 168px; }
+  .periodPresets button {
+    text-align: left; background: none; border: none; color: var(--text-2); font: inherit; font-size: 13px;
+    padding: 7px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap;
+  }
+  .periodPresets button:hover { background: var(--hover); color: var(--text); }
+  .periodPresets button.on { background: var(--surface-2); color: #eaeaea; font-weight: 600; }
+  .periodCal { padding: 10px 12px 10px; width: 272px; }
+  .calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .calHead span { font-size: 13px; font-weight: 600; color: #e6e6e6; }
+  .calHead button { background: none; border: 1px solid transparent; color: var(--text-2); font: inherit; font-size: 18px; line-height: 1; width: 26px; height: 26px; border-radius: 5px; cursor: pointer; }
+  .calHead button:hover { background: var(--hover); color: var(--text); }
+  .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-variant-numeric: tabular-nums; }
+  .calGrid .wd { text-align: center; font-size: 10.5px; color: var(--text-3); padding: 2px 0 4px; letter-spacing: .04em; }
+  .calGrid .d {
+    height: 30px; border: none; background: none; color: var(--text); font: inherit; font-size: 12.5px; border-radius: 5px; cursor: pointer; padding: 0;
+  }
+  .calGrid .d:hover { background: var(--hover); }
+  .calGrid .d.out { color: var(--text-3); opacity: .55; }
+  .calGrid .d:disabled { color: var(--text-3); opacity: .3; cursor: default; background: none; }
+  .calGrid .d.in { background: rgba(240,213,165,.13); border-radius: 0; }
+  .calGrid .d.from, .calGrid .d.to { background: var(--sand); color: #191919; font-weight: 600; }
+  .calGrid .d.from { border-radius: 5px 0 0 5px; }
+  .calGrid .d.to { border-radius: 0 5px 5px 0; }
+  .calGrid .d.from.to { border-radius: 5px; }
+  .calGrid .d.today { box-shadow: inset 0 0 0 1px var(--text-3); }
+  .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .calFoot .hint { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .btnPrimary { background: var(--sand); color: #191919; border: none; border-radius: 5px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .btnPrimary:hover { filter: brightness(1.06); }
+  .btnPrimary:disabled { opacity: .35; cursor: default; filter: none; }
+  @media (max-width: 560px) {
+    .periodWrap { margin-left: 0; width: 100%; }
+    .periodPop { left: 0; right: auto; flex-direction: column; max-width: calc(100vw - 32px); }
+    .periodPresets { border-right: none; border-bottom: 1px solid var(--border-soft); flex-direction: row; flex-wrap: wrap; }
+    .periodCal { width: 100%; }
+  }
   /* em telas estreitas os grupos de botões quebram linha em vez de vazar para fora da página */
   @media (max-width: 560px) {
     .seg { flex-wrap: wrap; }
@@ -199,11 +258,13 @@
   #tip b { color: #fff; font-variant-numeric: tabular-nums; }
   #tip .t2 { color: var(--text-2); }
 
-  footer { color: var(--text-3); font-size: 12px; margin-top: 26px; display: flex; gap: 6px; flex-wrap: wrap; }
+  footer { color: var(--text-3); font-size: 12px; margin-top: 26px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; text-align: center; }
 </style>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 
+</head>
+<body>
 <div class="wrap">
   <div class="crumb">
     <span>ATO</span><span class="sep">/</span><span>Dashboards</span><span class="sep">/</span><span style="color:var(--text-2)">{{NOME}}</span>
@@ -211,18 +272,9 @@
 
   <div class="topbar">
     <div class="brand">
-      <svg class="logo" viewBox="0 0 1400 580" aria-label="ATO" role="img">
-        <g fill="none" stroke="#efd5a7" stroke-width="62">
-          <path d="M95 131 H412 a50 50 0 0 1 50 50 V469" />
-          <line x1="119" y1="453" x2="440" y2="152" />
-          <path d="M560 131 H846 M703 131 V469" />
-          <circle cx="1075" cy="300" r="170" stroke-width="58" />
-        </g>
-        <circle cx="1305" cy="440" r="44" fill="#ff6a13" />
-      </svg>
+      <!--__LOGO__-->
       <div>
         <h1>{{NOME}}</h1>
-        <div class="subtitle">{{SUBTITULO}}</div>
       </div>
     </div>
     <div class="liveline"><span class="pulse" aria-hidden="true"></span><span id="updatedAt">—</span></div>
@@ -235,18 +287,36 @@
     <span class="seg" id="segStage" role="group" aria-label="Etapa do funil">
       <button data-s="all" class="on">Todas</button>
     </span>
-    <label>Período</label>
-    <span class="seg" id="segPeriod" role="group" aria-label="Período">
-      <button data-p="max" class="on">Máximo</button>
-      <button data-p="today">Hoje</button>
-      <button data-p="7">7d</button>
-      <button data-p="14">14d</button>
-      <button data-p="30">30d</button>
-      <button data-p="custom">Personalizado</button>
-    </span>
-    <span class="customRange" id="customRange">
-      <input type="date" id="dtFrom"> <span style="color:var(--text-3)">→</span> <input type="date" id="dtTo">
-    </span>
+    <div class="periodWrap">
+      <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span id="periodLabel">Período completo</span>
+        <span class="periodRange" id="periodRange"></span>
+        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
+        <div class="periodPresets" id="periodPresets">
+          <button data-p="max">Período completo</button>
+          <button data-p="today">Hoje</button>
+          <button data-p="7">Últimos 7 dias</button>
+          <button data-p="14">Últimos 14 dias</button>
+          <button data-p="30">Últimos 30 dias</button>
+          <button data-p="custom">Personalizado</button>
+        </div>
+        <div class="periodCal">
+          <div class="calHead">
+            <button id="calPrev" aria-label="Mês anterior">‹</button>
+            <span id="calTitle"></span>
+            <button id="calNext" aria-label="Próximo mês">›</button>
+          </div>
+          <div class="calGrid" id="calGrid"></div>
+          <div class="calFoot">
+            <span class="hint" id="calSel"></span>
+            <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -794,7 +864,7 @@ function renderAll() {
   renderTable(ins, leads);
   renderLeadsSection(leads);
   $('#footRange').textContent = `Período: ${fmtDate(state.from)} – ${fmtDate(state.to)}`;
-  $('#dtFrom').value = state.from; $('#dtTo').value = state.to;
+  updatePeriodButton();
 }
 
 /* ---------- controles ---------- */
@@ -819,20 +889,7 @@ function initControls() {
     renderAll();
   });
 
-  $('#segPeriod').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    state.preset = b.dataset.p;
-    for (const x of $('#segPeriod').children) x.classList.toggle('on', x === b);
-    $('#customRange').classList.toggle('show', state.preset === 'custom');
-    if (state.preset !== 'custom') applyPreset();
-    renderAll();
-  });
-  const onCustom = () => {
-    const f = $('#dtFrom').value, t = $('#dtTo').value;
-    if (f && t && f <= t) { state.from = f; state.to = t; renderAll(); }
-  };
-  $('#dtFrom').addEventListener('change', onCustom);
-  $('#dtTo').addEventListener('change', onCustom);
+  initPeriodPicker();
 
   $('#tabs').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -857,6 +914,93 @@ function initControls() {
   let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(renderAll, 180); });
 }
 
+/* ---------- seletor de período (menu suspenso com presets + calendário) ---------- */
+const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
+const cal = { y: 0, m: 0 };            // mês exibido
+const pick = { from: null, to: null };  // seleção em andamento no calendário
+const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const fmtRange = (a, b) => a === b ? fmtDate(a) : `${fmtDate(a)} – ${fmtDate(b)}`;
+
+function updatePeriodButton() {
+  $('#periodLabel').textContent = PRESET_LABEL[state.preset] || 'Período';
+  $('#periodRange').textContent = fmtRange(state.from, state.to);
+}
+function openPeriod() {
+  pick.from = null; pick.to = null;
+  const [y, m] = state.to.split('-').map(Number);
+  cal.y = y; cal.m = m - 1;
+  for (const b of $('#periodPresets').children) b.classList.toggle('on', b.dataset.p === state.preset);
+  renderCal();
+  $('#periodPop').hidden = false;
+  $('#periodBtn').setAttribute('aria-expanded', 'true');
+}
+function closePeriod() {
+  $('#periodPop').hidden = true;
+  $('#periodBtn').setAttribute('aria-expanded', 'false');
+}
+function renderCal() {
+  const first = new Date(Date.UTC(cal.y, cal.m, 1));
+  const title = first.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  $('#calTitle').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+  // intervalo destacado: a seleção em andamento ou, sem ela, o período atual
+  const a = pick.from || state.from, b = pick.to || (pick.from ? pick.from : state.to);
+  const lo = a < b ? a : b, hi = a < b ? b : a;
+  let html = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(w => `<span class="wd">${w}</span>`).join('');
+  const startDow = first.getUTCDay();
+  const daysIn = new Date(Date.UTC(cal.y, cal.m + 1, 0)).getUTCDate();
+  const prevDays = new Date(Date.UTC(cal.y, cal.m, 0)).getUTCDate();
+  const cells = [];
+  for (let i = startDow - 1; i >= 0; i--) cells.push({ d: prevDays - i, off: -1 });
+  for (let d = 1; d <= daysIn; d++) cells.push({ d, off: 0 });
+  while (cells.length % 7) cells.push({ d: cells.length - startDow - daysIn + 1, off: 1 });
+  for (const c of cells) {
+    const dt = new Date(Date.UTC(cal.y, cal.m + c.off, c.d));
+    const key = ymd(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+    const cls = ['d'];
+    if (c.off) cls.push('out');
+    if (key === UNTIL) cls.push('today');
+    if (key === lo) cls.push('from');
+    if (key === hi) cls.push('to');
+    if (key > lo && key < hi) cls.push('in');
+    html += `<button type="button" class="${cls.join(' ')}" data-d="${key}"${key > UNTIL ? ' disabled' : ''}>${c.d}</button>`;
+  }
+  $('#calGrid').innerHTML = html;
+  const ready = pick.from !== null;
+  $('#calSel').textContent = ready ? fmtRange(lo, hi) : 'Clique no início e no fim';
+  $('#calApply').disabled = !ready;
+}
+function initPeriodPicker() {
+  $('#periodBtn').addEventListener('click', () => { $('#periodPop').hidden ? openPeriod() : closePeriod(); });
+  $('#periodPresets').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.p === 'custom') { // só muda o foco para o calendário
+      for (const x of $('#periodPresets').children) x.classList.toggle('on', x === b);
+      return;
+    }
+    state.preset = b.dataset.p;
+    applyPreset(); renderAll(); closePeriod();
+  });
+  $('#calPrev').addEventListener('click', () => { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
+  $('#calNext').addEventListener('click', () => { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
+  $('#calGrid').addEventListener('click', e => {
+    const b = e.target.closest('button.d'); if (!b || b.disabled) return;
+    const d = b.dataset.d;
+    if (!pick.from || pick.to) { pick.from = d; pick.to = null; }
+    else if (d < pick.from) { pick.to = pick.from; pick.from = d; }
+    else pick.to = d;
+    for (const x of $('#periodPresets').children) x.classList.toggle('on', x.dataset.p === 'custom');
+    renderCal();
+  });
+  $('#calApply').addEventListener('click', () => {
+    if (!pick.from) return;
+    state.preset = 'custom';
+    state.from = pick.from; state.to = pick.to || pick.from;
+    renderAll(); closePeriod();
+  });
+  document.addEventListener('click', e => { if (!$('#periodPop').hidden && !e.target.closest('.periodWrap')) closePeriod(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePeriod(); });
+}
+
 /* ---------- boot ---------- */
 (function boot() {
   const up = new Date(D.summary.updatedAt);
@@ -866,3 +1010,5 @@ function initControls() {
   renderAll();
 })();
 </script>
+</body>
+</html>
