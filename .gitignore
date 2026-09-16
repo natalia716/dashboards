@@ -1,0 +1,8 @@
+# segredos — nunca versionar
+.env
+
+# saída gerada (o Actions regenera a cada execução)
+out/
+dashboard.html
+dashboard-completo.html
+public/

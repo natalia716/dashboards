@@ -1,0 +1,60 @@
+# Atualiza o dashboard a cada 15 minutos e publica no GitHub Pages.
+#
+# Segredo necessário no repositório (Settings → Secrets and variables → Actions → New repository secret):
+#   META_TOKEN   token de sistema do Meta (ads_read, read_insights)
+#
+# Em Settings → Pages, a opção "Source" precisa estar em "GitHub Actions".
+
+name: Atualizar dashboard
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # a cada 15 min (o GitHub pode atrasar alguns minutos em horário de pico)
+  workflow_dispatch:         # botão "Run workflow" para rodar na mão
+  push:
+    branches: [main]         # qualquer mudança no código republica na hora
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Coletar dados (Meta Ads + planilha)
+        env:
+          META_TOKEN: ${{ secrets.META_TOKEN }}
+        run: node refresh.js
+
+      - name: Montar a página (sem colunas de contato)
+        run: |
+          node build.js
+          mkdir -p public
+          cp dashboard.html public/index.html
+          # domínio próprio: o Pages lê este arquivo para manter o domínio configurado
+          if [ -f CNAME ]; then cp CNAME public/CNAME; fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
