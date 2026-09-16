@@ -12,7 +12,9 @@ name: Atualizar dashboards
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # a cada 15 min (o GitHub pode atrasar alguns minutos em horário de pico)
+    # a cada 15 min, em minutos deslocados: :00/:15/:30/:45 são os mais disputados do GitHub
+    # e os agendamentos neles atrasam ou são pulados com frequência
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:         # botão "Run workflow" para rodar na mão
   push:
     branches: [main]         # qualquer mudança no código republica na hora
