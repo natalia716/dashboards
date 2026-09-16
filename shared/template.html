@@ -1,4 +1,4 @@
-<title>ATO · Mundo Clínico</title>
+<title>ATO · {{NOME}}</title>
 <style>
   /* ============ ATO · dashboard dark (Notion-like) ============ */
   :root {
@@ -206,7 +206,7 @@
 
 <div class="wrap">
   <div class="crumb">
-    <span>ATO</span><span class="sep">/</span><span>Dashboards</span><span class="sep">/</span><span style="color:var(--text-2)">O Mundo Clínico</span>
+    <span>ATO</span><span class="sep">/</span><span>Dashboards</span><span class="sep">/</span><span style="color:var(--text-2)">{{NOME}}</span>
   </div>
 
   <div class="topbar">
@@ -221,8 +221,8 @@
         <circle cx="1305" cy="440" r="44" fill="#ff6a13" />
       </svg>
       <div>
-        <h1>O Mundo Clínico</h1>
-        <div class="subtitle">IVC · Meta Ads &amp; Leads — campanha, público, anúncio e respostas</div>
+        <h1>{{NOME}}</h1>
+        <div class="subtitle">{{SUBTITULO}}</div>
       </div>
     </div>
     <div class="liveline"><span class="pulse" aria-hidden="true"></span><span id="updatedAt">—</span></div>
@@ -234,10 +234,6 @@
     <label>Etapa</label>
     <span class="seg" id="segStage" role="group" aria-label="Etapa do funil">
       <button data-s="all" class="on">Todas</button>
-      <button data-s="PRE-VENDA">Pré-venda</button>
-      <button data-s="LOTE01">Lote 01</button>
-      <button data-s="LOTE02">Lote 02</button>
-      <button data-s="LOTE03">Lote 03</button>
     </span>
     <label>Período</label>
     <span class="seg" id="segPeriod" role="group" aria-label="Período">
@@ -316,7 +312,7 @@
     <div class="tabs" id="tabsLeads">
       <button data-t="resumo" class="on">Resumo</button>
       <button data-t="tabela">Tabela</button>
-      <a class="tabNote sheetLink" href="https://docs.google.com/spreadsheets/d/1eS5K9xgeiBzMxia6k1bZczrQ_9r8RLRGmzF-WAXwKH0/edit" target="_blank" rel="noopener">
+      <a class="tabNote sheetLink" href="{{PLANILHA_URL}}" target="_blank" rel="noopener">
         Nome, e-mail e telefone ficam só na planilha
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
@@ -719,7 +715,7 @@ const piiIdx = new Set(HEADER.map((h, i) => PII_COLS.has(norm(h)) ? i : -1).filt
 // 'Página' guarda a URL inteira com UTMs: some na tabela para ela caber, o link fica no valor
 const urlIdx = HEADER.findIndex(h => norm(h) === 'pagina');
 
-const QUESTIONS = ['Área de formação', 'Especialidade', 'Papel na clínica', 'Estado', 'Cidade', 'Faturamento mensal', 'Principal desafio'];
+const QUESTIONS = D.perguntas || [];
 // faixas de faturamento ordenam por valor, não por contagem
 const FAT_ORDER = ['ate 10', 'ate 20', '10 a 20', '20 a 50', '50 a 100', '100 a 200', 'acima', 'mais de'];
 function fatRank(v) {
@@ -805,6 +801,11 @@ function renderAll() {
 function initControls() {
   // etapas sem nenhuma campanha ainda ficam desabilitadas (os lotes entram conforme subirem)
   const haveStages = new Set(D.campaigns.map(c => c.stage).filter(Boolean));
+  for (const e of (D.etapas || [])) {
+    const b = document.createElement('button');
+    b.dataset.s = e.key; b.textContent = e.label;
+    $('#segStage').appendChild(b);
+  }
   for (const b of $('#segStage').children) {
     const s = b.dataset.s;
     if (s !== 'all' && !haveStages.has(s)) { b.disabled = true; b.title = 'Nenhuma campanha desta etapa ainda'; }

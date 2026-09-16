@@ -1,11 +1,14 @@
-# Atualiza o dashboard a cada 15 minutos e publica no GitHub Pages.
+# Atualiza todos os dashboards a cada 15 minutos e publica no GitHub Pages
+# (dash.atodigital.com.br/<cliente>).
 #
-# Segredo necessário no repositório (Settings → Secrets and variables → Actions → New repository secret):
-#   META_TOKEN   token de sistema do Meta (ads_read, read_insights)
+# Segredo necessário (Settings → Secrets and variables → Actions → New repository secret):
+#   META_TOKEN            token de sistema do Meta (ads_read, read_insights)
+#   META_TOKEN_<CLIENTE>  opcional — token específico, se um cliente estiver em outro Business Manager
+#                         (ex.: META_TOKEN_OMUNDOCLINICO)
 #
-# Em Settings → Pages, a opção "Source" precisa estar em "GitHub Actions".
+# Em Settings → Pages, "Source" precisa estar em "GitHub Actions".
 
-name: Atualizar dashboard
+name: Atualizar dashboards
 
 on:
   schedule:
@@ -26,7 +29,7 @@ permissions:
 jobs:
   atualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -37,18 +40,19 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Coletar dados (Meta Ads + planilha)
+      - name: Coletar dados de cada cliente (Meta Ads + planilha)
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
-        run: node refresh.js
-
-      - name: Montar a página (sem colunas de contato)
+          META_TOKEN_OMUNDOCLINICO: ${{ secrets.META_TOKEN_OMUNDOCLINICO }}
         run: |
-          node build.js
-          mkdir -p public
-          cp dashboard.html public/index.html
-          # domínio próprio: o Pages lê este arquivo para manter o domínio configurado
-          if [ -f CNAME ]; then cp CNAME public/CNAME; fi
+          set -e
+          for dir in clientes/*/; do
+            cliente=$(basename "$dir")
+            node refresh.js "$cliente"
+          done
+
+      - name: Montar o site (sem colunas de contato)
+        run: node build.js
 
       - uses: actions/configure-pages@v5
 
