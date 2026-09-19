@@ -120,7 +120,7 @@
 
   /* ---------- KPIs ---------- */
   .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
-  .kpi { padding: 20px 22px; display: grid; gap: 6px; }
+  .kpi { padding: 20px 22px; display: grid; gap: 6px; align-content: start; }
   .kpi .lbl { font-size: 13px; color: var(--ink-2); }
   .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
   .kpi.good .val, .kpi.good .lbl { color: var(--good); }
@@ -287,17 +287,14 @@
       <div class="card kpi">
         <div class="lbl">Gastos</div>
         <div class="val num" id="k-spend">—</div>
-        <div class="sub"><span>Média diária <b class="num" id="k-spend-day">—</b></span></div>
       </div>
       <div class="card kpi">
         <div class="lbl">Vendas ingressos</div>
         <div class="val num" id="k-sales">—</div>
-        <div class="sub"><span>Conv. página <b class="num" id="k-conv">—</b></span></div>
       </div>
       <div class="card kpi">
         <div class="lbl">CPA ingressos</div>
         <div class="val num" id="k-cpa">—</div>
-        <div class="sub"><span>Gasto ÷ ingressos</span></div>
       </div>
       <div class="card kpi">
         <div class="lbl">Vendas order bump</div>
@@ -309,10 +306,9 @@
         <div class="val num" id="k-ticket">—</div>
         <div class="sub"><span>Faturamento total <b class="num" id="k-rev">—</b></span></div>
       </div>
-      <div class="card kpi good">
+      <div class="card kpi">
         <div class="lbl">ROAS</div>
         <div class="val num" id="k-roas">—</div>
-        <div class="sub"><span>Faturamento total ÷ gasto</span></div>
       </div>
     </div>
   </section>
@@ -545,11 +541,8 @@ const D = /*__DATA__*/{};
   /* ---------- KPIs ---------- */
   function renderKpis(rows) {
     const t = sum(rows);
-    const nDays = rows.length ? new Set(rows.map(r => r.date)).size : 0;
     $('k-spend').textContent = fmtMoney(t.spend);
-    $('k-spend-day').textContent = fmtMoney(div(t.spend, nDays));
     $('k-sales').textContent = fmtInt(t.sales);
-    $('k-conv').textContent = fmtPct(t.conv);
     $('k-bumps').textContent = fmtInt(t.bumps);
     $('k-ob-rate').textContent = fmtPct(t.ob_rate, 1);
     $('k-ticket').textContent = fmtMoney(t.ticket);
@@ -687,10 +680,13 @@ const D = /*__DATA__*/{};
   /* ---------- criativos ---------- */
   function renderCreatives(rows) {
     const filtered = state.tempFilter === 'all' ? rows : rows.filter(r => tempOf(r) === state.tempFilter);
-    const byAd = groupBy(filtered, r => r.ad_id);
-    let list = [...byAd.entries()].map(([id, rs]) => {
+    // agrupa pelo nome do criativo: o mesmo criativo roda em vários conjuntos (ids de anúncio diferentes)
+    const byName = groupBy(filtered, r => (r.ad_name || r.ad_id).trim().toLowerCase());
+    let list = [...byName.entries()].map(([id, rs]) => {
       const last = rs[rs.length - 1]; const t = sum(rs);
-      return { id, name: last.ad_name || id, adset: last.adset_name || '', temp: tempOf(last), preview: last.preview_url || '', thumb: last.thumb || '', ...t };
+      const temps = new Set(rs.map(tempOf).filter(Boolean));
+      const withPreview = rs.find(r => r.preview_url) || last, withThumb = rs.find(r => r.thumb) || last;
+      return { id, name: last.ad_name || id, temp: temps.size === 1 ? [...temps][0] : null, preview: withPreview.preview_url || '', thumb: withThumb.thumb || '', ...t };
     });
     const { key, dir } = state.creativeSort;
     list.sort((a, b) => { const av = a[key], bv = b[key]; const an = av == null || !isFinite(av), bn = bv == null || !isFinite(bv); if (an && bn) return 0; if (an) return 1; if (bn) return -1; return dir === 'asc' ? av - bv : bv - av; });
@@ -702,7 +698,7 @@ const D = /*__DATA__*/{};
     tb.innerHTML = list.map(c => `<tr>
       <td><div class="creative">
         ${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="ph"></div>'}
-        <div class="nm"><strong>${esc(c.name)}</strong><small>${c.temp ? `<span class="tbadge" data-t="${c.temp}">${c.temp}</span>` : ''}${c.preview ? `<a class="plink" href="${esc(c.preview)}" target="_blank" rel="noopener">${c.preview.includes('instagram.com') ? 'Ver no Instagram' : 'Prévia'} ${ext}</a>` : ''}<span>${esc(c.adset)}</span></small></div>
+        <div class="nm"><strong>${esc(c.name)}</strong><small>${c.temp ? `<span class="tbadge" data-t="${c.temp}">${c.temp}</span>` : ''}${c.preview ? `<a class="plink" href="${esc(c.preview)}" target="_blank" rel="noopener">${c.preview.includes('instagram.com') ? 'Ver no Instagram' : 'Prévia'} ${ext}</a>` : ''}</small></div>
       </div></td>
       <td class="num"><span class="bar-cell"><i style="width:${(c.spend / maxSpend * 56).toFixed(0)}px"></i>${fmtMoney(c.spend)}</span></td>
       <td class="num">${fmtInt(c.sales)}</td>
