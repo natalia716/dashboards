@@ -19,7 +19,8 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 const PII = new Set(['nome', 'e-mail', 'email', 'telefone', 'instagram', 'whatsapp', 'celular', 'cpf']);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const template = read('shared/template.html');
+const template = read('shared/template.html');                       // Meta + leads (planilha)
+const templateLancamento = read('shared/template-lancamento.html');  // Meta + vendas (Hubla)
 // a logo vive em shared/logo.svg — trocar o arquivo troca em todas as páginas
 const logoSvg = read('shared/logo.svg').replace(/<\?xml[^>]*\?>\s*/, '').replace('<svg ', '<svg class="logo" ').trim();
 const mapSvg = read('shared/brazil.svg').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
@@ -29,6 +30,25 @@ function buildClient(slug) {
   const dir = path.join(here, 'clientes', slug);
   const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
   const json = f => JSON.parse(fs.readFileSync(path.join(dir, 'out', f), 'utf8'));
+
+  if (cfg.tipo === 'lancamento') {
+    // vendas não levam dado pessoal (só data, fatura, anúncio e valor) — a mesma página serve para --full
+    const data = {
+      summary: json('summary.json'),
+      campaigns: json('campaigns.json').rows,
+      insights: json('insights.json'),
+      ads: json('ads.json').rows,
+      sales: json('sales.json').rows,
+    };
+    const html = templateLancamento
+      .split('{{NOME}}').join(esc(cfg.nome))
+      .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'));
+    const outFile = FULL ? path.join(dir, 'dashboard-completo.html') : path.join(PUBLIC, slug, 'index.html');
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    fs.writeFileSync(outFile, html);
+    console.log(`[${slug}] ${path.relative(here, outFile)} ${fs.statSync(outFile).size} bytes`);
+    return;
+  }
 
   const leadsFile = json('leads.json');
   let header = leadsFile.header;

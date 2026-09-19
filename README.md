@@ -1,11 +1,13 @@
 # ATO · Dashboards
 
-Dashboards de Meta Ads + leads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
+Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
+Dois tipos: **leads** (Meta + planilha de leads) e **lançamento** (Meta em nível de anúncio + vendas da Hubla).
 
-| Cliente | Endereço |
-|---|---|
-| O Mundo Clínico | https://dash.atodigital.com.br/omundoclinico |
+| Cliente | Tipo | Endereço |
+|---|---|---|
+| O Mundo Clínico | leads | https://dash.atodigital.com.br/omundoclinico |
+| Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 
 ## Como funciona
 
@@ -22,7 +24,24 @@ dash.atodigital.com.br/<cliente>
 O token do Meta **não está no código**: vem da variável `META_TOKEN` — no GitHub como *Secret*,
 localmente pelo arquivo `.env` (ignorado pelo git).
 
-## Adicionar um cliente
+## Adicionar um cliente de lançamento (vendas via Hubla)
+
+1. Crie `clientes/<slug>/config.json` copiando o de `paulo-cobra`: `"tipo": "lancamento"`, `nome`, `conta` (act_…),
+   `filtroCampanha` (palavra que identifica as campanhas do lançamento no nome) e, se quiser, `temperatura`
+   (regex de público quente/frio sobre o nome do conjunto e da campanha; as tags `[F]`/`[Q]` sempre valem).
+2. **Vendas da Hubla** chegam por webhook numa planilha do Google — o código do receptor está em
+   `hubla/webhook-planilha.gs` com o passo a passo no topo do arquivo. Depois, no config:
+   `"hubla": { "planilha": { "id": "<id da planilha>" }, "produtos": ["<id do produto na Hubla>"] }`
+   (`produtos` é opcional: sem ele, toda fatura paga da planilha conta como venda).
+3. Nas URLs dos anúncios do Meta use `utm_source=meta&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}`
+   — a venda é ligada ao anúncio pelo `utm_content` (aceita também o nome do anúncio).
+4. Enquanto `hubla` for `null`, o painel mostra o aviso "Hubla pendente" e vendas zeradas; gasto e funil já ficam certos.
+5. `git push` — o Actions publica em `dash.atodigital.com.br/<slug>`.
+
+Funil, taxas e temperatura vêm de `shared/template-lancamento.html`; o build injeta os JSONs de `clientes/<slug>/out/`.
+Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não atribuído" (contam no total, não na temperatura).
+
+## Adicionar um cliente de leads
 
 1. Crie `clientes/<slug>/config.json` copiando o de `omundoclinico` e ajuste: `nome`, `subtitulo`,
    `conta` (act_…), `filtroCampanha` (palavra que identifica as campanhas do projeto no nome),
@@ -56,10 +75,12 @@ Os dois gatilhos podem coexistir: o `concurrency` do workflow impede execuções
 node refresh.js omundoclinico && node build.js
 ```
 
+Para o lançamento: `node refresh.js paulo-cobra && node build.js paulo-cobra` → `public/paulo-cobra/index.html`.
+
 Abre `public/omundoclinico/index.html`. `node build.js omundoclinico --full` gera
 `clientes/omundoclinico/dashboard-completo.html` com nome/e-mail/telefone (**nunca publicar**).
 
 ## Mudar o visual ou as métricas
 
-Edita `shared/template.html` (vale para todos os clientes) e roda `node build.js`.
+Edita `shared/template.html` (clientes de leads) ou `shared/template-lancamento.html` (lançamentos) e roda `node build.js`.
 Um `git push` na `main` republica na hora.

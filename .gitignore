@@ -5,3 +5,6 @@
 clientes/*/out/
 clientes/*/dashboard-completo.html
 public/
+
+# config local do editor
+.claude/
