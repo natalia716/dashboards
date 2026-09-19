@@ -321,8 +321,10 @@ async function fetchHublaSales(ads) {
   const sales = [];
   for (const [invoiceId, r] of byInvoice) {
     if (g(r, col.status).toLowerCase() !== 'paid') continue;
-    // produtos da fatura: coluna products_ids (script novo) ou só product_id (linhas antigas)
-    const prods = (g(r, col.products) || g(r, col.product)).split('|').map(x => x.trim()).filter(Boolean);
+    // eventos de teste (sandbox da Hubla termina o id com "-tester"; nossos testes começam com "TESTE-") não são venda
+    if (/-tester$/i.test(invoiceId) || /^TESTE-/i.test(invoiceId) || /sandbox/i.test(g(r, col.uc) + ' ' + g(r, col.uct))) continue;
+    // produtos da fatura: product_id (produto principal) + products_ids (todos, inclui order bump) — a Hubla usa ids diferentes nos dois campos
+    const prods = [...new Set((g(r, col.product) + ' | ' + g(r, col.products)).split('|').map(x => x.trim()).filter(Boolean))];
     // order bump = fatura com um produto da lista orderBump; sem a lista, qualquer fatura com 2+ produtos
     const bump = bumpIds.length ? prods.some(x => bumpIds.includes(x)) : prods.length > 1;
     // venda principal = fatura com o produto principal; sem a lista, tudo que não for só order bump
