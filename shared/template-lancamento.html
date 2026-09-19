@@ -119,10 +119,10 @@
   .status .pill { background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 9px; font-weight: 600; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
 
   /* ---------- KPIs ---------- */
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
   .kpi { padding: 20px 22px; display: grid; gap: 6px; }
   .kpi .lbl { font-size: 13px; color: var(--ink-2); }
-  .kpi .val { font-weight: 700; font-size: 26px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
+  .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
   .kpi.good .val, .kpi.good .lbl { color: var(--good); }
   .kpi .sub { color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
   .kpi .sub b { color: var(--ink-2); font-weight: 600; }
@@ -148,6 +148,7 @@
   .chart-wrap svg { display: block; width: 100%; height: auto; }
   .legend { display: flex; justify-content: center; gap: 18px; font-size: 12.5px; color: var(--ink-2); padding: 14px 8px 6px; }
   .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend i.line { height: 3px; width: 14px; border-radius: 2px; vertical-align: 3px; }
   .tip { position: absolute; pointer-events: none; z-index: 5; display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; box-shadow: var(--pop-shadow); font-size: 12px; min-width: 150px; }
   .tip b { display: block; margin-bottom: 4px; }
   .tip div { display: flex; justify-content: space-between; gap: 14px; }
@@ -166,7 +167,7 @@
   .temp .share b { color: var(--ink); }
   .temp .sharebar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
   .temp .sharebar i { display: block; height: 100%; background: var(--c); }
-  .temp .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 14px; }
+  .temp .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 14px; }
   .temp .m .lbl { font-size: 12px; color: var(--ink-2); }
   .temp .m .val { font-weight: 600; font-size: 18px; color: var(--ink); }
   .temp .m .val.hero { font-size: 24px; font-weight: 700; color: var(--c); }
@@ -202,6 +203,7 @@
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .chip:hover { border-color: var(--accent); }
 
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) {
     .temps { grid-template-columns: 1fr; }
     .stage, .rate { grid-template-columns: 130px 1fr 110px; }
@@ -209,7 +211,9 @@
   @media (max-width: 640px) {
     .top-inner { padding: 10px 16px; gap: 10px; }
     .page { padding-inline: 16px; }
-    .kpis { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .kpi { padding: 14px 16px; }
+    .kpi .val { font-size: 20px; }
     .top-right, .periodWrap, .periodBtn { width: 100%; min-width: 0; }
     .periodPop { left: 0; right: auto; flex-direction: column; max-width: 100%; }
     .periodPresets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
@@ -281,19 +285,34 @@
   <section aria-label="Resultado do período">
     <div class="kpis">
       <div class="card kpi">
-        <div class="lbl">Gastos com anúncios</div>
+        <div class="lbl">Gastos</div>
         <div class="val num" id="k-spend">—</div>
         <div class="sub"><span>Média diária <b class="num" id="k-spend-day">—</b></span></div>
       </div>
       <div class="card kpi">
-        <div class="lbl">Vendas</div>
+        <div class="lbl">Vendas ingressos</div>
         <div class="val num" id="k-sales">—</div>
-        <div class="sub"><span>Ticket médio <b class="num" id="k-ticket">—</b></span><span>Order bump (gravação) <b class="num" id="k-bumps">—</b></span></div>
+        <div class="sub"><span>Conv. página <b class="num" id="k-conv">—</b></span></div>
+      </div>
+      <div class="card kpi">
+        <div class="lbl">CPA ingressos</div>
+        <div class="val num" id="k-cpa">—</div>
+        <div class="sub"><span>Gasto ÷ ingressos</span></div>
+      </div>
+      <div class="card kpi">
+        <div class="lbl">Vendas order bump</div>
+        <div class="val num" id="k-bumps">—</div>
+        <div class="sub"><span>Tx. conversão OB <b class="num" id="k-ob-rate">—</b></span></div>
+      </div>
+      <div class="card kpi">
+        <div class="lbl">Ticket médio</div>
+        <div class="val num" id="k-ticket">—</div>
+        <div class="sub"><span>Faturamento total <b class="num" id="k-rev">—</b></span></div>
       </div>
       <div class="card kpi good">
-        <div class="lbl">CPA</div>
-        <div class="val num" id="k-cpa">—</div>
-        <div class="sub"><span>ROAS <b class="num" id="k-roas">—</b></span></div>
+        <div class="lbl">ROAS</div>
+        <div class="val num" id="k-roas">—</div>
+        <div class="sub"><span>Faturamento total ÷ gasto</span></div>
       </div>
     </div>
   </section>
@@ -304,9 +323,9 @@
   </section>
 
   <section class="card" aria-labelledby="h-chart">
-    <div class="card-head"><h2 id="h-chart">Vendas e CPA por dia</h2></div>
+    <div class="card-head"><h2 id="h-chart">Vendas e CPA de ingressos por dia</h2></div>
     <div class="chart-wrap" id="chart">
-      <div class="legend"><span><i style="background:var(--accent)"></i>Vendas por dia</span><span><i style="background:var(--frio)"></i>CPA (R$)</span></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Vendas ingressos</span><span><i class="line" style="background:var(--ink)"></i>Vendas order bump</span><span><i class="line" style="background:var(--frio)"></i>CPA ingressos (R$)</span></div>
       <div id="chart-svg"></div>
       <div class="tip" id="tip"></div>
     </div>
@@ -321,7 +340,7 @@
     <div class="tbl-wrap">
       <table id="daily">
         <thead><tr>
-          <th>Data</th><th>Gasto</th><th>Vendas</th><th>CPA</th><th>CPM</th><th>CTR</th><th>Conv. página</th><th>Connect rate</th>
+          <th>Data</th><th>Gasto</th><th>Vendas ingressos</th><th>CPA ingressos</th><th>Tx. conv. OB</th><th>ROAS</th><th>CPM</th><th>CTR</th><th>Conv. página</th><th>Connect rate</th>
         </tr></thead>
         <tbody></tbody>
         <tfoot></tfoot>
@@ -343,8 +362,10 @@
         <thead><tr>
           <th>Criativo</th>
           <th class="sortable" data-key="spend" data-dir="desc">Gasto</th>
-          <th class="sortable" data-key="sales">Vendas</th>
-          <th class="sortable" data-key="cpa">CPA</th>
+          <th class="sortable" data-key="sales">Vendas ingressos</th>
+          <th class="sortable" data-key="cpa">CPA ingressos</th>
+          <th class="sortable" data-key="ob_rate">Tx. conv. OB</th>
+          <th class="sortable" data-key="roas">ROAS</th>
           <th class="sortable" data-key="cpm">CPM</th>
           <th class="sortable" data-key="ctr">CTR</th>
         </tr></thead>
@@ -430,11 +451,12 @@ const D = /*__DATA__*/{};
         const checkouts = Math.round(lp_views * (hot ? .14 : .08) * (0.8 + rnd() * .4));
         const p = a.conv * (0.7 + rnd() * .6) * (i >= 11 ? 1.5 : 1);
         let sales = 0; for (let s = 0; s < lp_views; s++) if (rnd() < p) sales++;
+        const bumps = Math.round(sales * (0.25 + rnd() * .2));
         rows.push({
           campaign_id: 'exemplo', date, ad_id: a.ad_id, ad_name: a.ad_name, adset_name: a.adset_name,
-          temp: hot ? 'quente' : 'frio', preview_url: 'https://www.facebook.com/ads/library/',
+          temp: hot ? 'quente' : 'frio', preview_url: 'https://www.instagram.com/',
           thumb: placeholderThumb(a.ad_id.toUpperCase(), hot ? 22 : 210),
-          spend: Math.round(spend * 100) / 100, impressions, link_clicks, lp_views, checkouts, sales, bumps: Math.round(sales * (0.25 + rnd() * .2)), revenue: sales * ticket,
+          spend: Math.round(spend * 100) / 100, impressions, link_clicks, lp_views, checkouts, sales, bumps, revenue: sales * ticket + bumps * 97,
         });
       }
     }
@@ -452,7 +474,7 @@ const D = /*__DATA__*/{};
       map.set(key(r[ix.date], r[ix.adId]), {
         campaign_id: r[ix.campaignId], date: r[ix.date], ad_id: r[ix.adId],
         ad_name: ad.name || r[ix.adId], adset_name: ad.adsetName || '', temp: ad.temp || undefined,
-        preview_url: ad.previewUrl || ad.igUrl || '', thumb: ad.thumb || '',
+        preview_url: ad.igUrl || ad.previewUrl || '', thumb: ad.thumb || '',
         spend: r[ix.spend], impressions: r[ix.impressions], link_clicks: r[ix.linkClicks], lp_views: r[ix.pageViews], checkouts: r[ix.checkouts] || 0,
         sales: 0, bumps: 0, revenue: 0,
       });
@@ -466,13 +488,14 @@ const D = /*__DATA__*/{};
         map.set(k, {
           campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || 'nao-atribuido',
           ad_name: ad ? ad.name : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
-          preview_url: ad ? (ad.previewUrl || ad.igUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
+          preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
           spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0,
         });
       }
       const row = map.get(k);
-      if (s.main !== false) { row.sales += 1; row.revenue += (Number(s.valueCents) || 0) / 100; }
+      if (s.main !== false) row.sales += 1;
       if (s.bump) row.bumps += 1;
+      row.revenue += (Number(s.valueCents) || 0) / 100;
     }
     return { campaigns: D.campaigns || [], rows: [...map.values()], until: D.summary.until, live: true };
   }
@@ -512,7 +535,8 @@ const D = /*__DATA__*/{};
     for (const r of rows) for (const k in t) t[k] += Number(r[k]) || 0;
     t.cpa = div(t.spend, t.sales); t.cpm = t.impressions ? t.spend / t.impressions * 1000 : null;
     t.ctr = div(t.link_clicks, t.impressions); t.connect = div(t.lp_views, t.link_clicks);
-    t.conv = div(t.sales, t.lp_views); t.roas = div(t.revenue, t.spend); t.ticket = div(t.revenue, t.sales);
+    t.conv = div(t.sales, t.lp_views); t.roas = div(t.revenue, t.spend); t.ticket = div(t.revenue, t.sales); // ticket e ROAS são do total (ingresso + OB)
+    t.ob_rate = div(t.bumps, t.sales); // taxa de conversão do order bump = OB ÷ ingressos
     t.checkout_rate = div(t.checkouts, t.lp_views); t.close_rate = div(t.sales, t.checkouts);
     return t;
   }
@@ -525,8 +549,11 @@ const D = /*__DATA__*/{};
     $('k-spend').textContent = fmtMoney(t.spend);
     $('k-spend-day').textContent = fmtMoney(div(t.spend, nDays));
     $('k-sales').textContent = fmtInt(t.sales);
+    $('k-conv').textContent = fmtPct(t.conv);
+    $('k-bumps').textContent = fmtInt(t.bumps);
+    $('k-ob-rate').textContent = fmtPct(t.ob_rate, 1);
     $('k-ticket').textContent = fmtMoney(t.ticket);
-    $('k-bumps').textContent = t.sales ? `${fmtInt(t.bumps)} (${fmtPct(div(t.bumps, t.sales), 0)})` : '—';
+    $('k-rev').textContent = fmtMoney0(t.revenue);
     $('k-cpa').textContent = fmtMoney(t.cpa);
     $('k-roas').textContent = fmtX(t.roas);
   }
@@ -557,7 +584,7 @@ const D = /*__DATA__*/{};
   function renderChart(rows) {
     const byDay = groupBy(rows, r => r.date);
     const days = [];
-    if (state.from && state.to) for (let d = state.from; d <= state.to; d = addDays(d, 1)) { const t = sum(byDay.get(d) || []); days.push({ date: d, sales: t.sales, cpa: t.cpa, spend: t.spend }); }
+    if (state.from && state.to) for (let d = state.from; d <= state.to; d = addDays(d, 1)) { const t = sum(byDay.get(d) || []); days.push({ date: d, sales: t.sales, bumps: t.bumps, cpa: t.cpa, spend: t.spend }); }
     if (!days.length) { el.chartSvg.innerHTML = '<div class="chart-empty">Sem dados no período.</div>'; return; }
 
     const W = Math.max(320, el.chartSvg.clientWidth || 800);
@@ -565,7 +592,7 @@ const D = /*__DATA__*/{};
     const H = padT + hBar + gap + hLine + axisH;
     const n = days.length, innerW = W - padL - padR, step = innerW / n;
     const x = i => padL + step * i + step / 2;
-    const maxSales = Math.max(1, ...days.map(d => d.sales));
+    const maxSales = Math.max(1, ...days.map(d => Math.max(d.sales, d.bumps)));
     const cpas = days.map(d => d.cpa).filter(v => v != null && isFinite(v));
     const maxCpa = Math.max(1, ...cpas) * 1.1;
     const ySales = v => padT + hBar - (v / maxSales) * hBar;
@@ -582,6 +609,11 @@ const D = /*__DATA__*/{};
       if (d.sales > 0 && step >= 22) g += `<text x="${x(i)}" y="${ySales(d.sales) - 5}" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">${fmtInt(d.sales)}</text>`;
     });
     g += `<line x1="${padL}" x2="${W - padR}" y1="${padT + hBar}" y2="${padT + hBar}" stroke="var(--line-strong)"/>`;
+    // order bump: linha sobre as barras, na mesma escala (também é contagem de vendas)
+    let obPath = '';
+    days.forEach((d, i) => { obPath += (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + ySales(d.bumps).toFixed(1) + ' '; });
+    g += `<path d="${obPath}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    days.forEach((d, i) => { if (d.bumps > 0) g += `<circle cx="${x(i)}" cy="${ySales(d.bumps)}" r="3" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`; });
     let path = '', pen = false;
     days.forEach((d, i) => { if (d.cpa == null || !isFinite(d.cpa)) { pen = false; return; } path += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + yCpa(d.cpa).toFixed(1) + ' '; pen = true; });
     g += `<path d="${path}" fill="none" stroke="var(--frio)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
@@ -591,7 +623,7 @@ const D = /*__DATA__*/{};
     days.forEach((d, i) => { if (i === n - 1 || (i % every === 0 && n - 1 - i >= every)) g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${fmtDateShort(d.date)}</text>`; });
     g += `<g id="xhair" style="display:none"><line y1="${padT}" y2="${H - axisH}" stroke="var(--line-strong)" stroke-dasharray="3 3"/></g>`;
     g += `<rect id="hover" x="${padL}" y="${padT}" width="${innerW}" height="${H - axisH - padT}" fill="transparent"/>`;
-    el.chartSvg.innerHTML = `<svg viewBox="0 0 ${W} ${H}" font-family="var(--font)" role="img" aria-label="Vendas por dia e CPA">${g}</svg>`;
+    el.chartSvg.innerHTML = `<svg viewBox="0 0 ${W} ${H}" font-family="var(--font)" role="img" aria-label="Vendas de ingressos e order bump por dia e CPA de ingressos">${g}</svg>`;
 
     const hover = el.chartSvg.querySelector('#hover'), xhair = el.chartSvg.querySelector('#xhair'), svg = el.chartSvg.querySelector('svg');
     hover.addEventListener('mousemove', ev => {
@@ -599,7 +631,7 @@ const D = /*__DATA__*/{};
       const i = Math.max(0, Math.min(n - 1, Math.floor((px - padL) / step)));
       const d = days[i];
       xhair.style.display = ''; xhair.querySelector('line').setAttribute('x1', x(i)); xhair.querySelector('line').setAttribute('x2', x(i));
-      el.tip.innerHTML = `<b>${weekday(d.date)} ${fmtDateLong(d.date)}</b><div><span>Vendas</span><span>${fmtInt(d.sales)}</span></div><div><span>CPA</span><span>${fmtMoney(d.cpa)}</span></div><div><span>Gasto</span><span>${fmtMoney(d.spend)}</span></div>`;
+      el.tip.innerHTML = `<b>${weekday(d.date)} ${fmtDateLong(d.date)}</b><div><span>Ingressos</span><span>${fmtInt(d.sales)}</span></div><div><span>Order bump</span><span>${fmtInt(d.bumps)}</span></div><div><span>CPA ingressos</span><span>${fmtMoney(d.cpa)}</span></div><div><span>Gasto</span><span>${fmtMoney(d.spend)}</span></div>`;
       el.tip.style.display = 'block';
       const cw = el.chart.clientWidth, tw = el.tip.offsetWidth, cr = el.chart.getBoundingClientRect();
       el.tip.style.left = Math.min(cw - tw - 8, Math.max(8, ev.clientX - cr.left + 14)) + 'px';
@@ -616,11 +648,11 @@ const D = /*__DATA__*/{};
       const t = sum(rows.filter(r => tempOf(r) === tp));
       const share = div(t.spend, all.spend) || 0, sshare = div(t.sales, all.sales) || 0;
       return `<div class="card temp" data-t="${tp}">
-        <div class="th"><h3><i></i>Público ${tp === 'frio' ? 'frio' : 'quente'}</h3><span class="share"><b class="num">${fmtPct(share, 0)}</b> do gasto · <b class="num">${fmtPct(sshare, 0)}</b> das vendas</span></div>
+        <div class="th"><h3><i></i>Público ${tp === 'frio' ? 'frio' : 'quente'}</h3><span class="share"><b class="num">${fmtPct(share, 0)}</b> do gasto · <b class="num">${fmtPct(sshare, 0)}</b> dos ingressos</span></div>
         <div class="sharebar"><i style="width:${(share * 100).toFixed(1)}%"></i></div>
         <div class="grid">
-          ${m('CPA', fmtMoney(t.cpa), true)}${m('Gasto', fmtMoney0(t.spend))}${m('Vendas', fmtInt(t.sales))}
-          ${m('CPM', fmtMoney(t.cpm))}${m('CTR', fmtPct(t.ctr))}${m('Conv. página', fmtPct(t.conv))}
+          ${m('CPA ingressos', fmtMoney(t.cpa), true)}${m('Gasto', fmtMoney0(t.spend))}${m('Vendas ingressos', fmtInt(t.sales))}${m('Tx. conv. OB', fmtPct(t.ob_rate, 1))}
+          ${m('ROAS', fmtX(t.roas))}${m('CPM', fmtMoney(t.cpm))}${m('CTR', fmtPct(t.ctr))}${m('Conv. página', fmtPct(t.conv))}
         </div>
       </div>`;
     }).join('');
@@ -631,7 +663,7 @@ const D = /*__DATA__*/{};
     const byDay = groupBy(rows.filter(r => r.spend > 0 || r.sales > 0 || r.impressions > 0), r => r.date);
     const dates = [...byDay.keys()].sort().reverse();
     const tb = el.daily.querySelector('tbody'), tf = el.daily.querySelector('tfoot');
-    if (!dates.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">Sem dados no período.</td></tr>'; tf.innerHTML = ''; return; }
+    if (!dates.length) { tb.innerHTML = '<tr><td colspan="10" class="empty">Sem dados no período.</td></tr>'; tf.innerHTML = ''; return; }
     const maxSpend = Math.max(1, ...dates.map(d => sum(byDay.get(d)).spend));
     tb.innerHTML = dates.map(d => {
       const t = sum(byDay.get(d));
@@ -640,6 +672,8 @@ const D = /*__DATA__*/{};
         <td class="num"><span class="bar-cell"><i style="width:${(t.spend / maxSpend * 56).toFixed(0)}px"></i>${fmtMoney(t.spend)}</span></td>
         <td class="num">${fmtInt(t.sales)}</td>
         <td class="num">${fmtMoney(t.cpa)}</td>
+        <td class="num">${fmtPct(t.ob_rate, 1)}</td>
+        <td class="num">${fmtX(t.roas)}</td>
         <td class="num">${fmtMoney(t.cpm)}</td>
         <td class="num">${fmtPct(t.ctr)}</td>
         <td class="num">${fmtPct(t.conv)}</td>
@@ -647,7 +681,7 @@ const D = /*__DATA__*/{};
       </tr>`;
     }).join('');
     const t = sum(rows);
-    tf.innerHTML = `<tr><td>Total · ${dates.length} dia${dates.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtPct(t.connect, 1)}</td></tr>`;
+    tf.innerHTML = `<tr><td>Total · ${dates.length} dia${dates.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtPct(t.connect, 1)}</td></tr>`;
   }
 
   /* ---------- criativos ---------- */
@@ -662,22 +696,24 @@ const D = /*__DATA__*/{};
     list.sort((a, b) => { const av = a[key], bv = b[key]; const an = av == null || !isFinite(av), bn = bv == null || !isFinite(bv); if (an && bn) return 0; if (an) return 1; if (bn) return -1; return dir === 'asc' ? av - bv : bv - av; });
     const tb = el.creatives.querySelector('tbody'), tf = el.creatives.querySelector('tfoot');
     el.creatives.querySelectorAll('th.sortable').forEach(th => { if (th.dataset.key === key) th.dataset.dir = dir; else th.removeAttribute('data-dir'); });
-    if (!list.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Nenhum criativo no período.</td></tr>'; tf.innerHTML = ''; return; }
+    if (!list.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">Nenhum criativo no período.</td></tr>'; tf.innerHTML = ''; return; }
     const maxSpend = Math.max(1, ...list.map(c => c.spend));
     const ext = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 2H2v8h8V7M7 2h3v3M10 2 5.5 6.5"/></svg>';
     tb.innerHTML = list.map(c => `<tr>
       <td><div class="creative">
         ${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="ph"></div>'}
-        <div class="nm"><strong>${esc(c.name)}</strong><small>${c.temp ? `<span class="tbadge" data-t="${c.temp}">${c.temp}</span>` : ''}${c.preview ? `<a class="plink" href="${esc(c.preview)}" target="_blank" rel="noopener">Prévia ${ext}</a>` : ''}<span>${esc(c.adset)}</span></small></div>
+        <div class="nm"><strong>${esc(c.name)}</strong><small>${c.temp ? `<span class="tbadge" data-t="${c.temp}">${c.temp}</span>` : ''}${c.preview ? `<a class="plink" href="${esc(c.preview)}" target="_blank" rel="noopener">${c.preview.includes('instagram.com') ? 'Ver no Instagram' : 'Prévia'} ${ext}</a>` : ''}<span>${esc(c.adset)}</span></small></div>
       </div></td>
       <td class="num"><span class="bar-cell"><i style="width:${(c.spend / maxSpend * 56).toFixed(0)}px"></i>${fmtMoney(c.spend)}</span></td>
       <td class="num">${fmtInt(c.sales)}</td>
       <td class="num">${fmtMoney(c.cpa)}</td>
+      <td class="num">${fmtPct(c.ob_rate, 1)}</td>
+      <td class="num">${fmtX(c.roas)}</td>
       <td class="num">${fmtMoney(c.cpm)}</td>
       <td class="num">${fmtPct(c.ctr)}</td>
     </tr>`).join('');
     const t = sum(filtered);
-    tf.innerHTML = `<tr><td>${list.length} criativo${list.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td></tr>`;
+    tf.innerHTML = `<tr><td>${list.length} criativo${list.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td></tr>`;
   }
 
   function renderAll() {
