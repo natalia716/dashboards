@@ -15,13 +15,17 @@
 //   5. Compartilhe a planilha como "Qualquer pessoa com o link → Leitor" e coloque o ID dela (o trecho entre /d/ e /edit)
 //      em clientes/<cliente>/config.json → "hubla": { "planilha": { "id": "..." } }.
 //
+// Para atualizar o código depois de já implantado: cole o arquivo novo, salve e vá em
+// Implantar → Gerenciar implantações → (lápis) → Versão: "Nova versão" → Implantar. A URL continua a mesma.
+//
 // Nas URLs dos anúncios no Meta, use utm_content={{ad.id}} — é assim que a venda é ligada ao anúncio.
 // (o Apps Script não lê cabeçalhos HTTP, por isso o x-hubla-token não pode ser conferido aqui; o ?token= na URL faz esse papel)
 
 var SEGREDO = 'TROQUE-POR-UMA-SENHA-LONGA';
 var ABA = 'vendas';
 var COLUNAS = ['recebido_em', 'evento', 'invoice_id', 'status', 'sale_date', 'total_cents', 'product_id', 'product_name',
-               'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'src', 'sck'];
+               'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'src', 'sck',
+               'products_ids', 'products_names']; // todos os produtos da fatura (produto principal + order bumps), separados por " | "
 
 function doPost(e) {
   try {
@@ -39,6 +43,7 @@ function doPost(e) {
     var utm = ps.utm || {};
     var params = ps.params || {};
     var amount = inv.amount || {};
+    var prods = Array.isArray(ev.products) && ev.products.length ? ev.products : (prod.id ? [prod] : []);
 
     var linha = [
       new Date(),
@@ -50,7 +55,9 @@ function doPost(e) {
       prod.id || '',
       prod.name || '',
       utm.source || '', utm.medium || '', utm.campaign || '', utm.content || '', utm.term || '',
-      params.src || '', params.sck || ''
+      params.src || '', params.sck || '',
+      prods.map(function (x) { return x.id || ''; }).join(' | '),
+      prods.map(function (x) { return x.name || ''; }).join(' | ')
     ];
 
     var lock = LockService.getScriptLock();
@@ -79,6 +86,9 @@ function aba_() {
     aba = ss.insertSheet(ABA);
     aba.appendRow(COLUNAS);
     aba.setFrozenRows(1);
+  } else if (aba.getLastColumn() < COLUNAS.length) {
+    // versão nova do script com colunas a mais: completa o cabeçalho sem mexer nas linhas existentes
+    aba.getRange(1, 1, 1, COLUNAS.length).setValues([COLUNAS]);
   }
   return aba;
 }

@@ -32,7 +32,8 @@ localmente pelo arquivo `.env` (ignorado pelo git).
 2. **Vendas da Hubla** chegam por webhook numa planilha do Google — o código do receptor está em
    `hubla/webhook-planilha.gs` com o passo a passo no topo do arquivo. Depois, no config:
    `"hubla": { "planilha": { "id": "<id da planilha>" }, "produtos": ["<id do produto na Hubla>"] }`
-   (`produtos` é opcional: sem ele, toda fatura paga da planilha conta como venda).
+   (`produtos` é opcional: sem ele, toda fatura paga da planilha conta como venda). `"orderBump": ["<id do produto da gravação>"]`
+   marca as faturas com order bump — sem a lista, conta qualquer fatura paga com 2+ produtos.
 3. Nas URLs dos anúncios do Meta use `utm_source=meta&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}`
    — a venda é ligada ao anúncio pelo `utm_content` (aceita também o nome do anúncio).
 4. Enquanto `hubla` for `null`, o painel mostra o aviso "Hubla pendente" e vendas zeradas; gasto e funil já ficam certos.

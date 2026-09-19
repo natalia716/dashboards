@@ -305,11 +305,12 @@ async function fetchHublaSales(ads) {
   const idx = name => header.indexOf(normKey(name));
   const col = {
     invoice: idx('invoice_id'), status: idx('status'), sale: idx('sale_date'), total: idx('total_cents'),
-    product: idx('product_id'), uc: idx('utm_campaign'), uct: idx('utm_content')
+    product: idx('product_id'), products: idx('products_ids'), uc: idx('utm_campaign'), uct: idx('utm_content')
   };
   for (const k of ['invoice', 'status', 'sale']) if (col[k] < 0) throw new Error(`planilha da Hubla sem a coluna ${k} — use o hubla/webhook-planilha.gs deste repositório`);
   const g = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
-  const produtos = (CFG.hubla.produtos || []).map(String);
+  const produtos = (CFG.hubla.produtos || []).map(String);     // produto principal (opcional)
+  const bumpIds = (CFG.hubla.orderBump || []).map(String);     // produtos de order bump, ex.: gravação (opcional)
 
   // última linha de cada fatura = status atual (paid → venda; refunded/chargeback depois → sai)
   const byInvoice = new Map();
@@ -320,12 +321,18 @@ async function fetchHublaSales(ads) {
   const sales = [];
   for (const [invoiceId, r] of byInvoice) {
     if (g(r, col.status).toLowerCase() !== 'paid') continue;
-    if (produtos.length && !produtos.includes(g(r, col.product))) continue;
+    // produtos da fatura: coluna products_ids (script novo) ou só product_id (linhas antigas)
+    const prods = (g(r, col.products) || g(r, col.product)).split('|').map(x => x.trim()).filter(Boolean);
+    // order bump = fatura com um produto da lista orderBump; sem a lista, qualquer fatura com 2+ produtos
+    const bump = bumpIds.length ? prods.some(x => bumpIds.includes(x)) : prods.length > 1;
+    // venda principal = fatura com o produto principal; sem a lista, tudo que não for só order bump
+    const main = produtos.length ? prods.some(x => produtos.includes(x)) : !(bumpIds.length && prods.every(x => bumpIds.includes(x)));
+    if (!main && !bump) continue;
     const date = saleDateSP(g(r, col.sale));
     if (!date) continue;
     const uct = decode(g(r, col.uct)).trim();
     const adId = adIds.has(uct) ? uct : (adByName.get(normKey(uct)) || null);
-    sales.push({ date, invoiceId, adId, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
+    sales.push({ date, invoiceId, adId, main, bump, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
   }
   return sales;
 }
@@ -370,7 +377,7 @@ async function mainLancamento() {
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
     periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
-    counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : null }
+    counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null }
   });
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
 }
