@@ -162,8 +162,9 @@ async function fetchCampaigns() {
     stop: c.stop_time ? c.stop_time.slice(0, 10) : null,
     dailyBudget: c.daily_budget ? Number(c.daily_budget) / 100 : null
   }));
-  const campaigns = allCampaigns.filter(c => CAMP_FILTER.test(c.name));
-  if (!campaigns.length) throw new Error(`nenhuma campanha bate com o filtro "${CFG.filtroCampanha}" na conta ${ACCOUNT}`);
+  // só campanhas do projeto: batem com filtroCampanha E começaram a partir de `desde` (descarta testes antigos com o mesmo nome)
+  const campaigns = allCampaigns.filter(c => CAMP_FILTER.test(c.name) && (!c.start || c.start >= SINCE));
+  if (!campaigns.length) throw new Error(`nenhuma campanha bate com o filtro "${CFG.filtroCampanha}" (início a partir de ${SINCE}) na conta ${ACCOUNT}`);
   // busca só desde a primeira campanha do projeto (mantém a coleta leve — roda a cada 15 min)
   const firstStart = campaigns.map(c => c.start).filter(Boolean).sort()[0] || SINCE;
   const since = firstStart < SINCE ? SINCE : firstStart;
@@ -368,6 +369,7 @@ async function mainLancamento() {
   write('sales.json', { rows: sales || [] });
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
+    periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : null }
   });
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));

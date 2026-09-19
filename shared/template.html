@@ -997,7 +997,9 @@ function initPeriodPicker() {
     state.from = pick.from; state.to = pick.to || pick.from;
     renderAll(); closePeriod();
   });
-  document.addEventListener('click', e => { if (!$('#periodPop').hidden && !e.target.closest('.periodWrap')) closePeriod(); });
+  // composedPath: o clique num dia redesenha o calendário e o botão clicado sai do DOM antes de o evento chegar aqui
+  const periodWrap = document.querySelector('.periodWrap');
+  document.addEventListener('click', e => { if (!$('#periodPop').hidden && !e.composedPath().includes(periodWrap)) closePeriod(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closePeriod(); });
 }
 

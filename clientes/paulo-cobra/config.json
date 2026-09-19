@@ -3,7 +3,8 @@
   "tipo": "lancamento",
   "conta": "act_1268340694877846",
   "filtroCampanha": "DML",
-  "desde": "2026-01-01",
+  "desde": "2026-09-19",
+  "ate": "2026-10-03",
   "temperatura": {
     "quente": "quente|remarketing|rmkt|retarget|envolv|engaj|lista|lead|visitantes|seguidores|inscritos|warm|hot",
     "frio": "frio|cold|interesse|lookalike|lal|aberto|amplo|advantage"

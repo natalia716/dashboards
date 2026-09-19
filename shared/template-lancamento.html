@@ -575,11 +575,15 @@ const D = /*__DATA__*/{};
   }
 
   /* ---------- estado ---------- */
-  const state = { live: false, campaigns: [], rows: [], until: todaySP(), from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
+  const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
   const el = { funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
   function maxRange() {
+    if (state.periodo && state.periodo.inicio) { // janela fixa do lançamento (config: desde/ate), limitada a hoje
+      const fim = state.periodo.fim && state.periodo.fim < state.until ? state.periodo.fim : state.until;
+      return [state.periodo.inicio, fim < state.periodo.inicio ? state.periodo.inicio : fim];
+    }
     const dates = state.rows.map(r => r.date).sort();
     const starts = state.campaigns.map(c => c.start).filter(Boolean).sort();
     let from = starts[0] || dates[0] || state.until;
@@ -859,7 +863,10 @@ const D = /*__DATA__*/{};
       state.from = pick.from; state.to = pick.to || pick.from;
       renderAll(); closePeriod();
     });
-    document.addEventListener('click', e => { if (!$('periodPop').hidden && !e.target.closest('.periodWrap')) closePeriod(); });
+    // composedPath: o clique num dia redesenha o calendário e o botão clicado sai do DOM antes de o evento chegar aqui —
+    // e.target.closest() falharia e fecharia o menu no meio da seleção
+    const wrap = document.querySelector('.periodWrap');
+    document.addEventListener('click', e => { if (!$('periodPop').hidden && !e.composedPath().includes(wrap)) closePeriod(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closePeriod(); });
   }
 
@@ -884,6 +891,7 @@ const D = /*__DATA__*/{};
     const hasData = D && D.summary && D.insights;
     const data = hasData ? liveData() : exampleData();
     state.live = data.live; state.campaigns = data.campaigns; state.until = data.until;
+    state.periodo = hasData ? (D.summary.periodo || null) : null;
     state.rows = data.rows.sort((a, b) => a.date.localeCompare(b.date));
     if (hasData) {
       const up = new Date(D.summary.updatedAt);
