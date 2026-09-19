@@ -141,7 +141,7 @@
   .rate b { color: var(--ink); font-weight: 600; }
   .rate .tag { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
   .rate-final > div { padding-left: 32px; }
-  .rate-final b { font-size: 16px; color: var(--good); }
+  .rate-final b { font-size: inherit; color: var(--ink); }
 
   /* ---------- gráfico ---------- */
   .chart-wrap { padding: 0 14px 10px; position: relative; }
@@ -569,7 +569,7 @@ const D = /*__DATA__*/{};
       if (i > 0) html += `<div class="rate"><div>${arrow}<span class="tag">${s.tag}</span><b class="num">${fmtPct(s.rate, s.tag === 'CTR' ? 2 : 1)}</b></div></div>`;
       html += `<div class="stage"><div class="name">${s.name}<small>${s.small}</small></div><div class="bar"><i style="width:${width(s.v).toFixed(1)}%"></i></div><div class="qty num">${fmtInt(s.v)}</div></div>`;
     });
-    html += `<div class="rate rate-final"><div><span class="tag">Página → compra</span><b class="num">${fmtPct(t.conv)}</b></div></div>`;
+    html += `<div class="rate rate-final"><div><span class="tag">Página → compra</span><b class="num">${fmtPct(t.conv, 1)}</b></div></div>`;
     el.funnel.innerHTML = html;
   }
 
