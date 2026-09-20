@@ -748,31 +748,33 @@ function renderTable(ins, leads) {
 
   const tot = entries.reduce((t, e) => ({ spend: t.spend + e.spend, impr: t.impr + e.impr, clicks: t.clicks + e.clicks, linkClicks: t.linkClicks + e.linkClicks, pv: t.pv + e.pv, leads: t.leads + e.leads, mql: t.mql + e.mql }), { spend: 0, impr: 0, clicks: 0, linkClicks: 0, pv: 0, leads: 0, mql: 0 });
   const label = level === 'camp' ? 'Campanha' : level === 'adset' ? 'Público' : 'Anúncio';
+  const dash = '<span class="mut">—</span>';
+  // ordem das colunas: primeiro o que decide (gasto e resultado), depois as métricas de tráfego
+  const COLS = [
+    ['Gasto',        r => fmtBRL(r.spend)],
+    ['Leads',        r => fmtInt(r.leads)],
+    ['CPL',          r => r.leads ? fmtBRL(r.spend / r.leads) : dash],
+    ['MQLs',         r => fmtInt(r.mql)],
+    ['CPMQL',        r => r.mql ? fmtBRL(r.spend / r.mql) : dash],
+    ['Impr.',        r => fmtInt(r.impr)],
+    ['CTR',          r => r.impr ? fmtPct(r.clicks / r.impr) : dash],
+    ['CPM',          r => r.impr ? fmtBRL(r.spend / r.impr * 1000) : dash],
+    ['Cliques',      r => fmtInt(r.linkClicks)],
+    ['Page views',   r => fmtInt(r.pv)],
+    ['Connect rate', r => r.linkClicks ? fmtPct(r.pv / r.linkClicks) : dash],
+    ['Conv. página', r => r.pv ? fmtPct(r.leads / r.pv) : dash],
+  ];
+  const cells = r => COLS.map(([, f]) => '<td>' + f(r) + '</td>').join('');
   const igCol = level === 'ad' ? '<th>Ver anúncio</th>' : '';
-  let html = `<thead><tr><th>${label}</th>${igCol}<th>Gasto</th><th>Impr.</th><th>CTR</th><th>CPM</th>` +
-    `<th>Cliques</th><th>Page views</th><th>Connect rate</th><th>Leads</th><th>Conv. página</th><th>MQLs</th><th>CPL</th><th>CPMQL</th></tr></thead><tbody>`;
+  let html = '<thead><tr><th>' + label + '</th>' + igCol + COLS.map(([h]) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>';
   for (const e of entries) {
     if (e.spend === 0 && e.leads === 0) continue;
-    const chip = e.status ? `<span class="chip ${e.status === 'ACTIVE' ? 'on' : 'off'}">${e.status === 'ACTIVE' ? 'Ativa' : 'Pausada'}</span>` : '';
-    const igCell = level === 'ad' ? `<td>${e.ig ? `<a class="iglink" href="${e.ig}" target="_blank" rel="noopener">${IG_SVG}Instagram</a>` : '<span class="mut">—</span>'}</td>` : '';
-    const subTxt = e.sub ? `<div class="mut" style="font-size:11px;max-width:340px;overflow:hidden;text-overflow:ellipsis">${e.sub}</div>` : '';
-    html += `<tr><td title="${e.name.replace(/"/g, '&quot;')}">${e.name}${chip}${subTxt}</td>${igCell}` +
-      `<td>${fmtBRL(e.spend)}</td><td>${fmtInt(e.impr)}</td><td>${e.impr ? fmtPct(e.clicks / e.impr) : '<span class="mut">—</span>'}</td>` +
-      `<td>${e.impr ? fmtBRL(e.spend / e.impr * 1000) : '<span class="mut">—</span>'}</td>` +
-      `<td>${fmtInt(e.linkClicks)}</td><td>${fmtInt(e.pv)}</td>` +
-      `<td>${e.linkClicks ? fmtPct(e.pv / e.linkClicks) : '<span class="mut">—</span>'}</td>` +
-      `<td>${fmtInt(e.leads)}</td>` +
-      `<td>${e.pv ? fmtPct(e.leads / e.pv) : '<span class="mut">—</span>'}</td>` +
-      `<td>${fmtInt(e.mql)}</td>` +
-      `<td>${e.leads ? fmtBRL(e.spend / e.leads) : '<span class="mut">—</span>'}</td>` +
-      `<td>${e.mql ? fmtBRL(e.spend / e.mql) : '<span class="mut">—</span>'}</td></tr>`;
+    const chip = e.status ? '<span class="chip ' + (e.status === 'ACTIVE' ? 'on' : 'off') + '">' + (e.status === 'ACTIVE' ? 'Ativa' : 'Pausada') + '</span>' : '';
+    const igCell = level === 'ad' ? '<td>' + (e.ig ? '<a class="iglink" href="' + e.ig + '" target="_blank" rel="noopener">' + IG_SVG + 'Instagram</a>' : dash) + '</td>' : '';
+    const subTxt = e.sub ? '<div class="mut" style="font-size:11px;max-width:340px;overflow:hidden;text-overflow:ellipsis">' + e.sub + '</div>' : '';
+    html += '<tr><td title="' + e.name.replace(/"/g, '&quot;') + '">' + e.name + chip + subTxt + '</td>' + igCell + cells(e) + '</tr>';
   }
-  html += `</tbody><tfoot><tr><td>Total</td>${level === 'ad' ? '<td></td>' : ''}<td>${fmtBRL(tot.spend)}</td><td>${fmtInt(tot.impr)}</td>` +
-    `<td>${tot.impr ? fmtPct(tot.clicks / tot.impr) : '—'}</td><td>${tot.impr ? fmtBRL(tot.spend / tot.impr * 1000) : '—'}</td>` +
-    `<td>${fmtInt(tot.linkClicks)}</td><td>${fmtInt(tot.pv)}</td>` +
-    `<td>${tot.linkClicks ? fmtPct(tot.pv / tot.linkClicks) : '—'}</td>` +
-    `<td>${fmtInt(tot.leads)}</td><td>${tot.pv ? fmtPct(tot.leads / tot.pv) : '—'}</td><td>${fmtInt(tot.mql)}</td>` +
-    `<td>${tot.leads ? fmtBRL(tot.spend / tot.leads) : '—'}</td><td>${tot.mql ? fmtBRL(tot.spend / tot.mql) : '—'}</td></tr></tfoot>`;
+  html += '</tbody><tfoot><tr><td>Total</td>' + (level === 'ad' ? '<td></td>' : '') + cells(tot) + '</tr></tfoot>';
   $('#tbl').innerHTML = html;
 }
 
