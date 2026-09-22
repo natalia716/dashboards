@@ -5,350 +5,344 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>ATO · {{NOME}}</title>
-<style>
-  /* ============ ATO · dashboard dark (Notion-like) ============ */
-  :root {
-    --bg: #191919;
-    --surface: #202020;
-    --surface-2: #252525;
-    --hover: #2a2a2a;
-    --border: #2e2e2e;
-    --border-soft: #262626;
-    --text: #d4d4d4;
-    --text-2: #9b9b9b;
-    --text-3: #6f6f6f;
-    --sand: #efd5a7;
-    --brand-orange: #ff6a13;
-    --s-blue: #3987e5;   /* gasto */
-    --s-orange: #d95926; /* leads */
-    --s-aqua: #199e70;   /* MQLs */
-    --good: #199e70;
-    --radius: 6px;
-    color-scheme: dark;
-  }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0;
-    padding-inline: 16px;
-    -webkit-font-smoothing: antialiased;
-  }
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  img, svg { max-width: 100%; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px; }
-
-  /* ---- header ---- */
-  .crumb { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: 12px; margin-bottom: 18px; }
-  .crumb .sep { opacity: .6; }
-  .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
-  .brand { display: flex; align-items: center; gap: 16px; }
-  .brand svg.logo { height: 34px; width: auto; display: block; }
-  h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; margin: 0; color: #eaeaea; text-wrap: balance; }
-  .liveline { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; white-space: nowrap; padding-bottom: 4px; }
-  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); position: relative; flex: none; }
-  @media (prefers-reduced-motion: no-preference) {
-    .pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--good); opacity: 0; animation: ping 2.4s ease-out infinite; }
-    @keyframes ping { 0% { transform: scale(.5); opacity: .8; } 70% { transform: scale(1.4); opacity: 0; } 100% { opacity: 0; } }
-  }
-  .divider { border: none; border-top: 1px solid var(--border-soft); margin: 18px 0; }
-
-  /* ---- filtros ---- */
-  .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .filters > label:first-child { margin-left: 2px; }
-  .filters label { color: var(--text-3); font-size: 12px; margin-right: -2px; }
-  select, input[type="date"] {
-    background: var(--surface); color: var(--text); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 5px 8px; font: inherit; font-size: 13px;
-  }
-  select:hover, input[type="date"]:hover { background: var(--surface-2); }
-  select:focus-visible, input[type="date"]:focus-visible, button:focus-visible, .seg button:focus-visible, a:focus-visible {
-    outline: 2px solid var(--s-blue); outline-offset: 1px;
-  }
-  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .seg button {
-    background: var(--surface); border: none; color: var(--text-2); padding: 5px 11px;
-    font: inherit; font-size: 13px; cursor: pointer; border-right: 1px solid var(--border);
-  }
-  .seg button:last-child { border-right: none; }
-  .seg button:hover { background: var(--hover); color: var(--text); }
-  .seg button.on { background: var(--surface-2); color: #eaeaea; font-weight: 600; }
-  /* ---- período (menu suspenso) ---- */
-  .periodWrap { position: relative; margin-left: auto; }
-  .periodBtn {
-    display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text);
-    border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer;
-  }
-  .periodBtn:hover { background: var(--surface-2); }
-  .periodBtn svg { width: 14px; height: 14px; color: var(--text-2); flex: none; }
-  .periodBtn .periodRange { color: var(--text-3); font-variant-numeric: tabular-nums; }
-  .periodBtn .chev { transition: transform .15s; }
-  .periodBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
-  .periodPop {
-    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
-    display: flex; background: #1f1f1f; border: 1px solid var(--border); border-radius: 8px;
-    box-shadow: 0 8px 28px rgba(0,0,0,.55); overflow: hidden;
-  }
-  .periodPresets { display: flex; flex-direction: column; padding: 6px; border-right: 1px solid var(--border-soft); min-width: 168px; }
-  .periodPresets button {
-    text-align: left; background: none; border: none; color: var(--text-2); font: inherit; font-size: 13px;
-    padding: 7px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap;
-  }
-  .periodPresets button:hover { background: var(--hover); color: var(--text); }
-  .periodPresets button.on { background: var(--surface-2); color: #eaeaea; font-weight: 600; }
-  .periodCal { padding: 10px 12px 10px; width: 272px; }
-  .calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .calHead span { font-size: 13px; font-weight: 600; color: #e6e6e6; }
-  .calHead button { background: none; border: 1px solid transparent; color: var(--text-2); font: inherit; font-size: 18px; line-height: 1; width: 26px; height: 26px; border-radius: 5px; cursor: pointer; }
-  .calHead button:hover { background: var(--hover); color: var(--text); }
-  .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-variant-numeric: tabular-nums; }
-  .calGrid .wd { text-align: center; font-size: 10.5px; color: var(--text-3); padding: 2px 0 4px; letter-spacing: .04em; }
-  .calGrid .d {
-    height: 30px; border: none; background: none; color: var(--text); font: inherit; font-size: 12.5px; border-radius: 5px; cursor: pointer; padding: 0;
-  }
-  .calGrid .d:hover { background: var(--hover); }
-  .calGrid .d.out { color: var(--text-3); opacity: .55; }
-  .calGrid .d:disabled { color: var(--text-3); opacity: .3; cursor: default; background: none; }
-  .calGrid .d.in { background: rgba(240,213,165,.13); border-radius: 0; }
-  .calGrid .d.from, .calGrid .d.to { background: var(--sand); color: #191919; font-weight: 600; }
-  .calGrid .d.from { border-radius: 5px 0 0 5px; }
-  .calGrid .d.to { border-radius: 0 5px 5px 0; }
-  .calGrid .d.from.to { border-radius: 5px; }
-  .calGrid .d.today { box-shadow: inset 0 0 0 1px var(--text-3); }
-  .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
-  .calFoot .hint { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .btnPrimary { background: var(--sand); color: #191919; border: none; border-radius: 5px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-  .btnPrimary:hover { filter: brightness(1.06); }
-  .btnPrimary:disabled { opacity: .35; cursor: default; filter: none; }
-  @media (max-width: 560px) {
-    .periodWrap { margin-left: 0; width: 100%; }
-    .periodPop { left: 0; right: auto; flex-direction: column; max-width: calc(100vw - 32px); }
-    .periodPresets { border-right: none; border-bottom: 1px solid var(--border-soft); flex-direction: row; flex-wrap: wrap; }
-    .periodCal { width: 100%; }
-  }
-  /* em telas estreitas os grupos de botões quebram linha em vez de vazar para fora da página */
-  @media (max-width: 560px) {
-    .seg { flex-wrap: wrap; }
-    .tabs button { white-space: nowrap; }
-  }
-
-  /* ---- KPIs ---- */
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 18px 0; }
-  .kpi { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px 14px; min-width: 0; }
-  .kpi .lbl { color: var(--text-2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
-  .kpi .dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-  .kpi .val { font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: #ececec; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .kpi .sub { color: var(--text-3); font-size: 11px; margin-top: 1px; font-variant-numeric: tabular-nums; }
-
-  /* ---- seções ---- */
-  h2 { font-size: 15px; font-weight: 600; color: #e6e6e6; margin: 0 0 2px; }
-  .sectionHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 22px 0 10px; flex-wrap: wrap; }
-  .sectionHead .hint { color: var(--text-3); font-size: 12px; }
-
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
-  .card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; padding: 14px 16px 10px; min-width: 0; }
-  .card h3 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .legend { display: inline-flex; gap: 12px; font-size: 12px; color: var(--text-2); font-weight: 400; }
-  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
-  .chart { width: 100%; height: 190px; display: block; }
-
-  /* ---- funil ---- */
-  .funnel { display: flex; flex-direction: column; gap: 9px; padding: 2px 0 8px; }
-  .fRow { display: grid; grid-template-columns: 104px 1fr 46px minmax(0, 150px); align-items: center; gap: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .fLbl { color: var(--text-2); }
-  .fBar { height: 9px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
-  .fBar i { display: block; height: 100%; border-radius: 3px; }
-  .fVal { text-align: right; color: #ececec; font-weight: 600; }
-  .fRate { color: var(--text-2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fRate .mut { color: var(--text-3); }
-  @media (max-width: 520px) { .fRow { grid-template-columns: 88px 1fr 42px; } .fRate { grid-column: 2 / -1; } }
-
-  /* ---- status ---- */
-  .statusBar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 4px 0 12px; }
-  .statusBar i { display: block; height: 100%; }
-  .stRow { display: grid; grid-template-columns: 10px 1fr auto 56px; align-items: center; gap: 9px; font-size: 13px; padding: 3px 0; font-variant-numeric: tabular-nums; }
-  .stDot { width: 9px; height: 9px; border-radius: 2px; }
-  .stLbl { color: var(--text-2); }
-  .stVal { text-align: right; } .stVal b { color: #ececec; font-weight: 600; }
-  .stPct { text-align: right; color: var(--text-3); font-size: 12px; }
-
-  /* ---- mapa ---- */
-  .mapGrid { display: grid; grid-template-columns: minmax(280px, 1.1fr) 1fr; gap: 12px; align-items: stretch; }
-  @media (max-width: 860px) { .mapGrid { grid-template-columns: 1fr; } }
-  .brmap { width: 100%; height: auto; max-height: 380px; display: block; margin: auto; }
-  .brmap path { stroke: #1a1a1a; stroke-width: 1.2; transition: opacity .12s; cursor: default; }
-  .brmap path:hover { opacity: .82; }
-  .ufList { display: flex; flex-direction: column; gap: 6px; }
-  .ufRow { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .ufRow .uf { color: var(--text-2); font-weight: 600; }
-  .ufRow .bar { height: 8px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
-  .ufRow .bar i { display: block; height: 100%; }
-  .ufRow .bar.stack { display: flex; gap: 2px; }
-  .ufRow .nums { text-align: right; color: var(--text-2); white-space: nowrap; }
-  .ufRow .nums b { color: #ececec; font-weight: 600; }
-  .ufRow .nums .mut { color: var(--text-3); font-size: 12px; }
-  .mapEmpty { color: var(--text-3); font-size: 13px; padding: 16px 0; }
-
-  /* ---- tabs + tabelas ---- */
-  .tabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border-soft); margin-bottom: 0; flex-wrap: wrap; }
-  /* legenda da seção: na linha das abas, encostada no canto direito */
-  .tabNote { color: var(--text-3); font-size: 12px; margin-left: auto; padding: 0 4px 1px 14px; }
-  .tabs button {
-    background: none; border: none; color: var(--text-2); font: inherit; font-size: 13.5px;
-    padding: 7px 12px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  }
-  .tabs button:hover { color: var(--text); background: var(--hover); border-radius: 6px 6px 0 0; }
-  .tabs button.on { color: #eaeaea; font-weight: 600; border-bottom-color: var(--sand); }
-  .tableWrap { overflow-x: auto; border: 1px solid var(--border-soft); border-top: none; border-radius: 0 0 8px 8px; }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 760px; }
-  th, td { text-align: right; padding: 8px 12px; border-top: 1px solid var(--border-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  th { color: var(--text-3); font-weight: 500; font-size: 12px; border-top: none; background: var(--surface); position: sticky; top: 0; }
-  th:first-child, td:first-child { text-align: left; }
-  td:first-child { color: #e2e2e2; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
-  tbody tr:hover { background: var(--hover); }
-  td .mut { color: var(--text-3); }
-  .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; margin-left: 8px; vertical-align: 1px; }
-  .chip.on { background: rgba(25,158,112,.15); color: #4cc596; }
-  .chip.off { background: rgba(155,155,155,.12); color: var(--text-3); }
-  a.iglink { display: inline-flex; align-items: center; gap: 5px; color: var(--sand); text-decoration: none; font-size: 12px; }
-  a.iglink:hover { text-decoration: underline; }
-  a.iglink svg { width: 13px; height: 13px; }
-  tfoot td { color: var(--text-2); font-weight: 600; background: var(--surface); }
-
-  /* ---- aba de respostas ---- */
-  .sheetPanel { border: 1px solid var(--border-soft); border-top: none; border-radius: 0 0 8px 8px; padding: 14px 14px 0; }
-  /* colunas em vez de grid: as listas têm alturas muito diferentes e o grid esticaria os cards curtos */
-  .qGrid { columns: 290px 3; column-gap: 12px; }
-  .qCard { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px 14px; min-width: 0; break-inside: avoid; margin-bottom: 12px; }
-  .qCard h4 { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 0 9px; letter-spacing: .02em; text-transform: uppercase; }
-  .qRow { display: grid; grid-template-columns: 1fr 34px 46px; align-items: center; gap: 8px; padding: 2.5px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .qName { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .qName.other { color: var(--text-3); font-style: italic; }
-  .qN { text-align: right; color: #ececec; font-weight: 600; }
-  .qPct { text-align: right; color: var(--text-3); font-size: 11.5px; }
-  .qTrack { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 0 0 4px; }
-  .qTrack i { display: block; height: 100%; border-radius: 3px; background: #d95926; }
-  .qEmpty { color: var(--text-3); font-size: 12.5px; padding: 6px 0 10px; }
-  .kpisLeads { margin: 0 0 14px; grid-template-columns: repeat(auto-fit, minmax(140px, 200px)); }
-  .sheetLink { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 12px; text-decoration: none; }
-  .sheetLink svg { width: 13px; height: 13px; transition: transform .15s; }
-  .sheetLink:hover { color: var(--sand); }
-  .sheetLink:hover svg { transform: translateX(2px); }
-  .sheetBar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
-  .sheetBar .hint { color: var(--text-3); font-size: 12px; }
-  .tgl { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); font-size: 12.5px; cursor: pointer; }
-  .tgl input { accent-color: #d95926; width: 14px; height: 14px; cursor: pointer; }
-  .tableWrap.noTop { border-radius: 8px; border-top: 1px solid var(--border-soft); margin-bottom: 14px; }
-  #tblSheet { min-width: 1100px; }
-  #tblSheet th, #tblSheet td { text-align: left; max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
-  #tblSheet td.num { text-align: right; }
-  #tblSheet td .pii { color: var(--text-3); letter-spacing: .06em; }
-
-  /* ---- tooltip ---- */
-  #tip {
-    position: fixed; z-index: 10; pointer-events: none; display: none;
-    background: #111; border: 1px solid var(--border); border-radius: 6px;
-    padding: 7px 10px; font-size: 12px; color: var(--text); box-shadow: 0 4px 16px rgba(0,0,0,.5);
-    max-width: 260px; white-space: nowrap;
-  }
-  #tip b { color: #fff; font-variant-numeric: tabular-nums; }
-  #tip .t2 { color: var(--text-2); }
-
-  footer { color: var(--text-3); font-size: 12px; margin-top: 26px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; text-align: center; }
-</style>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* ============ ATO · painel de leads — claro, cards brancos, cores da marca ============ */
+  :root {
+    color-scheme: light;
+    --bg: #f2f4f7;            /* fundo da página */
+    --surface: #ffffff;       /* cards */
+    --surface-2: #f6f7f9;     /* tiles, trilhos, cabeçalho de tabela */
+    --hover: #eef1f5;
+    --line: #e6e9ef;
+    --line-strong: #d5dae2;
+    --ink: #081f2d;           /* azul petróleo da marca: títulos e números */
+    --ink-2: #4b5b69;
+    --muted: #8a97a5;
+    --accent: #ff6b00;        /* laranja da marca */
+    --accent-strong: #e86000;
+    --accent-soft: rgba(255, 107, 0, .10);
+    --logo: #081f2d;
+    --dot: #ff6b00;
+    --good: #1d9e5f;
+    --warn: #c77700;
+    --grid: #eceff3;
+    --shadow: 0 1px 2px rgba(8, 31, 45, .06), 0 1px 3px rgba(8, 31, 45, .04);
+    --pop-shadow: 0 12px 32px rgba(8, 31, 45, .16);
+    --radius: 10px;
+    --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    /* séries dos gráficos — validadas para fundo branco (banda de luminosidade, contraste e daltonismo) */
+    --s-blue: #1a6294;        /* gasto */
+    --s-blue-2: #3d87bc;      /* page views */
+    --s-orange: #e86000;      /* leads */
+    --s-aqua: #0f8a7a;        /* MQLs */
+  }
 
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, h4 { margin: 0; text-wrap: balance; font-weight: 600; }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--accent-strong); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  img, svg { max-width: 100%; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- barra superior ---------- */
+  .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); box-shadow: var(--shadow); }
+  .top-inner { max-width: 1400px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-right: auto; }
+  .brand svg.logo { height: 30px; width: auto; display: block; }
+  .brand svg .lg { fill: var(--logo); }
+  .brand svg .dt { fill: var(--dot); }
+  .brand h1 { font-size: 17px; color: var(--ink); }
+  .brand h1 span { color: var(--muted); font-weight: 500; }
+  .top-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .liveline { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(29, 158, 95, .45); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  }
+
+  /* ---------- chips (etapa, abas) ---------- */
+  .fgroup { display: flex; align-items: center; gap: 9px; }
+  .fgroup > .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); min-height: 30px; }
+  .chip:hover:not(:disabled) { border-color: var(--accent); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .chip:disabled { opacity: .45; cursor: default; }
+
+  /* ---------- período (menu suspenso: presets + calendário) ---------- */
+  .periodWrap { position: relative; }
+  .periodBtn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 12px; min-height: 38px; font-size: 13.5px; cursor: pointer;
+  }
+  .periodBtn:hover { border-color: var(--accent); }
+  .periodBtn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
+  .periodBtn .periodRange { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .periodBtn .chev { margin-left: auto; transition: transform .15s; }
+  .periodBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .periodPop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--pop-shadow); overflow: hidden; }
+  .periodPresets { display: flex; flex-direction: column; padding: 6px; border-right: 1px solid var(--line); min-width: 176px; }
+  .periodPresets button { text-align: left; background: none; border: none; color: var(--ink-2); font-size: 13.5px; padding: 8px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .periodPresets button:hover { background: var(--hover); color: var(--ink); }
+  .periodPresets button.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  .periodCal { padding: 10px 12px 10px; width: 280px; }
+  .calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .calHead span { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .calHead button { background: none; border: 1px solid transparent; color: var(--ink-2); font-size: 18px; line-height: 1; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
+  .calHead button:hover { background: var(--hover); color: var(--ink); }
+  .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-variant-numeric: tabular-nums; }
+  .calGrid .wd { text-align: center; font-size: 10.5px; color: var(--muted); padding: 2px 0 4px; letter-spacing: .04em; }
+  .calGrid .d { height: 30px; border: none; background: none; color: var(--ink); font-size: 12.5px; border-radius: 6px; cursor: pointer; padding: 0; }
+  .calGrid .d:hover { background: var(--hover); }
+  .calGrid .d.out { color: var(--muted); opacity: .6; }
+  .calGrid .d:disabled { color: var(--muted); opacity: .35; cursor: default; background: none; }
+  .calGrid .d.in { background: var(--accent-soft); border-radius: 0; }
+  .calGrid .d.from, .calGrid .d.to { background: var(--accent); color: #fff; font-weight: 600; }
+  .calGrid .d.from { border-radius: 6px 0 0 6px; }
+  .calGrid .d.to { border-radius: 0 6px 6px 0; }
+  .calGrid .d.from.to { border-radius: 6px; }
+  .calGrid .d.today { box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .calFoot .hint { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .btnPrimary { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btnPrimary:hover { background: var(--accent-strong); }
+  .btnPrimary:disabled { opacity: .4; cursor: default; }
+
+  /* ---------- página e cards ---------- */
+  .page { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 24px; display: grid; gap: 18px; }
+  .page > section, .page .card { min-width: 0; }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; flex-wrap: wrap; }
+  .card-head h2 { font-size: 16px; }
+  .card-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* ---------- KPIs ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .kpi { padding: 20px 22px; display: grid; gap: 6px; align-content: start; }
+  .kpi .lbl { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+  .kpi .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .kpi .sub { color: var(--muted); font-size: 12.5px; }
+  .kpi.tile { background: var(--surface-2); border-radius: 8px; padding: 16px 18px; }
+  .kpisLeads { grid-template-columns: repeat(auto-fit, minmax(150px, 220px)); }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; } .kpi { padding: 14px 16px; } .kpi .val { font-size: 20px; } }
+
+  /* ---------- gráficos ---------- */
+  .chart-wrap { padding: 10px 14px 14px; }
+  .chart { width: 100%; height: 200px; display: block; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  /* ---------- funil ---------- */
+  .funnel { padding: 12px 22px 20px; display: flex; flex-direction: column; gap: 11px; }
+  .fRow { display: grid; grid-template-columns: 116px 1fr 52px minmax(0, 180px); align-items: center; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .fLbl { color: var(--ink-2); }
+  .fBar { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .fBar i { display: block; height: 100%; border-radius: 5px; min-width: 3px; }
+  .fVal { text-align: right; font-weight: 700; color: var(--ink); }
+  .fRate { color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fRate .mut { color: var(--muted); }
+  @media (max-width: 520px) { .fRow { grid-template-columns: 96px 1fr 44px; } .fRate { grid-column: 2 / -1; } }
+
+  /* ---------- leads por status ---------- */
+  .statusWrap { padding: 14px 22px 20px; }
+  .statusBar { display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); margin: 0 0 14px; }
+  .statusBar i { display: block; height: 100%; }
+  .stRow { display: grid; grid-template-columns: 10px 1fr auto 60px; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; font-variant-numeric: tabular-nums; }
+  .stDot { width: 10px; height: 10px; border-radius: 3px; }
+  .stLbl { color: var(--ink-2); }
+  .stVal { text-align: right; } .stVal b { color: var(--ink); font-weight: 700; }
+  .stPct { text-align: right; color: var(--muted); font-size: 12px; }
+
+  /* ---------- mapa ---------- */
+  .mapGrid { display: grid; grid-template-columns: minmax(260px, 1fr) 1fr; gap: 18px; align-items: start; padding: 14px 22px 20px; }
+  @media (max-width: 900px) { .mapGrid { grid-template-columns: 1fr; } }
+  .brmap { width: 100%; height: auto; max-height: 400px; display: block; margin: auto; }
+  .brmap path { stroke: #fff; stroke-width: 1.2; transition: opacity .12s; cursor: default; }
+  .brmap path:hover { opacity: .8; }
+  .ufList { display: flex; flex-direction: column; gap: 8px; }
+  .ufRow { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ufRow .uf { color: var(--ink-2); font-weight: 600; }
+  .ufRow .bar { height: 9px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .ufRow .bar.stack { display: flex; gap: 2px; }
+  .ufRow .bar i { display: block; height: 100%; }
+  .ufRow .nums { text-align: right; color: var(--ink-2); white-space: nowrap; }
+  .ufRow .nums b { color: var(--ink); font-weight: 700; }
+  .ufRow .nums .mut { color: var(--muted); font-size: 12px; }
+  .mapEmpty { color: var(--muted); font-size: 12.5px; padding-top: 12px; }
+
+  /* ---------- abas e tabelas ---------- */
+  .tabRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 22px 0; }
+  .tabNote { margin-left: auto; color: var(--muted); font-size: 12px; }
+  a.tabNote { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  a.tabNote svg { width: 13px; height: 13px; transition: transform .15s; }
+  a.tabNote:hover { color: var(--accent-strong); }
+  a.tabNote:hover svg { transform: translateX(2px); }
+  .tbl-wrap { overflow-x: auto; padding: 10px 12px 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+  th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
+  th:first-child, td:first-child { text-align: left; }
+  td:first-child { color: var(--ink); max-width: 380px; overflow: hidden; text-overflow: ellipsis; }
+  tbody tr:hover { background: var(--surface-2); }
+  tfoot td { font-weight: 600; background: var(--surface-2); border-bottom: 0; color: var(--ink); }
+  td .mut { color: var(--muted); }
+  .tag { display: inline-block; font-size: 10.5px; padding: 2px 7px; border-radius: 999px; margin-left: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; vertical-align: 1px; }
+  .tag.on { background: rgba(29, 158, 95, .12); color: var(--good); }
+  .tag.off { background: var(--surface-2); color: var(--muted); }
+  a.iglink { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; text-decoration: none; border: 1px solid var(--line-strong); border-radius: 6px; padding: 3px 9px; color: var(--ink-2); background: var(--surface); }
+  a.iglink:hover { border-color: var(--accent); color: var(--accent-strong); }
+  a.iglink svg { width: 13px; height: 13px; }
+
+  /* ---------- respostas dos leads ---------- */
+  .sheetPanel { padding: 14px 22px 20px; display: grid; gap: 16px; }
+  .qGrid { columns: 300px 3; column-gap: 16px; }
+  .qCard { background: var(--surface-2); border-radius: 8px; padding: 14px 16px; min-width: 0; break-inside: avoid; margin-bottom: 16px; }
+  .qCard h4 { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 0 0 10px; letter-spacing: .06em; text-transform: uppercase; }
+  .qRow { display: grid; grid-template-columns: 1fr 36px 48px; align-items: center; gap: 8px; padding: 3px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .qName { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qName.other { color: var(--muted); font-style: italic; }
+  .qN { text-align: right; color: var(--ink); font-weight: 700; }
+  .qPct { text-align: right; color: var(--muted); font-size: 11.5px; }
+  .qTrack { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 0 0 5px; }
+  .qTrack i { display: block; height: 100%; border-radius: 3px; background: var(--s-orange); }
+  .qEmpty { color: var(--muted); font-size: 12.5px; padding: 6px 0 4px; }
+  .sheetBar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .sheetBar .hint { color: var(--muted); font-size: 12px; }
+  .tgl { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+  .tgl input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+  #tblSheet { min-width: 1100px; }
+  #tblSheet th, #tblSheet td { text-align: left; max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
+  #tblSheet td .pii { color: var(--muted); letter-spacing: .06em; }
+
+  /* ---------- tooltip ---------- */
+  #tip {
+    position: fixed; z-index: 40; pointer-events: none; display: none;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 11px; font-size: 12px; color: var(--ink-2); box-shadow: var(--pop-shadow);
+    max-width: 260px; white-space: nowrap;
+  }
+  #tip b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+  #tip .t2 { color: var(--muted); margin-bottom: 3px; }
+
+  footer { color: var(--muted); font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; text-align: center; }
+
+  @media (max-width: 640px) {
+    .top-inner { padding: 10px 16px; gap: 10px; }
+    .page { padding-inline: 16px; }
+    .top-right { width: 100%; }
+    .periodWrap, .periodBtn { width: 100%; min-width: 0; }
+    .periodPop { left: 0; right: auto; flex-direction: column; max-width: 100%; }
+    .periodPresets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+    .periodCal { width: 100%; max-width: 300px; }
+    .card-head, .tabRow, .sheetPanel, .mapGrid, .funnel, .statusWrap { padding-inline: 16px; }
+    .tabNote { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: no-preference) { .fBar i, .ufRow .bar i, .statusBar i, .qTrack i { transition: width .35s ease; } }
+</style>
 </head>
 <body>
-<div class="wrap">
-  <div class="crumb">
-    <span>ATO</span><span class="sep">/</span><span>Dashboards</span><span class="sep">/</span><span style="color:var(--text-2)">{{NOME}}</span>
-  </div>
 
-  <div class="topbar">
+<header class="top">
+  <div class="top-inner">
     <div class="brand">
       <!--__LOGO__-->
-      <div>
-        <h1>{{NOME}}</h1>
-      </div>
+      <h1>Dashboard <span>-</span> {{NOME}}</h1>
     </div>
-    <div class="liveline"><span class="pulse" aria-hidden="true"></span><span id="updatedAt">—</span></div>
-  </div>
-
-  <hr class="divider">
-
-  <div class="filters">
-    <label>Etapa</label>
-    <span class="seg" id="segStage" role="group" aria-label="Etapa do funil">
-      <button data-s="all" class="on">Todas</button>
-    </span>
-    <div class="periodWrap">
-      <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-        <span id="periodLabel">Período completo</span>
-        <span class="periodRange" id="periodRange"></span>
-        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
-        <div class="periodPresets" id="periodPresets">
-          <button data-p="max">Período completo</button>
-          <button data-p="today">Hoje</button>
-          <button data-p="7">Últimos 7 dias</button>
-          <button data-p="14">Últimos 14 dias</button>
-          <button data-p="30">Últimos 30 dias</button>
-          <button data-p="custom">Personalizado</button>
+    <div class="top-right">
+      <div class="liveline"><span class="pulse" aria-hidden="true"></span><span id="updatedAt">—</span></div>
+      <div class="fgroup">
+        <span class="lbl">Etapa</span>
+        <div class="chips" id="segStage" role="group" aria-label="Etapa do funil">
+          <button class="chip" data-s="all" aria-pressed="true">Todas</button>
         </div>
-        <div class="periodCal">
-          <div class="calHead">
-            <button id="calPrev" aria-label="Mês anterior">‹</button>
-            <span id="calTitle"></span>
-            <button id="calNext" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="periodWrap">
+        <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <span id="periodLabel">Período completo</span>
+          <span class="periodRange" id="periodRange"></span>
+          <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
+          <div class="periodPresets" id="periodPresets">
+            <button data-p="max">Período completo</button>
+            <button data-p="today">Hoje</button>
+            <button data-p="7">Últimos 7 dias</button>
+            <button data-p="14">Últimos 14 dias</button>
+            <button data-p="30">Últimos 30 dias</button>
+            <button data-p="custom">Personalizado</button>
           </div>
-          <div class="calGrid" id="calGrid"></div>
-          <div class="calFoot">
-            <span class="hint" id="calSel"></span>
-            <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
+          <div class="periodCal">
+            <div class="calHead">
+              <button id="calPrev" aria-label="Mês anterior">‹</button>
+              <span id="calTitle"></span>
+              <button id="calNext" aria-label="Próximo mês">›</button>
+            </div>
+            <div class="calGrid" id="calGrid"></div>
+            <div class="calFoot">
+              <span class="hint" id="calSel"></span>
+              <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+</header>
 
-  <div class="kpis" id="kpis"></div>
+<main class="page">
+
+  <section aria-label="Resultado do período">
+    <div class="kpis" id="kpis"></div>
+  </section>
 
   <div class="grid2">
-    <div class="card">
-      <h3>Gasto por dia <span class="legend"><span><i style="background:var(--s-blue)"></i>Gasto (R$)</span></span></h3>
-      <svg class="chart" id="chSpend"></svg>
-    </div>
-    <div class="card">
-      <h3>Leads por dia <span class="legend"><span><i style="background:var(--s-orange)"></i>Leads</span><span><i style="background:var(--s-aqua)"></i>MQLs</span></span></h3>
-      <svg class="chart" id="chLeads"></svg>
-    </div>
+    <section class="card" aria-labelledby="h-spend">
+      <div class="card-head">
+        <h2 id="h-spend">Gasto por dia</h2>
+        <div class="right"><span class="legend"><span><i style="background:var(--s-blue)"></i>Gasto (R$)</span></span></div>
+      </div>
+      <div class="chart-wrap"><svg class="chart" id="chSpend"></svg></div>
+    </section>
+    <section class="card" aria-labelledby="h-leads">
+      <div class="card-head">
+        <h2 id="h-leads">Leads por dia</h2>
+        <div class="right"><span class="legend"><span><i style="background:var(--s-orange)"></i>Leads</span><span><i style="background:var(--s-aqua)"></i>MQLs</span></span></div>
+      </div>
+      <div class="chart-wrap"><svg class="chart" id="chLeads"></svg></div>
+    </section>
   </div>
 
-  <div class="grid2" style="margin-top:12px">
-    <div class="card">
-      <h3>Funil de tráfego</h3>
-      <div id="funnel" class="funnel"></div>
-    </div>
-    <div class="card">
-      <h3>Leads por status</h3>
-      <div class="statusBar" id="statusBar"></div>
-      <div id="statusList"></div>
-    </div>
+  <div class="grid2">
+    <section class="card" aria-labelledby="h-funnel">
+      <div class="card-head"><h2 id="h-funnel">Funil de tráfego</h2></div>
+      <div class="funnel" id="funnel"></div>
+    </section>
+    <section class="card" aria-labelledby="h-status">
+      <div class="card-head"><h2 id="h-status">Leads por status</h2></div>
+      <div class="statusWrap">
+        <div class="statusBar" id="statusBar"></div>
+        <div id="statusList"></div>
+      </div>
+    </section>
   </div>
 
-  <div class="sectionHead">
-    <h2>Leads por estado</h2>
-    <span class="legend"><span><i style="background:var(--s-orange)"></i>Leads</span><span><i style="background:var(--s-aqua)"></i>MQLs</span></span>
-  </div>
-  <div class="card">
+  <section class="card" aria-labelledby="h-map">
+    <div class="card-head">
+      <h2 id="h-map">Leads por estado</h2>
+      <div class="right"><span class="legend"><span><i style="background:var(--s-orange)"></i>Leads</span><span><i style="background:var(--s-aqua)"></i>MQLs</span></span></div>
+    </div>
     <div class="mapGrid">
       <div>
         <svg class="brmap" viewBox="0 0 613 639" role="img" aria-label="Mapa do Brasil">
@@ -360,28 +354,28 @@
         <div class="mapEmpty" id="mapNote"></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="sectionHead">
-    <h2>Desempenho</h2>
-  </div>
-  <div>
-    <div class="tabs" id="tabs">
-      <button data-t="camp" class="on">Campanhas</button>
-      <button data-t="adset">Públicos</button>
-      <button data-t="ad">Anúncios</button>
+  <section class="card" aria-labelledby="h-perf">
+    <div class="card-head"><h2 id="h-perf">Desempenho</h2></div>
+    <div class="tabRow">
+      <div class="chips" id="tabs" role="group" aria-label="Nível de detalhe">
+        <button class="chip" data-t="camp" aria-pressed="true">Campanhas</button>
+        <button class="chip" data-t="adset" aria-pressed="false">Públicos</button>
+        <button class="chip" data-t="ad" aria-pressed="false">Anúncios</button>
+      </div>
       <span class="tabNote">Leads e MQLs vêm da planilha (via UTM) — não do Gerenciador</span>
     </div>
-    <div class="tableWrap"><table id="tbl"></table></div>
-  </div>
+    <div class="tbl-wrap"><table id="tbl"></table></div>
+  </section>
 
-  <div class="sectionHead">
-    <h2>Respostas dos leads</h2>
-  </div>
-  <div>
-    <div class="tabs" id="tabsLeads">
-      <button data-t="resumo" class="on">Resumo</button>
-      <button data-t="tabela">Tabela</button>
+  <section class="card" aria-labelledby="h-resp">
+    <div class="card-head"><h2 id="h-resp">Respostas dos leads</h2></div>
+    <div class="tabRow">
+      <div class="chips" id="tabsLeads" role="group" aria-label="Visão das respostas">
+        <button class="chip" data-t="resumo" aria-pressed="true">Resumo</button>
+        <button class="chip" data-t="tabela" aria-pressed="false">Tabela</button>
+      </div>
       <a class="tabNote sheetLink" href="{{PLANILHA_URL}}" target="_blank" rel="noopener">
         Nome, e-mail e telefone ficam só na planilha
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -399,17 +393,17 @@
           <span class="hint" id="sheetCount"></span>
           <label class="tgl" id="lblPII" hidden><input type="checkbox" id="chkPII" checked> Ocultar dados de contato</label>
         </div>
-        <div class="tableWrap noTop"><table id="tblSheet"></table></div>
+        <div class="tbl-wrap" style="padding-inline:0"><table id="tblSheet"></table></div>
       </div>
     </div>
-  </div>
+  </section>
 
   <footer>
     <span>Meta Ads atualizado automaticamente a cada ~15 min</span><span>·</span>
     <span>Leads lidos da planilha do Google</span><span>·</span>
     <span id="footRange"></span>
   </footer>
-</div>
+</main>
 
 <div id="tip"></div>
 
@@ -426,6 +420,8 @@ const fmtPct = v => (v == null || !isFinite(v)) ? '—' : (v * 100).toLocaleStri
 const fmtDate = d => { if (!d) return ''; const [y, m, dd] = d.split('-'); return dd + '/' + m + '/' + y.slice(2); };
 const addDays = (d, n) => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 
+// cores usadas dentro de SVG — literais, espelhando os tokens do CSS
+const C = { blue: '#1a6294', blue2: '#3d87bc', orange: '#e86000', aqua: '#0f8a7a', grid: '#eceff3', muted: '#8a97a5', zero: '#f6f7f9' };
 const campsById = new Map(D.campaigns.map(c => [c.id, c]));
 const adsets = new Map();
 for (const a of D.ads) if (a.adsetId && !adsets.has(a.adsetId)) adsets.set(a.adsetId, { id: a.adsetId, name: a.adsetName, campaignId: a.campaignId });
@@ -497,18 +493,18 @@ function renderKPIs(ins, leads) {
     ['CPMQL', t.mql ? fmtBRL(t.spend / t.mql) : '—', null, null],
   ];
   $('#kpis').innerHTML = items.map(([l, v, sub, dot]) =>
-    `<div class="kpi"><div class="lbl">${dot ? `<span class="dot" style="background:${dot}"></span>` : ''}${l}</div><div class="val">${v}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`
+    `<div class="card kpi"><div class="lbl">${dot ? `<span class="dot" style="background:${dot}"></span>` : ''}${l}</div><div class="val">${v}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`
   ).join('');
 }
 
 /* ---------- funil + status ---------- */
-const STATUS_COLOR = { 'completo': '#199e70', 'parcial': '#c98500' };
-const STATUS_FALLBACK = ['#9085e9', '#3987e5', '#d55181', '#6f6f6f'];
+const STATUS_COLOR = { 'completo': '#1d9e5f', 'parcial': '#c77700' };
+const STATUS_FALLBACK = ['#1a6294', '#7a4fd0', '#b8336a', '#8a97a5'];
 function renderFunnel(ins, leads) {
   const t = totals(ins, leads);
   const steps = [
-    { k: 'Cliques no link', v: t.linkClicks, c: '#3987e5' },
-    { k: 'Page views', v: t.pv, c: '#4a9ae8', rate: t.linkClicks ? t.pv / t.linkClicks : null, rateLbl: 'connect rate' },
+    { k: 'Cliques no link', v: t.linkClicks, c: 'var(--s-blue)' },
+    { k: 'Page views', v: t.pv, c: 'var(--s-blue-2)', rate: t.linkClicks ? t.pv / t.linkClicks : null, rateLbl: 'connect rate' },
     { k: 'Leads', v: t.leads, c: 'var(--s-orange)', rate: t.pv ? t.leads / t.pv : null, rateLbl: 'conversão da página' },
     { k: 'MQLs', v: t.mql, c: 'var(--s-aqua)', rate: t.leads ? t.mql / t.leads : null, rateLbl: 'taxa de qualificação' },
   ];
@@ -581,14 +577,14 @@ function drawBars(svg, series, keys, colors, fmtV) {
   // grid: 3 linhas + labels
   for (let i = 0; i <= 3; i++) {
     const v = max * i / 3, yy = y(v);
-    out += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="#262626" stroke-width="1"/>`;
-    out += `<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="10" fill="#6f6f6f">${fmtV(v, true)}</text>`;
+    out += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="${C.grid}" stroke-width="1"/>`;
+    out += `<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="10" fill="${C.muted}">${fmtV(v, true)}</text>`;
   }
   // eixo x: ~6 labels
   const every = Math.max(1, Math.ceil(n / 6));
   series.forEach((s, i) => {
     if (i % every === 0 || i === n - 1) {
-      out += `<text x="${padL + i * step + step / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#6f6f6f">${fmtDate(s.d)}</text>`;
+      out += `<text x="${padL + i * step + step / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="${C.muted}">${fmtDate(s.d)}</text>`;
     }
   });
   // barras (keys[1] é subconjunto de keys[0]: desenha sobreposto, mais estreito)
@@ -617,7 +613,7 @@ function drawBars(svg, series, keys, colors, fmtV) {
 }
 
 /* ---------- mapa ---------- */
-const RAMP = ['#3a2c1d', '#6b451f', '#9c5e20', '#cd7822', '#ff9a3d']; // sequencial (laranja, escuro→claro)
+const RAMP = ['#ffe4cc', '#ffc59b', '#ff9f5e', '#f07a1f', '#c25200']; // sequencial (laranja, claro→escuro)
 // "ES 9 (8 leads + 1 MQL)": total no estado, aberto em leads comuns + MQLs
 function ufLabel(total, mql) {
   const plain = total - mql;
@@ -638,7 +634,7 @@ function renderMap(leads) {
     const uf = p.id.toUpperCase();
     const o = by.get(uf);
     const v = o ? o.total : 0;
-    p.setAttribute('fill', v === 0 ? '#2b2b2b' : RAMP[Math.min(RAMP.length - 1, Math.floor((v / max) * RAMP.length))] );
+    p.setAttribute('fill', v === 0 ? C.zero : RAMP[Math.min(RAMP.length - 1, Math.floor((v / max) * RAMP.length))] );
     p.onmousemove = e => {
       const t = o || { total: 0, mql: 0 };
       showTip(`<div class="t2">${p.getAttribute('name')} (${uf})</div><div>${ufLabel(t.total, t.mql)}</div>`, e.clientX, e.clientY);
@@ -724,7 +720,7 @@ function renderLeadKPIs(leads) {
     ['MQL', fmtInt(leads.filter(l => l.mql).length), 'var(--s-aqua)'],
   ];
   $('#kpisLeads').innerHTML = items.map(([l, v, dot]) =>
-    `<div class="kpi"><div class="lbl"><span class="dot" style="background:${dot}"></span>${l}</div><div class="val">${v}</div></div>`
+    `<div class="kpi tile"><div class="lbl"><span class="dot" style="background:${dot}"></span>${l}</div><div class="val">${v}</div></div>`
   ).join('');
 }
 function renderLeadsSection(leads) {
@@ -769,7 +765,7 @@ function renderTable(ins, leads) {
   let html = '<thead><tr><th>' + label + '</th>' + igCol + COLS.map(([h]) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>';
   for (const e of entries) {
     if (e.spend === 0 && e.leads === 0) continue;
-    const chip = e.status ? '<span class="chip ' + (e.status === 'ACTIVE' ? 'on' : 'off') + '">' + (e.status === 'ACTIVE' ? 'Ativa' : 'Pausada') + '</span>' : '';
+    const chip = e.status ? '<span class="tag ' + (e.status === 'ACTIVE' ? 'on' : 'off') + '">' + (e.status === 'ACTIVE' ? 'Ativa' : 'Pausada') + '</span>' : '';
     const igCell = level === 'ad' ? '<td>' + (e.ig ? '<a class="iglink" href="' + e.ig + '" target="_blank" rel="noopener">' + IG_SVG + 'Instagram</a>' : dash) + '</td>' : '';
     const subTxt = e.sub ? '<div class="mut" style="font-size:11px;max-width:340px;overflow:hidden;text-overflow:ellipsis">' + e.sub + '</div>' : '';
     html += '<tr><td title="' + e.name.replace(/"/g, '&quot;') + '">' + e.name + chip + subTxt + '</td>' + igCell + cells(e) + '</tr>';
@@ -858,8 +854,8 @@ function renderAll() {
   const ins = fIns(), leads = fLeads();
   renderKPIs(ins, leads);
   const series = dailySeries(ins, leads);
-  drawBars($('#chSpend'), series, ['spend'], ['var(--s-blue)'], (v, ax) => ax ? (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Math.round(v)) : fmtBRL(v));
-  drawBars($('#chLeads'), series, ['leads', 'mql'], ['var(--s-orange)', 'var(--s-aqua)'], (v, ax) => ax ? Math.round(v) : fmtInt(Math.round(v)));
+  drawBars($('#chSpend'), series, ['spend'], [C.blue], (v, ax) => ax ? (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Math.round(v)) : fmtBRL(v));
+  drawBars($('#chLeads'), series, ['leads', 'mql'], [C.orange, C.aqua], (v, ax) => ax ? Math.round(v) : fmtInt(Math.round(v)));
   renderFunnel(ins, leads);
   renderStatus(leads);
   renderMap(leads);
@@ -875,6 +871,7 @@ function initControls() {
   const haveStages = new Set(D.campaigns.map(c => c.stage).filter(Boolean));
   for (const e of (D.etapas || [])) {
     const b = document.createElement('button');
+    b.className = 'chip'; b.setAttribute('aria-pressed', 'false');
     b.dataset.s = e.key; b.textContent = e.label;
     $('#segStage').appendChild(b);
   }
@@ -886,7 +883,7 @@ function initControls() {
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     state.stage = b.dataset.s;
-    for (const x of $('#segStage').children) x.classList.toggle('on', x === b);
+    for (const x of $('#segStage').children) x.setAttribute('aria-pressed', String(x === b));
     if (state.preset === 'max') applyPreset();
     renderAll();
   });
@@ -896,13 +893,13 @@ function initControls() {
   $('#tabs').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     state.tab = b.dataset.t;
-    for (const x of $('#tabs').children) x.classList.toggle('on', x === b);
+    for (const x of $('#tabs').children) x.setAttribute('aria-pressed', String(x === b));
     renderTable(fIns(), fLeads());
   });
   $('#tabsLeads').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     state.leadsTab = b.dataset.t;
-    for (const x of $('#tabsLeads').children) x.classList.toggle('on', x === b);
+    for (const x of $('#tabsLeads').children) x.setAttribute('aria-pressed', String(x === b));
     renderLeadsSection(fLeads());
   });
   // o controle de mascarar só existe se a versão carregada tiver colunas de contato
