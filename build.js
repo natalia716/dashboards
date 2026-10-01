@@ -21,6 +21,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 
 const template = read('shared/template.html');                       // Meta + leads (planilha)
 const templateLancamento = read('shared/template-lancamento.html');  // Meta + vendas (Hubla)
+const templateCriativos = read('shared/template-criativos.html');    // vendas por anúncio (relatórios mensais) + prévias
 // a logo vive em shared/logo.svg — trocar o arquivo troca em todas as páginas
 const logoSvg = read('shared/logo.svg').replace(/<\?xml[^>]*\?>\s*/, '').replace('<svg ', '<svg class="logo" ').trim();
 const mapSvg = read('shared/brazil.svg').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
@@ -30,6 +31,21 @@ function buildClient(slug) {
   const dir = path.join(here, 'clientes', slug);
   const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
   const json = f => JSON.parse(fs.readFileSync(path.join(dir, 'out', f), 'utf8'));
+
+  if (cfg.tipo === 'criativos') {
+    // só agregados por anúncio (vendas, gasto, faturamento) — nada pessoal; as miniaturas vão junto da página
+    const data = { summary: json('summary.json'), months: json('months.json').rows, ads: json('ads.json').rows };
+    const html = templateCriativos
+      .split('{{NOME}}').join(esc(cfg.nome))
+      .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'));
+    const outDir = path.join(PUBLIC, slug);
+    fs.rmSync(path.join(outDir, 'thumbs'), { recursive: true, force: true });
+    fs.mkdirSync(path.join(outDir, 'thumbs'), { recursive: true });
+    for (const f of fs.readdirSync(path.join(dir, 'out', 'thumbs'))) fs.copyFileSync(path.join(dir, 'out', 'thumbs', f), path.join(outDir, 'thumbs', f));
+    fs.writeFileSync(path.join(outDir, 'index.html'), html);
+    console.log(`[${slug}] ${path.relative(here, path.join(outDir, 'index.html'))} ${fs.statSync(path.join(outDir, 'index.html')).size} bytes`);
+    return;
+  }
 
   if (cfg.tipo === 'lancamento') {
     // vendas não levam dado pessoal (só data, fatura, anúncio e valor) — a mesma página serve para --full

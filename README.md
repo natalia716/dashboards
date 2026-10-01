@@ -2,12 +2,14 @@
 
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
-Dois tipos: **leads** (Meta + planilha de leads) e **lançamento** (Meta em nível de anúncio + vendas da Hubla).
+Três tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla)
+e **criativos** (relatórios mensais de vendas por anúncio + prévias do Meta).
 
 | Cliente | Tipo | Endereço |
 |---|---|---|
 | O Mundo Clínico | leads | https://dash.atodigital.com.br/omundoclinico |
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
+| Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
 
 ## Como funciona
 
@@ -23,6 +25,18 @@ dash.atodigital.com.br/<cliente>
 
 O token do Meta **não está no código**: vem da variável `META_TOKEN` — no GitHub como *Secret*,
 localmente pelo arquivo `.env` (ignorado pelo git).
+
+## Adicionar um cliente de criativos (vendas por anúncio, mês a mês)
+
+1. Crie `clientes/<slug>/config.json` com `"tipo": "criativos"`, `nome` e `conta` (act_…) — veja o de `glauborges`.
+2. Salve o relatório de vendas de cada mês em `clientes/<slug>/vendas/AAAA-MM.xlsx` (ex.: `2026-10.xlsx`). A primeira aba
+   precisa das colunas `utm_content`, `Vendas`, `Gastos`, `Faturamento`, `Impressões` e `Cliques`; o resto é calculado
+   (CPA, lucro, ROAS, CPM, CTR, CPC). Linhas `N Resultados` (total), `link_in_bio`, `{{ad.name}}` e `Não atribuído`
+   são tratadas à parte.
+3. O `utm_content` é o nome do anúncio: o refresh procura esse nome na conta e usa, entre os anúncios com o mesmo nome,
+   o que tem post no Instagram e mais gastou — dele vêm a miniatura (baixada para a página, porque a URL do Meta expira)
+   e o link do Instagram.
+4. `git push` — cada novo `.xlsx` vira um mês a mais no filtro de período.
 
 ## Adicionar um cliente de lançamento (vendas via Hubla)
 

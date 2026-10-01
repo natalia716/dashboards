@@ -4,7 +4,8 @@
 //
 // Lê clientes/<cliente>/config.json e escreve clientes/<cliente>/out/*.json.
 // `tipo` no config escolhe o fluxo: ausente/"leads" = Meta + planilha de leads (mainLeads);
-// "lancamento" = Meta em nível de anúncio + vendas da Hubla via planilha do webhook (mainLancamento).
+// "lancamento" = Meta em nível de anúncio + vendas da Hubla via planilha do webhook (mainLancamento);
+// "criativos" = relatórios mensais de vendas por utm_content (.xlsx) + prévias dos anúncios no Meta (mainCriativos).
 // O token NUNCA fica no código: vem de META_TOKEN_<CLIENTE> ou, na falta, de META_TOKEN
 // (localmente via arquivo .env, no GitHub Actions via Secret).
 const fs = require('fs');
@@ -384,5 +385,143 @@ async function mainLancamento() {
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
 }
 
-const main = CFG.tipo === 'lancamento' ? mainLancamento : mainLeads;
+// ---------- .xlsx mínimo (zip + XML), sem dependência: lê a primeira aba como matriz de textos ----------
+function readXlsx(file) {
+  const zlib = require('zlib');
+  const buf = fs.readFileSync(file);
+  let eocd = buf.length - 22;
+  while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error(`${file}: não é um .xlsx válido`);
+  const entries = {};
+  let p = buf.readUInt32LE(eocd + 16);
+  for (let i = 0, n = buf.readUInt16LE(eocd + 10); i < n; i++) {
+    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
+    const nameLen = buf.readUInt16LE(p + 28), extraLen = buf.readUInt16LE(p + 30), commentLen = buf.readUInt16LE(p + 32);
+    const local = buf.readUInt32LE(p + 42);
+    const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
+    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    const raw = buf.subarray(start, start + size);
+    entries[name] = () => (method === 8 ? zlib.inflateRawSync(raw) : raw).toString('utf8');
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  const unxml = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(d)).replace(/&amp;/g, '&');
+  const texts = s => unxml([...s.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(m => m[1]).join(''));
+  const shared = entries['xl/sharedStrings.xml'] ? [...entries['xl/sharedStrings.xml']().matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m => texts(m[1])) : [];
+  const sheetName = Object.keys(entries).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort()[0];
+  const col = letters => [...letters].reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
+  const rows = [];
+  for (const m of entries[sheetName]().matchAll(/<c r="([A-Z]+)(\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    const [, letters, rowNum, attrs, inner = ''] = m;
+    const type = (attrs.match(/t="(\w+)"/) || [])[1];
+    const v = (inner.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+    const val = type === 's' ? shared[Number(v)] : type === 'inlineStr' ? texts(inner) : v != null ? unxml(v) : '';
+    (rows[Number(rowNum) - 1] = rows[Number(rowNum) - 1] || [])[col(letters)] = val;
+  }
+  return rows.filter(Boolean);
+}
+
+// "R$ 37.728,82" / "2,59%" / "709.390" / "N/A" → número (ou null)
+function brNum(v) {
+  if (v == null) return null;
+  const s = String(v).replace(/[^\d,.-]/g, '');
+  if (!/\d/.test(s)) return null;
+  return Number(s.replace(/\./g, '').replace(',', '.'));
+}
+
+// ---- Criativos: vendas por utm_content (um .xlsx por mês em clientes/<cliente>/vendas/AAAA-MM.xlsx) + prévias do Meta ----
+async function mainCriativos() {
+  const VENDAS = path.join(DIR, 'vendas');
+  const files = fs.readdirSync(VENDAS).filter(f => /^\d{4}-\d{2}\.xlsx$/.test(f)).sort();
+  if (!files.length) throw new Error(`nenhum relatório em ${VENDAS} (esperado AAAA-MM.xlsx)`);
+
+  // linhas que não são anúncio: total do relatório, vendas sem anúncio e gasto sem venda
+  const special = name => /^\d+ Resultados$/i.test(name) ? 'total'
+    : name === 'link_in_bio' ? 'bio'
+    : /^\{\{.*\}\}$/.test(name) ? 'semId'
+    : /^n[aã]o atribu[ií]do/i.test(name) ? 'semVenda' : null;
+
+  const months = files.map(f => {
+    const rows = readXlsx(path.join(VENDAS, f));
+    const head = rows[0].map(h => normKey(h));
+    const idx = k => { const i = head.indexOf(k); if (i < 0) throw new Error(`${f}: coluna "${k}" não encontrada`); return i; };
+    const c = { name: idx('utm_content'), sales: idx('vendas'), spend: idx('gastos'), revenue: idx('faturamento'), impressions: idx('impressoes'), clicks: idx('cliques') };
+    const out = { month: f.slice(0, 7), ads: [], other: {} };
+    for (const r of rows.slice(1)) {
+      const name = String(r[c.name] || '').trim();
+      if (!name) continue;
+      const v = { sales: brNum(r[c.sales]) || 0, spend: brNum(r[c.spend]) || 0, revenue: brNum(r[c.revenue]) || 0, impressions: brNum(r[c.impressions]) || 0, clicks: brNum(r[c.clicks]) || 0 };
+      const kind = special(name);
+      if (kind === 'total') continue;
+      if (kind) out.other[kind] = v;
+      else out.ads.push({ name, ...v });
+    }
+    return out;
+  });
+
+  // nomes cortados pela origem ("AD_copy_14AE29F3-7...") viram o nome completo quando só um bate com o prefixo
+  const allNames = [...new Set(months.flatMap(m => m.ads.map(a => a.name)))];
+  const fullName = n => {
+    if (!n.endsWith('...')) return n;
+    const hits = allNames.filter(x => x !== n && x.startsWith(n.slice(0, -3)));
+    return hits.length === 1 ? hits[0] : n;
+  };
+  for (const m of months) {
+    const merged = new Map();
+    for (const a of m.ads) {
+      const name = fullName(a.name), cur = merged.get(name);
+      if (!cur) { merged.set(name, { ...a, name }); continue; }
+      for (const k of ['sales', 'spend', 'revenue', 'impressions', 'clicks']) cur[k] += a[k];
+    }
+    m.ads = [...merged.values()];
+  }
+  const names = new Set(months.flatMap(m => m.ads.map(a => a.name)));
+
+  // ---- Meta: o mesmo nome costuma existir em vários anúncios (duplicados entre campanhas);
+  //      a prévia vem do que tem post no Instagram e, entre esses, do que mais gastou no período dos relatórios ----
+  const since = months[0].month + '-01';
+  const spendRows = await graphGetAll(`${ACCOUNT}/insights`, {
+    level: 'ad', fields: 'ad_id,spend',
+    time_range: JSON.stringify({ since, until: todaySP() })
+  });
+  const adSpend = new Map(spendRows.map(r => [r.ad_id, Number(r.spend || 0)]));
+  const adsRaw = await graphGetAll(`${ACCOUNT}/ads`, {
+    fields: 'id,name,preview_shareable_link,creative.thumbnail_width(600).thumbnail_height(600){thumbnail_url,instagram_permalink_url,object_type}',
+    limit: '100' // com a miniatura em 600px, páginas de 500 estouram o limite do Graph
+  });
+  const rank = a => [a.creative && a.creative.instagram_permalink_url ? 1 : 0, adSpend.get(a.id) || 0];
+  const best = new Map();
+  for (const a of adsRaw) {
+    if (!names.has(a.name)) continue;
+    const cur = best.get(a.name);
+    const [ig, s] = rank(a);
+    if (!cur || ig > rank(cur)[0] || (ig === rank(cur)[0] && s > rank(cur)[1])) best.set(a.name, a);
+  }
+
+  // miniaturas do Meta expiram em dias: baixa para out/thumbs e o build publica junto da página
+  const THUMBS = path.join(OUT, 'thumbs');
+  fs.rmSync(THUMBS, { recursive: true, force: true });
+  fs.mkdirSync(THUMBS, { recursive: true });
+  const ads = [];
+  for (const [name, a] of best) {
+    const cr = a.creative || {};
+    let thumb = null;
+    if (cr.thumbnail_url) {
+      try {
+        const res = await fetch(cr.thumbnail_url);
+        if (res.ok) { fs.writeFileSync(path.join(THUMBS, a.id + '.jpg'), Buffer.from(await res.arrayBuffer())); thumb = `thumbs/${a.id}.jpg`; }
+      } catch (e) { console.warn(`[${slug}] miniatura de ${name} não baixou: ${e.message}`); }
+    }
+    ads.push({ name, adId: a.id, type: cr.object_type || null, igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null, thumb });
+  }
+
+  const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
+  write('months.json', { rows: months });
+  write('ads.json', { rows: ads });
+  write('summary.json', { updatedAt: new Date().toISOString(), account: ACCOUNT, months: months.map(m => m.month) });
+  const missing = [...names].filter(n => !best.has(n));
+  console.log(`[${slug}] OK`, JSON.stringify({ meses: months.length, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, semAnuncioNoMeta: missing }));
+}
+
+const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : mainLeads;
 main().catch(e => { console.error(`[${slug}] ERRO:`, e.message); process.exit(1); });
