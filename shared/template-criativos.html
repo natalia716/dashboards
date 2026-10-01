@@ -55,13 +55,45 @@
   .brand h1 { font-size: 17px; color: var(--ink); }
   .brand h1 span { color: var(--muted); font-weight: 500; }
 
-  /* ---- período: meses ---- */
-  .months { display: flex; align-items: center; gap: 4px; padding: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; overflow-x: auto; max-width: 100%; }
-  .months button { border: none; background: none; border-radius: 6px; padding: 0 12px; min-height: 32px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
-  .months button:hover { color: var(--ink); background: var(--hover); }
-  .months button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
-  .months button.all[aria-pressed="true"] { background: var(--accent); color: #fff; }
-  .months .sep { width: 1px; align-self: stretch; margin: 5px 2px; background: var(--line-strong); flex: none; }
+  /* ---- período (menu suspenso: presets + calendário) — o mesmo dos outros painéis ---- */
+  .periodWrap { position: relative; }
+  .periodBtn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 12px; min-height: 38px; font-size: 13.5px; cursor: pointer;
+  }
+  .periodBtn:hover { border-color: var(--accent); }
+  .periodBtn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
+  .periodBtn .periodRange { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .periodBtn .chev { margin-left: auto; transition: transform .15s; }
+  .periodBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .periodPop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--pop-shadow); overflow: hidden; }
+  .periodPresets { display: flex; flex-direction: column; padding: 6px; border-right: 1px solid var(--line); min-width: 176px; }
+  .periodPresets button { text-align: left; background: none; border: none; color: var(--ink-2); font-size: 13.5px; padding: 8px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .periodPresets button:hover { background: var(--hover); color: var(--ink); }
+  .periodPresets button.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  .periodCal { padding: 10px 12px 10px; width: 280px; }
+  .calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .calHead span { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .calHead button { background: none; border: 1px solid transparent; color: var(--ink-2); font-size: 18px; line-height: 1; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
+  .calHead button:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+  .calHead button:disabled { opacity: .3; cursor: default; }
+  .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-variant-numeric: tabular-nums; }
+  .calGrid .wd { text-align: center; font-size: 10.5px; color: var(--muted); padding: 2px 0 4px; letter-spacing: .04em; }
+  .calGrid .d { height: 30px; border: none; background: none; color: var(--ink); font-size: 12.5px; border-radius: 6px; cursor: pointer; padding: 0; }
+  .calGrid .d:hover { background: var(--hover); }
+  .calGrid .d.out { color: var(--muted); opacity: .6; }
+  .calGrid .d:disabled { color: var(--muted); opacity: .35; cursor: default; background: none; }
+  .calGrid .d.in { background: var(--accent-soft); border-radius: 0; }
+  .calGrid .d.from, .calGrid .d.to { background: var(--accent); color: #fff; font-weight: 600; }
+  .calGrid .d.from { border-radius: 6px 0 0 6px; }
+  .calGrid .d.to { border-radius: 0 6px 6px 0; }
+  .calGrid .d.from.to { border-radius: 6px; }
+  .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .calFoot .hint { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .calNote { color: var(--muted); font-size: 11.5px; margin-top: 8px; line-height: 1.35; }
+  .btnPrimary { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btnPrimary:hover { background: var(--accent-strong); }
+  .btnPrimary:disabled { opacity: .4; cursor: default; }
 
   /* ---------- página ---------- */
   .page { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 24px; display: grid; gap: 18px; }
@@ -71,19 +103,6 @@
   .card-head h2 { font-size: 16px; }
   .card-head .count { color: var(--muted); font-size: 13px; }
   .card-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-  /* ---------- KPIs ---------- */
-  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
-  .kpi { padding: 20px 22px; display: grid; gap: 6px; align-content: start; }
-  .kpi .lbl { font-size: 13px; color: var(--ink-2); }
-  .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
-  .kpi .val.good { color: var(--good); }
-  .kpi .val.bad { color: var(--bad); }
-  .kpis-sec { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .kpis-sec .kpi { padding: 14px 22px; grid-template-columns: 1fr auto; align-items: baseline; }
-  .kpis-sec .kpi .val { font-size: 18px; font-weight: 600; }
-  .note { font-size: 12.5px; color: var(--ink-2); padding: 0 4px; margin-top: -6px; }
-  .note b { color: var(--ink); font-weight: 600; }
 
   /* ---------- controles ---------- */
   .search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 10px; min-height: 36px; background: var(--surface); }
@@ -158,23 +177,14 @@
 
   footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 16px 28px; }
 
-  .months .ms { display: none; }
-  @media (max-width: 1440px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 640px) {
     .top-inner { padding: 10px 16px; gap: 10px; }
     .brand h1 { font-size: 15px; }
-    .months { width: 100%; }
+    .periodWrap, .periodBtn { width: 100%; min-width: 0; }
+    .periodPop { left: 0; right: auto; flex-direction: column; max-width: 100%; }
+    .periodPresets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+    .periodCal { width: 100%; max-width: 300px; }
     .page { padding-inline: 16px; gap: 14px; }
-    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .months button { flex: 1; padding: 0 8px; }
-    .months .ml { display: none; }
-    .months .ms { display: inline; }
-    .kpis-sec { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .kpis-sec .kpi { grid-template-columns: 1fr; padding: 12px 14px; gap: 2px; }
-    .kpis-sec .kpi .val { font-size: 16px; }
-    .kpi { padding: 14px 16px; }
-    .kpi .val { font-size: 18px; }
     .card-head { padding: 16px 16px 0; }
     .card-head .right { margin-left: 0; width: 100%; }
     .search { flex: 1; }
@@ -196,27 +206,40 @@
       </svg>
       <h1>Performance dos anúncios <span>-</span> {{NOME}}</h1>
     </div>
-    <div class="months" id="months" role="group" aria-label="Período"></div>
+    <div class="periodWrap">
+      <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span id="periodLabel">Período completo</span>
+        <span class="periodRange" id="periodRange"></span>
+        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
+        <div class="periodPresets" id="periodPresets">
+          <button data-p="max">Período completo</button>
+          <button data-p="last">Último mês</button>
+          <button data-p="prev">Mês anterior</button>
+          <button data-p="3m">Últimos 3 meses</button>
+          <button data-p="custom">Personalizado</button>
+        </div>
+        <div class="periodCal">
+          <div class="calHead">
+            <button id="calPrev" aria-label="Mês anterior">‹</button>
+            <span id="calTitle"></span>
+            <button id="calNext" aria-label="Próximo mês">›</button>
+          </div>
+          <div class="calGrid" id="calGrid"></div>
+          <div class="calFoot">
+            <span class="hint" id="calSel"></span>
+            <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
+          </div>
+          <div class="calNote">Os relatórios de vendas são mensais: o período sempre usa meses inteiros.</div>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
 <main class="page">
-  <section aria-label="Resultado do período">
-    <div class="kpis">
-      <div class="card kpi"><div class="lbl">Vendas</div><div class="val num" id="k-sales">—</div></div>
-      <div class="card kpi"><div class="lbl">Investimento</div><div class="val num" id="k-spend">—</div></div>
-      <div class="card kpi"><div class="lbl">CPA</div><div class="val num" id="k-cpa">—</div></div>
-      <div class="card kpi"><div class="lbl">Faturamento</div><div class="val num" id="k-rev">—</div></div>
-      <div class="card kpi"><div class="lbl">Lucro</div><div class="val num" id="k-profit">—</div></div>
-      <div class="card kpi"><div class="lbl">ROAS</div><div class="val num" id="k-roas">—</div></div>
-    </div>
-  </section>
-  <section class="kpis-sec" aria-label="Métricas de mídia">
-    <div class="card kpi"><div class="lbl">CPM</div><div class="val num" id="k-cpm">—</div></div>
-    <div class="card kpi"><div class="lbl">CTR</div><div class="val num" id="k-ctr">—</div></div>
-    <div class="card kpi"><div class="lbl">CPC</div><div class="val num" id="k-cpc">—</div></div>
-  </section>
-  <p class="note" id="note"></p>
 
   <section class="card" aria-labelledby="h-ads">
     <div class="card-head">
@@ -284,9 +307,7 @@ const D = /*__DATA__*/{};
   const fmtX = v => ok(v) ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const MES_LONGO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const monthShort = ym => MES[Number(ym.slice(5, 7)) - 1] + '/' + ym.slice(2, 4);
-  const monthName = ym => MES_LONGO[Number(ym.slice(5, 7)) - 1];
   const tone = (v, zero = 0) => !ok(v) ? '' : v > zero ? 'good' : v < zero ? 'bad' : '';
 
   const MONTHS = (D.months || []).map(m => m.month);
@@ -308,45 +329,134 @@ const D = /*__DATA__*/{};
   const add = (a, b) => { for (const k of ['sales', 'spend', 'revenue', 'impressions', 'clicks']) a[k] += b[k] || 0; return a; };
 
   // ---------- estado ----------
-  const state = { months: new Set(MONTHS), sort: 'sales', dir: null, view: 'cards', q: '' };
+  const state = { sort: 'sales', dir: null, view: 'cards', q: '' };
   try {
     const v = localStorage.getItem('ato-criativos-view');
     if (v === 'cards' || v === 'table') state.view = v;
   } catch (e) { /* sem storage: fica o padrão */ }
 
-  // ---------- período ----------
-  const monthsEl = document.getElementById('months');
-  function renderMonths() {
-    const all = state.months.size === MONTHS.length;
-    monthsEl.innerHTML = `<button class="all" data-m="all" aria-pressed="${all}"><span class="ml">Todo o período</span><span class="ms">Tudo</span></button><span class="sep" aria-hidden="true"></span>` +
-      MONTHS.map(m => `<button data-m="${m}" aria-pressed="${!all && state.months.has(m)}" title="${monthName(m)} de ${m.slice(0, 4)}"><span class="ml">${monthName(m)}</span><span class="ms">${monthName(m).slice(0, 3)}</span></button>`).join('');
+  // ---------- período (menu suspenso com presets + calendário, como nos outros painéis) ----------
+  // Os relatórios de vendas são mensais: qualquer seleção é estendida para meses inteiros.
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, '0');
+  const monthStart = ym => ym + '-01';
+  const monthEnd = ym => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`; };
+  const FIRST = MONTHS.length ? monthStart(MONTHS[0]) : null;
+  const LAST = MONTHS.length ? monthEnd(MONTHS[MONTHS.length - 1]) : null;
+  const PRESET_LABEL = { max: 'Período completo', last: 'Último mês', prev: 'Mês anterior', '3m': 'Últimos 3 meses', custom: 'Personalizado' };
+  state.preset = 'max';
+  state.from = FIRST; state.to = LAST;
+  const inRange = ym => state.from && ym >= state.from.slice(0, 7) && ym <= state.to.slice(0, 7);
+
+  function applyPreset() {
+    const n = MONTHS.length, p = state.preset;
+    const span = (a, b) => { state.from = monthStart(MONTHS[Math.max(0, a)]); state.to = monthEnd(MONTHS[b]); };
+    if (!n) return;
+    if (p === 'max') span(0, n - 1);
+    else if (p === 'last') span(n - 1, n - 1);
+    else if (p === 'prev') span(n - 2, Math.max(0, n - 2));
+    else if (p === '3m') span(n - 3, n - 1);
   }
-  monthsEl.addEventListener('click', e => {
-    const b = e.target.closest('button[data-m]');
-    if (!b) return;
-    const m = b.dataset.m;
-    const all = state.months.size === MONTHS.length;
-    if (m === 'all') state.months = new Set(MONTHS);
-    else if (all) state.months = new Set([m]);                 // de "todo o período" para um mês só
-    else if (state.months.has(m)) { state.months.delete(m); if (!state.months.size) state.months = new Set(MONTHS); }
-    else state.months.add(m);                                  // soma meses
-    renderMonths();
-    render();
-  });
+  const fmtMonths = (a, b) => { const x = a.slice(0, 7), y = b.slice(0, 7); return x === y ? monthShort(x) : `${monthShort(x)} – ${monthShort(y)}`; };
+  function updatePeriodButton() {
+    $('periodLabel').textContent = PRESET_LABEL[state.preset] || 'Período';
+    $('periodRange').textContent = state.from ? fmtMonths(state.from, state.to) : '';
+  }
+
+  const cal = { y: 0, m: 0 };            // mês exibido
+  const pick = { from: null, to: null };  // seleção em andamento no calendário
+  function openPeriod() {
+    pick.from = null; pick.to = null;
+    const [y, m] = (state.to || LAST || '2026-01-01').split('-').map(Number);
+    cal.y = y; cal.m = m - 1;
+    for (const b of $('periodPresets').children) b.classList.toggle('on', b.dataset.p === state.preset);
+    renderCal();
+    $('periodPop').hidden = false;
+    $('periodBtn').setAttribute('aria-expanded', 'true');
+  }
+  function closePeriod() {
+    $('periodPop').hidden = true;
+    $('periodBtn').setAttribute('aria-expanded', 'false');
+  }
+  // seleção em andamento → meses inteiros
+  function pickedRange() {
+    const a = pick.from, b = pick.to || pick.from;
+    const lo = a < b ? a : b, hi = a < b ? b : a;
+    return [monthStart(lo.slice(0, 7)), monthEnd(hi.slice(0, 7))];
+  }
+  function renderCal() {
+    const first = new Date(Date.UTC(cal.y, cal.m, 1));
+    const title = first.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    $('calTitle').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+    const shown = `${cal.y}-${pad(cal.m + 1)}`;
+    $('calPrev').disabled = !FIRST || shown <= FIRST.slice(0, 7);
+    $('calNext').disabled = !LAST || shown >= LAST.slice(0, 7);
+    const [lo, hi] = pick.from ? pickedRange() : [state.from, state.to];
+    let html = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(w => `<span class="wd">${w}</span>`).join('');
+    const startDow = first.getUTCDay();
+    const daysIn = new Date(Date.UTC(cal.y, cal.m + 1, 0)).getUTCDate();
+    const prevDays = new Date(Date.UTC(cal.y, cal.m, 0)).getUTCDate();
+    const cells = [];
+    for (let i = startDow - 1; i >= 0; i--) cells.push({ d: prevDays - i, off: -1 });
+    for (let d = 1; d <= daysIn; d++) cells.push({ d, off: 0 });
+    while (cells.length % 7) cells.push({ d: cells.length - startDow - daysIn + 1, off: 1 });
+    for (const c of cells) {
+      const dt = new Date(Date.UTC(cal.y, cal.m + c.off, c.d));
+      const key = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+      const cls = ['d'];
+      if (c.off) cls.push('out');
+      if (key === lo) cls.push('from');
+      if (key === hi) cls.push('to');
+      if (key > lo && key < hi) cls.push('in');
+      const off = !MONTHS.includes(key.slice(0, 7)); // só meses com relatório
+      html += `<button type="button" class="${cls.join(' ')}" data-d="${key}"${off ? ' disabled' : ''}>${c.d}</button>`;
+    }
+    $('calGrid').innerHTML = html;
+    const ready = pick.from !== null;
+    $('calSel').textContent = ready ? fmtMonths(lo, hi) : 'Clique no início e no fim';
+    $('calApply').disabled = !ready;
+  }
+  function initPeriodPicker() {
+    $('periodBtn').addEventListener('click', () => { $('periodPop').hidden ? openPeriod() : closePeriod(); });
+    $('periodPresets').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.p === 'custom') { // só muda o foco para o calendário
+        for (const x of $('periodPresets').children) x.classList.toggle('on', x === b);
+        return;
+      }
+      state.preset = b.dataset.p;
+      applyPreset(); updatePeriodButton(); render(); closePeriod();
+    });
+    $('calPrev').addEventListener('click', () => { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
+    $('calNext').addEventListener('click', () => { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
+    $('calGrid').addEventListener('click', e => {
+      const b = e.target.closest('button.d'); if (!b || b.disabled) return;
+      const d = b.dataset.d;
+      if (!pick.from || pick.to) { pick.from = d; pick.to = null; }
+      else pick.to = d;
+      for (const x of $('periodPresets').children) x.classList.toggle('on', x.dataset.p === 'custom');
+      renderCal();
+    });
+    $('calApply').addEventListener('click', () => {
+      if (!pick.from) return;
+      [state.from, state.to] = pickedRange();
+      state.preset = 'custom';
+      updatePeriodButton(); render(); closePeriod();
+    });
+    // composedPath: o clique num dia redesenha o calendário e o botão clicado sai do DOM antes de o evento chegar aqui
+    const wrap = document.querySelector('.periodWrap');
+    document.addEventListener('click', e => { if (!$('periodPop').hidden && !e.composedPath().includes(wrap)) closePeriod(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('periodPop').hidden) closePeriod(); });
+  }
 
   // ---------- agregação do período ----------
   function aggregate() {
     const byName = new Map();
-    const other = { bio: zero(), semId: zero(), semVenda: zero() };
     for (const m of D.months || []) {
-      if (!state.months.has(m.month)) continue;
+      if (!inRange(m.month)) continue;
       for (const a of m.ads) add(byName.get(a.name) || byName.set(a.name, { name: a.name, ...zero() }).get(a.name), a);
-      for (const k of Object.keys(other)) if (m.other && m.other[k]) add(other[k], m.other[k]);
     }
-    const ads = [...byName.values()].filter(a => a.spend > 0 || a.sales > 0).map(derive);
-    // totais dos anúncios: criativos + vendas de anúncio sem identificação + gasto em anúncios sem venda (link na bio fica fora)
-    const total = derive(add(add(ads.reduce((t, a) => add(t, a), zero()), other.semId), other.semVenda));
-    return { ads, total, other };
+    return [...byName.values()].filter(a => a.spend > 0 || a.sales > 0).map(derive);
   }
 
   // ---------- ordenação ----------
@@ -419,26 +529,7 @@ const D = /*__DATA__*/{};
   }
 
   function render() {
-    const { ads, total, other } = aggregate();
-
-    // KPIs
-    const set = (id, txt, cls) => { const el = document.getElementById(id); el.textContent = txt; el.classList.remove('good', 'bad'); if (cls) el.classList.add(cls); };
-    set('k-sales', fmtInt(total.sales));
-    set('k-spend', fmtMoney(total.spend));
-    set('k-cpa', fmtMoney(total.cpa));
-    set('k-rev', fmtMoney(total.revenue));
-    set('k-profit', fmtMoney(total.profit), tone(total.profit));
-    set('k-roas', fmtX(total.roas), tone(total.roas, 1));
-    set('k-cpm', fmtMoney(total.cpm));
-    set('k-ctr', fmtPct(total.ctr));
-    set('k-cpc', fmtMoney(total.cpc));
-
-    const parts = [];
-    if (other.semId.sales) parts.push(`<b class="num">${fmtInt(other.semId.sales)}</b> ${other.semId.sales === 1 ? 'venda' : 'vendas'} de anúncios sem o nome do criativo na UTM`);
-    if (other.semVenda.spend) parts.push(`<b class="num">${fmtMoney(other.semVenda.spend)}</b> investidos em anúncios que não venderam`);
-    const bio = other.bio.sales ? ` Fora dos anúncios: <b class="num">${fmtInt(other.bio.sales)}</b> ${other.bio.sales === 1 ? 'venda' : 'vendas'} pelo link na bio (<b class="num">${fmtMoney(other.bio.revenue)}</b>), não somadas aqui.` : '';
-    document.getElementById('note').innerHTML = (parts.length ? `Os totais incluem ${parts.join(' e ')}.` : '') + bio;
-
+    const ads = aggregate();
     // lista
     const q = state.q.trim().toLowerCase();
     const list = sorted(ads.filter(a => !q || a.name.toLowerCase().includes(q)));
@@ -515,7 +606,8 @@ const D = /*__DATA__*/{};
     ? `Vendas por anúncio de ${monthShort(MONTHS[0])} a ${monthShort(MONTHS[MONTHS.length - 1])} (relatórios mensais por utm_content)` + (updTxt ? ` · prévias atualizadas em ${updTxt}` : '')
     : '';
 
-  renderMonths();
+  initPeriodPicker();
+  updatePeriodButton();
   render();
 })();
 </script>
