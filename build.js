@@ -41,7 +41,8 @@ function buildClient(slug) {
     const outDir = path.join(PUBLIC, slug);
     fs.rmSync(path.join(outDir, 'thumbs'), { recursive: true, force: true });
     fs.mkdirSync(path.join(outDir, 'thumbs'), { recursive: true });
-    for (const f of fs.readdirSync(path.join(dir, 'out', 'thumbs'))) fs.copyFileSync(path.join(dir, 'out', 'thumbs', f), path.join(outDir, 'thumbs', f));
+    // só as miniaturas em uso (o cache do refresh guarda também as de anúncios que saíram do painel)
+    for (const a of data.ads) if (a.thumb) fs.copyFileSync(path.join(dir, 'out', 'cache', a.thumb), path.join(outDir, a.thumb));
     fs.writeFileSync(path.join(outDir, 'index.html'), html);
     console.log(`[${slug}] ${path.relative(here, path.join(outDir, 'index.html'))} ${fs.statSync(path.join(outDir, 'index.html')).size} bytes`);
     return;

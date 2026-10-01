@@ -396,28 +396,68 @@ async function mainCriativos() {
   const since = CFG.desde || (hot.vendas[0] && hot.vendas[0][1]) || '2026-01-01';
   const until = todaySP();
 
-  // ---- Meta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia, em janelas de 30 dias ----
-  const daily = [];
-  for (let start = since; start <= until;) {
-    const end = new Date(Math.min(Date.parse(until), Date.parse(start) + 29 * 86400000)).toISOString().slice(0, 10);
-    const rows = await graphGetAll(`${ACCOUNT}/insights`, {
-      level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions',
-      limit: '100', // com `actions` por dia, páginas de 500 voltam truncadas
-      time_range: JSON.stringify({ since: start, until: end })
-    });
-    for (const r of rows) {
-      // o nome do action_type de checkout varia entre contas — usa o primeiro que existir (como no painel de lançamento)
-      const act = types => { for (const t of types) { const a = (r.actions || []).find(x => x.action_type === t); if (a) return Number(a.value || 0); } return 0; };
-      daily.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0), act(['omni_initiated_checkout', 'initiate_checkout'])]);
+  // ---- cache entre execuções (out/cache, guardado pelo actions/cache do workflow): só dados do Meta, nada pessoal.
+  //      Buscar o histórico inteiro a cada 15 min estoura o limite de chamadas da conta de anúncios. ----
+  const CACHE = path.join(OUT, 'cache');
+  const THUMBS = path.join(CACHE, 'thumbs');
+  fs.mkdirSync(THUMBS, { recursive: true });
+  const readCache = name => { try { return JSON.parse(fs.readFileSync(path.join(CACHE, name), 'utf8')); } catch (e) { return null; } };
+  const writeCache = (name, obj) => fs.writeFileSync(path.join(CACHE, name), JSON.stringify(obj));
+  const daysAgo = n => new Date(Date.parse(until) - n * 86400000).toISOString().slice(0, 10);
+  const RECENT_DAYS = 7;          // o Meta ainda ajusta os últimos dias: são sempre buscados de novo
+  const ADS_MAX_AGE_H = 6;        // lista de anúncios (nomes, posts, miniaturas) muda pouco
+
+  // ---- Meta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia ----
+  const fetchDaily = async (from, to) => {
+    const out = [];
+    for (let start = from; start <= to;) {
+      const end = new Date(Math.min(Date.parse(to), Date.parse(start) + 29 * 86400000)).toISOString().slice(0, 10);
+      const rows = await graphGetAll(`${ACCOUNT}/insights`, {
+        level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions',
+        limit: '100', // com `actions` por dia, páginas de 500 voltam quebradas do Graph
+        time_range: JSON.stringify({ since: start, until: end })
+      });
+      for (const r of rows) {
+        // o nome do action_type de checkout varia entre contas — usa o primeiro que existir (como no painel de lançamento)
+        const act = types => { for (const t of types) { const a = (r.actions || []).find(x => x.action_type === t); if (a) return Number(a.value || 0); } return 0; };
+        out.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0), act(['omni_initiated_checkout', 'initiate_checkout'])]);
+      }
+      start = new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10);
     }
-    start = new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10);
+    return out;
+  };
+  const warnings = [];
+  const cachedDaily = readCache('meta-daily.json');
+  let daily;
+  const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
+  const from = incremental ? (daysAgo(RECENT_DAYS - 1) > since ? daysAgo(RECENT_DAYS - 1) : since) : since;
+  try {
+    const fresh = await fetchDaily(from, until);
+    daily = (incremental ? cachedDaily.rows.filter(r => r[0] < from) : []).concat(fresh);
+    writeCache('meta-daily.json', { since, rows: daily });
+  } catch (e) {
+    if (!incremental) throw e;
+    // sem Meta nesta rodada: o painel continua com os dados da anterior em vez de derrubar o workflow de todos os clientes
+    warnings.push(`métricas do Meta não atualizaram (${e.message}) — mantidos os dados anteriores`);
+    daily = cachedDaily.rows;
   }
 
-  // ---- Meta: nome, miniatura e post do Instagram de cada anúncio ----
-  const adsRaw = await graphGetAll(`${ACCOUNT}/ads`, {
-    fields: 'id,name,preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
-    limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
-  });
+  // ---- Meta: nome, miniatura e post do Instagram de cada anúncio (renovado a cada ADS_MAX_AGE_H horas) ----
+  let cachedAds = readCache('meta-ads.json');
+  if (!cachedAds || Date.now() - Date.parse(cachedAds.fetchedAt) > ADS_MAX_AGE_H * 3600000) {
+    try {
+      const raw = await graphGetAll(`${ACCOUNT}/ads`, {
+        fields: 'id,name,preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
+        limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
+      });
+      cachedAds = { fetchedAt: new Date().toISOString(), rows: raw };
+      writeCache('meta-ads.json', cachedAds);
+    } catch (e) {
+      if (!cachedAds) throw e;
+      warnings.push(`lista de anúncios não atualizou (${e.message}) — mantida a anterior`);
+    }
+  }
+  const adsRaw = cachedAds.rows;
   const adById = new Map(adsRaw.map(a => [a.id, a]));
   // o nome atual no Meta manda; o do SCK só vale se o anúncio sumiu da conta (o SCK chega a vir cortado: "AD_copy_14AE29F3-7...")
   const nameOf = (adId, fallback) => adById.has(adId) ? adById.get(adId).name : (fallback || `Anúncio ${adId}`);
@@ -450,29 +490,33 @@ async function mainCriativos() {
     if (!cur || ig > rank(cur)[0] || (ig === rank(cur)[0] && s > rank(cur)[1])) best.set(a.name, a);
   }
 
-  // miniaturas do Meta expiram em dias: baixa para out/thumbs e o build publica junto da página
-  const THUMBS = path.join(OUT, 'thumbs');
-  fs.rmSync(THUMBS, { recursive: true, force: true });
-  fs.mkdirSync(THUMBS, { recursive: true });
+  // miniaturas do Meta expiram em dias: baixa uma vez para out/cache/thumbs (a imagem de um anúncio não muda)
+  // e o build publica junto da página
   const ads = [];
   for (const [name, a] of best) {
     const cr = a.creative || {};
-    let thumb = null;
-    if (cr.thumbnail_url) {
+    const file = path.join(THUMBS, a.id + '.jpg');
+    if (!fs.existsSync(file) && cr.thumbnail_url) {
       try {
         const res = await fetch(cr.thumbnail_url);
-        if (res.ok) { fs.writeFileSync(path.join(THUMBS, a.id + '.jpg'), Buffer.from(await res.arrayBuffer())); thumb = `thumbs/${a.id}.jpg`; }
+        if (res.ok) fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
       } catch (e) { console.warn(`[${slug}] miniatura de ${name} não baixou: ${e.message}`); }
     }
+    const thumb = fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null;
     ads.push({ name, adId: a.id, type: cr.object_type || null, igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null, thumb });
   }
 
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
   write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts'], rows });
   write('ads.json', { rows: ads });
-  write('summary.json', { updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: hot.ate });
+  // updatedAt = quando o Meta respondeu de fato (numa rodada sem Meta, fica o horário do cache)
+  const metaAt = warnings.length && cachedDaily ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
+  const summary = { updatedAt: metaAt || new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: hot.ate };
+  write('summary.json', summary);
+  if (!warnings.length) writeCache('summary.json', summary);
+  for (const w of warnings) console.log(`::warning::[${slug}] ${w}`);
   const orphan = sales.filter(v => !adById.has(v[2])).length;
-  console.log(`[${slug}] OK`, JSON.stringify({ dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: hot.ate }));
+  console.log(`[${slug}] OK`, JSON.stringify({ dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: hot.ate, metaDesde: from }));
 }
 
 const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : mainLeads;

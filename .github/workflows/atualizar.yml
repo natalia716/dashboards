@@ -42,6 +42,17 @@ jobs:
         with:
           node-version: '22'
 
+      # Clientes do tipo "criativos" guardam o histórico do Meta em clientes/<cliente>/out/cache e só buscam os
+      # últimos dias a cada execução (o histórico inteiro a cada 15 min estoura o limite de chamadas da conta).
+      # Só esse diretório vai para o cache: tem apenas métricas do Meta e miniaturas, nada de leads ou compradores
+      # — o repositório é público e workflows de PR conseguem ler caches da main.
+      - name: Restaurar cache do Meta (clientes de criativos)
+        uses: actions/cache/restore@v4
+        with:
+          path: clientes/*/out/cache
+          key: meta-cache-${{ github.run_id }}
+          restore-keys: meta-cache-
+
       - name: Coletar dados de cada cliente (Meta Ads + planilha)
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
@@ -52,6 +63,13 @@ jobs:
             cliente=$(basename "$dir")
             node refresh.js "$cliente"
           done
+
+      - name: Salvar cache do Meta
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: clientes/*/out/cache
+          key: meta-cache-${{ github.run_id }}
 
       - name: Montar o site (sem colunas de contato)
         run: node build.js
