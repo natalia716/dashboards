@@ -21,7 +21,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 
 const template = read('shared/template.html');                       // Meta + leads (planilha)
 const templateLancamento = read('shared/template-lancamento.html');  // Meta + vendas (Hubla)
-const templateCriativos = read('shared/template-criativos.html');    // vendas por anúncio (relatórios mensais) + prévias
+const templateCriativos = read('shared/template-criativos.html');    // Meta por anúncio + vendas da Hotmart + prévias
 // a logo vive em shared/logo.svg — trocar o arquivo troca em todas as páginas
 const logoSvg = read('shared/logo.svg').replace(/<\?xml[^>]*\?>\s*/, '').replace('<svg ', '<svg class="logo" ').trim();
 const mapSvg = read('shared/brazil.svg').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
@@ -33,8 +33,8 @@ function buildClient(slug) {
   const json = f => JSON.parse(fs.readFileSync(path.join(dir, 'out', f), 'utf8'));
 
   if (cfg.tipo === 'criativos') {
-    // só agregados por anúncio (vendas, gasto, faturamento) — nada pessoal; as miniaturas vão junto da página
-    const data = { summary: json('summary.json'), months: json('months.json').rows, ads: json('ads.json').rows };
+    // só agregados por criativo e por dia (vendas, gasto, faturamento) — nada do comprador; as miniaturas vão junto da página
+    const data = { summary: json('summary.json'), daily: json('daily.json'), ads: json('ads.json').rows };
     const html = templateCriativos
       .split('{{NOME}}').join(esc(cfg.nome))
       .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'));

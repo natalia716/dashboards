@@ -3,7 +3,7 @@
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
 Três tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla)
-e **criativos** (relatórios mensais de vendas por anúncio + prévias do Meta).
+e **criativos** (Meta por anúncio e por dia + vendas da Hotmart).
 
 | Cliente | Tipo | Endereço |
 |---|---|---|
@@ -26,17 +26,30 @@ dash.atodigital.com.br/<cliente>
 O token do Meta **não está no código**: vem da variável `META_TOKEN` — no GitHub como *Secret*,
 localmente pelo arquivo `.env` (ignorado pelo git).
 
-## Adicionar um cliente de criativos (vendas por anúncio, mês a mês)
+## Adicionar um cliente de criativos (Meta + vendas da Hotmart)
+
+Um card por criativo (nome do anúncio) com prévia, link do Instagram, vendas, investimento, CPA, faturamento, lucro,
+ROAS, CPM, CTR e CPC, filtrável por dia. **Vendas e faturamento vêm só da Hotmart**, ligados ao anúncio pelo ID que
+vem no código SCK — nunca das conversões do Meta. Investimento, impressões e cliques no link vêm do Meta.
 
 1. Crie `clientes/<slug>/config.json` com `"tipo": "criativos"`, `nome` e `conta` (act_…) — veja o de `glauborges`.
-2. Salve o relatório de vendas de cada mês em `clientes/<slug>/vendas/AAAA-MM.xlsx` (ex.: `2026-10.xlsx`). A primeira aba
-   precisa das colunas `utm_content`, `Vendas`, `Gastos`, `Faturamento`, `Impressões` e `Cliques`; o resto é calculado
-   (CPA, lucro, ROAS, CPM, CTR, CPC). Linhas `N Resultados` (total), `link_in_bio`, `{{ad.name}}` e `Não atribuído`
-   são tratadas à parte.
-3. O `utm_content` é o nome do anúncio: o refresh procura esse nome na conta e usa, entre os anúncios com o mesmo nome,
-   o que tem post no Instagram e mais gastou — dele vêm a miniatura (baixada para a página, porque a URL do Meta expira)
-   e o link do Instagram.
-4. `git push` — cada novo `.xlsx` vira um mês a mais no filtro de período.
+   `"desde": "AAAA-MM-DD"` é opcional (sem ele, o painel começa na venda mais antiga importada).
+2. Na Hotmart, exporte o histórico de vendas (*Vendas → Histórico → Exportar*, gera `sales_history_*.xls`) e importe:
+   ```bash
+   node importar-hotmart.js <slug> "C:\Users\...\Downloads\sales_history_....xls"
+   ```
+   Grava `clientes/<slug>/vendas/hotmart.json` **sem dado do comprador** (o export tem nome, e-mail, telefone e CPF;
+   o `.gitignore` bloqueia `.xls`/`.xlsx`/`.csv` nessa pasta). Exports se somam pelo código da transação — pode
+   exportar só os últimos dias; venda que voltar reembolsada ou com chargeback sai da base. Conta como venda o status
+   Aprovado ou Completo, pelo **faturamento líquido** (compras no exterior convertidas para reais pelas taxas do export),
+   na data da transação.
+3. `git push`. O painel avisa quando o período escolhido passa da última venda importada.
+
+O SCK que a Hotmart grava hoje (parâmetros de URL do Meta, com `hQwK21wXxR` como separador) é
+`FB␟{{campaign.name}}|{{campaign.id}}␟{{adset.name}}|{{adset.id}}␟{{ad.name}}|{{ad.id}}␟{{placement}}` — o ID do
+anúncio é o trecho antes do último separador. Venda sem SCK, com macro não substituída
+(`{{ad.id}}`) ou do link na bio fica fora dos cards. Entre anúncios com o mesmo nome, a prévia vem do que tem post
+no Instagram e mais gastou; a miniatura é baixada a cada refresh porque a URL do Meta expira.
 
 ## Adicionar um cliente de lançamento (vendas via Hubla)
 

@@ -8,3 +8,9 @@ public/
 
 # config local do editor
 .claude/
+
+# exports de vendas (Hotmart etc.) trazem nome, e-mail, telefone e CPF do comprador — repositório público.
+# Só o JSON gerado pelo importar-hotmart.js (sem dado pessoal) entra no git.
+clientes/*/vendas/*.xls
+clientes/*/vendas/*.xlsx
+clientes/*/vendas/*.csv

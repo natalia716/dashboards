@@ -90,7 +90,8 @@
   .calGrid .d.from.to { border-radius: 6px; }
   .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
   .calFoot .hint { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .calNote { color: var(--muted); font-size: 11.5px; margin-top: 8px; line-height: 1.35; }
+  .calGrid .d.today { box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .salesNote { flex-basis: 100%; margin: -4px 0 0; color: var(--muted); font-size: 12.5px; }
   .btnPrimary { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .btnPrimary:hover { background: var(--accent-strong); }
   .btnPrimary:disabled { opacity: .4; cursor: default; }
@@ -216,9 +217,10 @@
       <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
         <div class="periodPresets" id="periodPresets">
           <button data-p="max">Período completo</button>
-          <button data-p="last">Último mês</button>
-          <button data-p="prev">Mês anterior</button>
-          <button data-p="3m">Últimos 3 meses</button>
+          <button data-p="today">Hoje</button>
+          <button data-p="7">Últimos 7 dias</button>
+          <button data-p="14">Últimos 14 dias</button>
+          <button data-p="30">Últimos 30 dias</button>
           <button data-p="custom">Personalizado</button>
         </div>
         <div class="periodCal">
@@ -232,7 +234,6 @@
             <span class="hint" id="calSel"></span>
             <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
           </div>
-          <div class="calNote">Os relatórios de vendas são mensais: o período sempre usa meses inteiros.</div>
         </div>
       </div>
     </div>
@@ -245,6 +246,7 @@
     <div class="card-head">
       <h2 id="h-ads">Performance por criativo</h2>
       <span class="count" id="count"></span>
+      <p class="salesNote" id="salesNote" hidden></p>
       <div class="right">
         <label class="search">
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -306,11 +308,9 @@ const D = /*__DATA__*/{};
   const fmtPct = v => ok(v) ? (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—';
   const fmtX = v => ok(v) ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const monthShort = ym => MES[Number(ym.slice(5, 7)) - 1] + '/' + ym.slice(2, 4);
   const tone = (v, zero = 0) => !ok(v) ? '' : v > zero ? 'good' : v < zero ? 'bad' : '';
 
-  const MONTHS = (D.months || []).map(m => m.month);
+  const ROWS = (D.daily && D.daily.rows) || [];
   const AD_META = new Map((D.ads || []).map(a => [a.name, a]));
 
   // ---------- métricas derivadas de somas ----------
@@ -336,38 +336,39 @@ const D = /*__DATA__*/{};
   } catch (e) { /* sem storage: fica o padrão */ }
 
   // ---------- período (menu suspenso com presets + calendário, como nos outros painéis) ----------
-  // Os relatórios de vendas são mensais: qualquer seleção é estendida para meses inteiros.
   const $ = id => document.getElementById(id);
   const pad = n => String(n).padStart(2, '0');
-  const monthStart = ym => ym + '-01';
-  const monthEnd = ym => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`; };
-  const FIRST = MONTHS.length ? monthStart(MONTHS[0]) : null;
-  const LAST = MONTHS.length ? monthEnd(MONTHS[MONTHS.length - 1]) : null;
-  const PRESET_LABEL = { max: 'Período completo', last: 'Último mês', prev: 'Mês anterior', '3m': 'Últimos 3 meses', custom: 'Personalizado' };
+  const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+  const fmtDate = iso => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y.slice(2)}`; };
+  const fmtRange = (a, b) => a === b ? fmtDate(a) : `${fmtDate(a)} – ${fmtDate(b)}`;
+  const SINCE = (D.summary && D.summary.since) || (ROWS[0] && ROWS[0][0]);
+  const UNTIL = (D.summary && D.summary.until) || (ROWS.length && ROWS[ROWS.length - 1][0]);
+  const SALES_UNTIL = D.summary && D.summary.vendasAte;
+  const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
   state.preset = 'max';
-  state.from = FIRST; state.to = LAST;
-  const inRange = ym => state.from && ym >= state.from.slice(0, 7) && ym <= state.to.slice(0, 7);
 
   function applyPreset() {
-    const n = MONTHS.length, p = state.preset;
-    const span = (a, b) => { state.from = monthStart(MONTHS[Math.max(0, a)]); state.to = monthEnd(MONTHS[b]); };
-    if (!n) return;
-    if (p === 'max') span(0, n - 1);
-    else if (p === 'last') span(n - 1, n - 1);
-    else if (p === 'prev') span(n - 2, Math.max(0, n - 2));
-    else if (p === '3m') span(n - 3, n - 1);
+    const p = state.preset, U = UNTIL;
+    if (p === 'max') { state.from = SINCE; state.to = U; }
+    else if (p === 'today') { state.from = U; state.to = U; }
+    else if (p === '7' || p === '14' || p === '30') { state.to = U; state.from = addDays(U, -(+p - 1)); }
+    if (state.from < SINCE) state.from = SINCE;
+    // custom: mantém o que foi escolhido no calendário
   }
-  const fmtMonths = (a, b) => { const x = a.slice(0, 7), y = b.slice(0, 7); return x === y ? monthShort(x) : `${monthShort(x)} – ${monthShort(y)}`; };
   function updatePeriodButton() {
     $('periodLabel').textContent = PRESET_LABEL[state.preset] || 'Período';
-    $('periodRange').textContent = state.from ? fmtMonths(state.from, state.to) : '';
+    $('periodRange').textContent = state.from ? fmtRange(state.from, state.to) : '';
+    // vendas vêm do export da Hotmart: avisa quando o período passa da última importação
+    const stale = SALES_UNTIL && state.to > SALES_UNTIL;
+    $('salesNote').hidden = !stale;
+    if (stale) $('salesNote').textContent = `Vendas da Hotmart importadas até ${fmtDate(SALES_UNTIL)}: os dias seguintes ainda aparecem sem venda.`;
   }
 
   const cal = { y: 0, m: 0 };            // mês exibido
   const pick = { from: null, to: null };  // seleção em andamento no calendário
   function openPeriod() {
     pick.from = null; pick.to = null;
-    const [y, m] = (state.to || LAST || '2026-01-01').split('-').map(Number);
+    const [y, m] = state.to.split('-').map(Number);
     cal.y = y; cal.m = m - 1;
     for (const b of $('periodPresets').children) b.classList.toggle('on', b.dataset.p === state.preset);
     renderCal();
@@ -378,20 +379,16 @@ const D = /*__DATA__*/{};
     $('periodPop').hidden = true;
     $('periodBtn').setAttribute('aria-expanded', 'false');
   }
-  // seleção em andamento → meses inteiros
-  function pickedRange() {
-    const a = pick.from, b = pick.to || pick.from;
-    const lo = a < b ? a : b, hi = a < b ? b : a;
-    return [monthStart(lo.slice(0, 7)), monthEnd(hi.slice(0, 7))];
-  }
   function renderCal() {
     const first = new Date(Date.UTC(cal.y, cal.m, 1));
     const title = first.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     $('calTitle').textContent = title.charAt(0).toUpperCase() + title.slice(1);
     const shown = `${cal.y}-${pad(cal.m + 1)}`;
-    $('calPrev').disabled = !FIRST || shown <= FIRST.slice(0, 7);
-    $('calNext').disabled = !LAST || shown >= LAST.slice(0, 7);
-    const [lo, hi] = pick.from ? pickedRange() : [state.from, state.to];
+    $('calPrev').disabled = shown <= SINCE.slice(0, 7);
+    $('calNext').disabled = shown >= UNTIL.slice(0, 7);
+    // intervalo destacado: a seleção em andamento ou, sem ela, o período atual
+    const a = pick.from || state.from, b = pick.to || (pick.from ? pick.from : state.to);
+    const lo = a < b ? a : b, hi = a < b ? b : a;
     let html = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(w => `<span class="wd">${w}</span>`).join('');
     const startDow = first.getUTCDay();
     const daysIn = new Date(Date.UTC(cal.y, cal.m + 1, 0)).getUTCDate();
@@ -405,15 +402,15 @@ const D = /*__DATA__*/{};
       const key = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
       const cls = ['d'];
       if (c.off) cls.push('out');
+      if (key === UNTIL) cls.push('today');
       if (key === lo) cls.push('from');
       if (key === hi) cls.push('to');
       if (key > lo && key < hi) cls.push('in');
-      const off = !MONTHS.includes(key.slice(0, 7)); // só meses com relatório
-      html += `<button type="button" class="${cls.join(' ')}" data-d="${key}"${off ? ' disabled' : ''}>${c.d}</button>`;
+      html += `<button type="button" class="${cls.join(' ')}" data-d="${key}"${key > UNTIL || key < SINCE ? ' disabled' : ''}>${c.d}</button>`;
     }
     $('calGrid').innerHTML = html;
     const ready = pick.from !== null;
-    $('calSel').textContent = ready ? fmtMonths(lo, hi) : 'Clique no início e no fim';
+    $('calSel').textContent = ready ? fmtRange(lo, hi) : 'Clique no início e no fim';
     $('calApply').disabled = !ready;
   }
   function initPeriodPicker() {
@@ -433,14 +430,15 @@ const D = /*__DATA__*/{};
       const b = e.target.closest('button.d'); if (!b || b.disabled) return;
       const d = b.dataset.d;
       if (!pick.from || pick.to) { pick.from = d; pick.to = null; }
+      else if (d < pick.from) { pick.to = pick.from; pick.from = d; }
       else pick.to = d;
       for (const x of $('periodPresets').children) x.classList.toggle('on', x.dataset.p === 'custom');
       renderCal();
     });
     $('calApply').addEventListener('click', () => {
       if (!pick.from) return;
-      [state.from, state.to] = pickedRange();
       state.preset = 'custom';
+      state.from = pick.from; state.to = pick.to || pick.from;
       updatePeriodButton(); render(); closePeriod();
     });
     // composedPath: o clique num dia redesenha o calendário e o botão clicado sai do DOM antes de o evento chegar aqui
@@ -449,12 +447,13 @@ const D = /*__DATA__*/{};
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('periodPop').hidden) closePeriod(); });
   }
 
-  // ---------- agregação do período ----------
+  // ---------- agregação do período: linhas diárias [data, criativo, gasto, impressões, cliques, vendas, faturamento] ----------
   function aggregate() {
     const byName = new Map();
-    for (const m of D.months || []) {
-      if (!inRange(m.month)) continue;
-      for (const a of m.ads) add(byName.get(a.name) || byName.set(a.name, { name: a.name, ...zero() }).get(a.name), a);
+    for (const [d, name, spend, impressions, clicks, sales, revenue] of ROWS) {
+      if (d < state.from || d > state.to) continue;
+      const a = byName.get(name) || byName.set(name, { name, ...zero() }).get(name);
+      add(a, { spend, impressions, clicks, sales, revenue });
     }
     return [...byName.values()].filter(a => a.spend > 0 || a.sales > 0).map(derive);
   }
@@ -602,10 +601,10 @@ const D = /*__DATA__*/{};
   // ---------- rodapé ----------
   const upd = D.summary && D.summary.updatedAt ? new Date(D.summary.updatedAt) : null;
   const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
-  document.getElementById('foot').textContent = MONTHS.length
-    ? `Vendas por anúncio de ${monthShort(MONTHS[0])} a ${monthShort(MONTHS[MONTHS.length - 1])} (relatórios mensais por utm_content)` + (updTxt ? ` · prévias atualizadas em ${updTxt}` : '')
-    : '';
+  document.getElementById('foot').textContent = 'Vendas da Hotmart ligadas ao anúncio pelo ID; investimento, impressões e cliques do Meta Ads'
+    + (SALES_UNTIL ? ` · vendas importadas até ${fmtDate(SALES_UNTIL)}` : '') + (updTxt ? ` · Meta atualizado em ${updTxt}` : '') + '.';
 
+  applyPreset();
   initPeriodPicker();
   updatePeriodButton();
   render();
