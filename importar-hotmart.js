@@ -1,4 +1,6 @@
 // Importa o export de vendas da Hotmart ("sales_history_*.xls") para um cliente do tipo "criativos".
+// PLANO B: com as credenciais da API no .env/Secrets (ver hotmart.js), o refresh puxa as vendas sozinho e este
+// arquivo só é usado se a API falhar sem cache.
 //
 //   node importar-hotmart.js <cliente> <arquivo>     ex.: node importar-hotmart.js glauborges "%USERPROFILE%\Downloads\sales_history_....xls"
 //
@@ -8,18 +10,17 @@
 // Vários exports se somam (a chave é o código da transação): dá para importar só a última semana. Venda que voltar
 // com status diferente de Aprovado/Completo (reembolso, chargeback…) sai da base.
 //
-// O anúncio vem do código SCK, montado pelos parâmetros de URL do Meta:
-//   FB␟{{campaign.name}}|{{campaign.id}}␟{{adset.name}}|{{adset.id}}␟{{ad.name}}|{{ad.id}}␟{{placement}}   (␟ = "hQwK21wXxR")
+// O anúncio vem do código SCK (formato em hotmart.js).
 const fs = require('fs');
 const path = require('path');
 const { readXlsx } = require('./xlsx');
+const { origin } = require('./hotmart');
 
 const [slug, file] = process.argv.slice(2);
 if (!slug || !file) { console.error('uso: node importar-hotmart.js <cliente> <arquivo sales_history_*.xls>'); process.exit(1); }
 const OUT = path.join(__dirname, 'clientes', slug, 'vendas', 'hotmart.json');
 if (!fs.existsSync(path.dirname(path.dirname(OUT)))) { console.error(`ERRO: cliente "${slug}" não existe em clientes/`); process.exit(1); }
 
-const SEP = 'hQwK21wXxR';
 const VALIDO = new Set(['aprovado', 'completo']);
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
@@ -32,17 +33,6 @@ const C = {
   buyRate: col('taxa de conversao (moeda de compra)'), recvRate: col('taxa de conversao (moeda de recebimento)')
 };
 
-// anúncio do Meta (id + nome), link na bio, ou sem identificação
-function origin(sck) {
-  const s = String(sck || '');
-  const p = s.split('|');
-  if (p.length === 4) {
-    const adId = p[3].split(SEP)[0], adName = (p[2].split(SEP)[1] || '').trim();
-    if (/^\d{10,}$/.test(adId)) return { origem: 'meta', adId, adName: adName || null };
-  }
-  if (/link_in_bio/i.test(s)) return { origem: 'bio', adId: null, adName: null };
-  return { origem: 'semId', adId: null, adName: null };
-}
 
 const base = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { vendas: [] };
 const COLS = ['codigo', 'data', 'adId', 'adName', 'valorLiquido', 'produto', 'origem'];

@@ -28,28 +28,36 @@ localmente pelo arquivo `.env` (ignorado pelo git).
 
 ## Adicionar um cliente de criativos (Meta + vendas da Hotmart)
 
-Um card por criativo (nome do anúncio) com prévia, link do Instagram, vendas, investimento, CPA, faturamento, lucro,
-ROAS, CPM, CTR e CPC, filtrável por dia. **Vendas e faturamento vêm só da Hotmart**, ligados ao anúncio pelo ID que
-vem no código SCK — nunca das conversões do Meta. Investimento, impressões e cliques no link vêm do Meta.
+Um card por criativo (nome do anúncio) com prévia, link "Ver criativo", vendas, investimento, CPA, faturamento, lucro,
+ROAS, CPM, CTR, CPC e CPI, filtrável por dia. **Vendas e faturamento vêm só da Hotmart**, ligados ao anúncio pelo ID
+que vem no código SCK — nunca das conversões do Meta. Investimento, impressões, cliques no link e finalizações de
+compra iniciadas (CPI) vêm do Meta. Tudo se atualiza sozinho a cada 15 min.
 
-1. Crie `clientes/<slug>/config.json` com `"tipo": "criativos"`, `nome` e `conta` (act_…) — veja o de `glauborges`.
-   `"desde": "AAAA-MM-DD"` é opcional (sem ele, o painel começa na venda mais antiga importada).
-2. Na Hotmart, exporte o histórico de vendas (*Vendas → Histórico → Exportar*, gera `sales_history_*.xls`) e importe:
-   ```bash
-   node importar-hotmart.js <slug> "C:\Users\...\Downloads\sales_history_....xls"
-   ```
-   Grava `clientes/<slug>/vendas/hotmart.json` **sem dado do comprador** (o export tem nome, e-mail, telefone e CPF;
-   o `.gitignore` bloqueia `.xls`/`.xlsx`/`.csv` nessa pasta). Exports se somam pelo código da transação — pode
-   exportar só os últimos dias; venda que voltar reembolsada ou com chargeback sai da base. Conta como venda o status
-   Aprovado ou Completo, pelo **faturamento líquido** (compras no exterior convertidas para reais pelas taxas do export),
-   na data da transação.
-3. `git push`. O painel avisa quando o período escolhido passa da última venda importada.
+1. Crie `clientes/<slug>/config.json` com `"tipo": "criativos"`, `nome`, `conta` (act_…) e `desde` (AAAA-MM-DD, início
+   do painel) — veja o de `glauborges`.
+2. Na conta Hotmart do cliente: *Ferramentas → Credenciais Developers → Criar Credencial* (sem marcar Sandbox). Os três
+   valores gerados viram Secrets no GitHub e linhas no `.env` local, com o slug em maiúsculas:
+   `HOTMART_CLIENT_ID_<SLUG>`, `HOTMART_CLIENT_SECRET_<SLUG>`, `HOTMART_BASIC_<SLUG>` — e entram no `env:` do workflow.
+3. `git push`. A primeira execução busca as vendas desde `desde`; as seguintes, só os últimos 35 dias (garantia da
+   Hotmart: venda reembolsada ou com chargeback some do painel) sobre o cache. Conta como venda o status Aprovado ou
+   Completo, na data do pedido, pela **comissão do produtor** (o "faturamento líquido" do export; compra no exterior
+   é convertida para reais pelas taxas da própria venda).
+
+A API também devolve nome e e-mail do comprador: nada disso é guardado (ver `hotmart.js`).
+
+**Plano B, sem API** — exporte o histórico de vendas da Hotmart (`sales_history_*.xls`) e importe:
+```bash
+node importar-hotmart.js <slug> "C:\Users\...\Downloads\sales_history_....xls"
+```
+Grava `clientes/<slug>/vendas/hotmart.json` **sem dado do comprador** (o export tem nome, e-mail, telefone e CPF;
+o `.gitignore` bloqueia `.xls`/`.xlsx`/`.csv` nessa pasta). Exports se somam pelo código da transação. O refresh só
+usa esse arquivo quando não há credencial nem cache, e o painel avisa até que dia vão as vendas importadas.
 
 O SCK que a Hotmart grava hoje (parâmetros de URL do Meta, com `hQwK21wXxR` como separador) é
 `FB␟{{campaign.name}}|{{campaign.id}}␟{{adset.name}}|{{adset.id}}␟{{ad.name}}|{{ad.id}}␟{{placement}}` — o ID do
 anúncio é o trecho antes do último separador. Venda sem SCK, com macro não substituída
 (`{{ad.id}}`) ou do link na bio fica fora dos cards. Entre anúncios com o mesmo nome, a prévia vem do que tem post
-no Instagram e mais gastou; a miniatura é baixada a cada refresh porque a URL do Meta expira.
+no Instagram e mais gastou; a miniatura é baixada uma vez (a URL do Meta expira) e fica no cache.
 
 ## Adicionar um cliente de lançamento (vendas via Hubla)
 

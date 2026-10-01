@@ -5,6 +5,8 @@
 #   META_TOKEN            token de sistema do Meta (ads_read, read_insights)
 #   META_TOKEN_<CLIENTE>  opcional — token específico, se um cliente estiver em outro Business Manager
 #                         (ex.: META_TOKEN_OMUNDOCLINICO)
+#   HOTMART_CLIENT_ID_<CLIENTE>, HOTMART_CLIENT_SECRET_<CLIENTE>, HOTMART_BASIC_<CLIENTE>
+#                         clientes de criativos: credencial da API da Hotmart (Ferramentas → Credenciais Developers)
 #
 # Em Settings → Pages, "Source" precisa estar em "GitHub Actions".
 
@@ -44,8 +46,9 @@ jobs:
 
       # Clientes do tipo "criativos" guardam o histórico do Meta em clientes/<cliente>/out/cache e só buscam os
       # últimos dias a cada execução (o histórico inteiro a cada 15 min estoura o limite de chamadas da conta).
-      # Só esse diretório vai para o cache: tem apenas métricas do Meta e miniaturas, nada de leads ou compradores
-      # — o repositório é público e workflows de PR conseguem ler caches da main.
+      # Só esse diretório vai para o cache: métricas do Meta, miniaturas e vendas sem dado do comprador (código,
+      # data, anúncio, valor, produto) — nada de leads ou compradores: o repositório é público e workflows de PR
+      # conseguem ler caches da main.
       - name: Restaurar cache do Meta (clientes de criativos)
         uses: actions/cache/restore@v4
         with:
@@ -57,6 +60,9 @@ jobs:
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
           META_TOKEN_OMUNDOCLINICO: ${{ secrets.META_TOKEN_OMUNDOCLINICO }}
+          HOTMART_CLIENT_ID_GLAUBORGES: ${{ secrets.HOTMART_CLIENT_ID_GLAUBORGES }}
+          HOTMART_CLIENT_SECRET_GLAUBORGES: ${{ secrets.HOTMART_CLIENT_SECRET_GLAUBORGES }}
+          HOTMART_BASIC_GLAUBORGES: ${{ secrets.HOTMART_BASIC_GLAUBORGES }}
         run: |
           set -e
           for dir in clientes/*/; do

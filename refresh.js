@@ -10,6 +10,7 @@
 // (localmente via arquivo .env, no GitHub Actions via Secret).
 const fs = require('fs');
 const path = require('path');
+const hotmart = require('./hotmart');
 
 const slug = process.argv[2];
 if (!slug || !/^[a-z0-9-]+$/.test(slug)) { console.error('uso: node refresh.js <cliente>   (ex.: omundoclinico)'); process.exit(1); }
@@ -385,19 +386,19 @@ async function mainLancamento() {
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
 }
 
-// ---- Criativos: Meta por anúncio e por dia + vendas da Hotmart (clientes/<cliente>/vendas/hotmart.json, gerado pelo
-//      importar-hotmart.js). Venda e anúncio se ligam pelo ID do anúncio que vem no SCK da Hotmart — nunca pelas
-//      conversões do Meta. Gasto, impressões e cliques vêm do Meta. O card agrupa por nome do anúncio (o criativo). ----
+// ---- Criativos: Meta por anúncio e por dia + vendas da Hotmart (API, ver hotmart.js; plano B: clientes/<cliente>/vendas/
+//      hotmart.json do importar-hotmart.js). Venda e anúncio se ligam pelo ID do anúncio que vem no SCK da Hotmart —
+//      nunca pelas conversões do Meta. Gasto, impressões e cliques vêm do Meta. O card agrupa por nome do anúncio. ----
 async function mainCriativos() {
   const VENDAS = path.join(DIR, 'vendas', 'hotmart.json');
-  if (!fs.existsSync(VENDAS)) throw new Error(`falta ${path.relative(__dirname, VENDAS)} — rode: node importar-hotmart.js ${slug} <export da Hotmart>`);
-  const hot = JSON.parse(fs.readFileSync(VENDAS, 'utf8'));
-  const sales = hot.vendas.filter(v => v[6] === 'meta'); // [codigo, data, adId, adName, valorLiquido, produto, origem]
-  const since = CFG.desde || (hot.vendas[0] && hot.vendas[0][1]) || '2026-01-01';
+  const manual = fs.existsSync(VENDAS) ? JSON.parse(fs.readFileSync(VENDAS, 'utf8')) : null;
+  const since = CFG.desde || (manual && manual.vendas[0] && manual.vendas[0][1]);
+  if (!since) throw new Error(`defina "desde" (AAAA-MM-DD) em clientes/${slug}/config.json`);
   const until = todaySP();
 
-  // ---- cache entre execuções (out/cache, guardado pelo actions/cache do workflow): só dados do Meta, nada pessoal.
-  //      Buscar o histórico inteiro a cada 15 min estoura o limite de chamadas da conta de anúncios. ----
+  // ---- cache entre execuções (out/cache, guardado pelo actions/cache do workflow): métricas do Meta, miniaturas e
+  //      vendas só com código/data/anúncio/valor/produto — nada do comprador. Buscar o histórico inteiro a cada 15 min
+  //      estoura o limite de chamadas da conta de anúncios. ----
   const CACHE = path.join(OUT, 'cache');
   const THUMBS = path.join(CACHE, 'thumbs');
   fs.mkdirSync(THUMBS, { recursive: true });
@@ -406,6 +407,28 @@ async function mainCriativos() {
   const daysAgo = n => new Date(Date.parse(until) - n * 86400000).toISOString().slice(0, 10);
   const RECENT_DAYS = 7;          // o Meta ainda ajusta os últimos dias: são sempre buscados de novo
   const ADS_MAX_AGE_H = 6;        // lista de anúncios (nomes, posts, miniaturas) muda pouco
+  const SALES_RECENT_DAYS = 35;   // vendas: a garantia da Hotmart vai até 30 dias — reembolso nessa janela some do painel
+  const warnings = [];
+
+  // ---- vendas: API da Hotmart (incremental sobre o cache) ou, sem credencial, o import manual ----
+  let allSales, salesUntil, salesSource;
+  const cred = hotmart.credentials(slug);
+  const cachedSales = readCache('hotmart-sales.json');
+  const salesInc = cachedSales && cachedSales.since === since;
+  const salesFrom = salesInc && daysAgo(SALES_RECENT_DAYS - 1) > since ? daysAgo(SALES_RECENT_DAYS - 1) : since;
+  try {
+    if (!cred) throw new Error('sem credenciais HOTMART_*_' + slug.toUpperCase().replace(/-/g, '_'));
+    const fresh = await hotmart.fetchSales(cred, salesFrom, until);
+    allSales = (salesInc && salesFrom > since ? cachedSales.rows.filter(v => v[1] < salesFrom) : []).concat(fresh);
+    writeCache('hotmart-sales.json', { since, until, rows: allSales });
+    salesUntil = until; salesSource = 'api';
+  } catch (e) {
+    if (salesInc) { allSales = cachedSales.rows; salesUntil = cachedSales.until; salesSource = 'api'; }
+    else if (manual) { allSales = manual.vendas; salesUntil = manual.ate; salesSource = 'arquivo'; }
+    else throw e;
+    if (cred) warnings.push(`vendas da Hotmart não atualizaram (${e.message}) — usadas as de ${salesSource === 'api' ? 'antes' : 'clientes/' + slug + '/vendas/hotmart.json'}`);
+  }
+  const sales = allSales.filter(v => v[6] === 'meta' && v[1] >= since); // [codigo, data, adId, adName, valorLiquido, produto, origem]
 
   // ---- Meta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia ----
   const fetchDaily = async (from, to) => {
@@ -426,7 +449,6 @@ async function mainCriativos() {
     }
     return out;
   };
-  const warnings = [];
   const cachedDaily = readCache('meta-daily.json');
   let daily;
   const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
@@ -510,13 +532,14 @@ async function mainCriativos() {
   write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts'], rows });
   write('ads.json', { rows: ads });
   // updatedAt = quando o Meta respondeu de fato (numa rodada sem Meta, fica o horário do cache)
-  const metaAt = warnings.length && cachedDaily ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
-  const summary = { updatedAt: metaAt || new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: hot.ate };
+  const metaStale = warnings.some(w => w.startsWith('métricas do Meta'));
+  const metaAt = metaStale && cachedDaily ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
+  const summary = { updatedAt: metaAt || new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: salesUntil, vendasFonte: salesSource };
   write('summary.json', summary);
-  if (!warnings.length) writeCache('summary.json', summary);
+  if (!metaStale) writeCache('summary.json', summary);
   for (const w of warnings) console.log(`::warning::[${slug}] ${w}`);
   const orphan = sales.filter(v => !adById.has(v[2])).length;
-  console.log(`[${slug}] OK`, JSON.stringify({ dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: hot.ate, metaDesde: from }));
+  console.log(`[${slug}] OK`, JSON.stringify({ dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: salesUntil, vendasFonte: salesSource, vendasDesde: salesFrom, metaDesde: from }));
 }
 
 const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : mainLeads;
