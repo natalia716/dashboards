@@ -396,15 +396,20 @@ async function mainCriativos() {
   const since = CFG.desde || (hot.vendas[0] && hot.vendas[0][1]) || '2026-01-01';
   const until = todaySP();
 
-  // ---- Meta: gasto/impressões/cliques no link por anúncio e por dia, em janelas de 30 dias ----
+  // ---- Meta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia, em janelas de 30 dias ----
   const daily = [];
   for (let start = since; start <= until;) {
     const end = new Date(Math.min(Date.parse(until), Date.parse(start) + 29 * 86400000)).toISOString().slice(0, 10);
     const rows = await graphGetAll(`${ACCOUNT}/insights`, {
-      level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks',
+      level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions',
+      limit: '100', // com `actions` por dia, páginas de 500 voltam truncadas
       time_range: JSON.stringify({ since: start, until: end })
     });
-    for (const r of rows) daily.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0)]);
+    for (const r of rows) {
+      // o nome do action_type de checkout varia entre contas — usa o primeiro que existir (como no painel de lançamento)
+      const act = types => { for (const t of types) { const a = (r.actions || []).find(x => x.action_type === t); if (a) return Number(a.value || 0); } return 0; };
+      daily.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0), act(['omni_initiated_checkout', 'initiate_checkout'])]);
+    }
     start = new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10);
   }
 
@@ -417,21 +422,21 @@ async function mainCriativos() {
   // o nome atual no Meta manda; o do SCK só vale se o anúncio sumiu da conta (o SCK chega a vir cortado: "AD_copy_14AE29F3-7...")
   const nameOf = (adId, fallback) => adById.has(adId) ? adById.get(adId).name : (fallback || `Anúncio ${adId}`);
 
-  // ---- linhas diárias por criativo: [data, nome, gasto, impressões, cliques, vendas, faturamento líquido] ----
+  // ---- linhas diárias por criativo: [data, nome, gasto, impressões, cliques, vendas, faturamento líquido, checkouts] ----
   const key = (d, n) => d + '\u0000' + n;
   const agg = new Map();
-  const row = (d, n) => agg.get(key(d, n)) || agg.set(key(d, n), [d, n, 0, 0, 0, 0, 0]).get(key(d, n));
+  const row = (d, n) => agg.get(key(d, n)) || agg.set(key(d, n), [d, n, 0, 0, 0, 0, 0, 0]).get(key(d, n));
   const spendByAd = new Map();
-  for (const [d, adId, spend, imp, clk] of daily) {
+  for (const [d, adId, spend, imp, clk, chk] of daily) {
     const r = row(d, nameOf(adId));
-    r[2] += spend; r[3] += imp; r[4] += clk;
+    r[2] += spend; r[3] += imp; r[4] += clk; r[7] += chk;
     spendByAd.set(adId, (spendByAd.get(adId) || 0) + spend);
   }
   for (const [, d, adId, adName, net] of sales) {
     const r = row(d, nameOf(adId, adName));
     r[5] += 1; r[6] += net;
   }
-  const rows = [...agg.values()].map(r => [r[0], r[1], +r[2].toFixed(2), r[3], r[4], r[5], +r[6].toFixed(2)])
+  const rows = [...agg.values()].map(r => [r[0], r[1], +r[2].toFixed(2), r[3], r[4], r[5], +r[6].toFixed(2), r[7]])
     .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
   const names = new Set(rows.map(r => r[1]));
 
@@ -463,7 +468,7 @@ async function mainCriativos() {
   }
 
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
-  write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue'], rows });
+  write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts'], rows });
   write('ads.json', { rows: ads });
   write('summary.json', { updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: hot.ate });
   const orphan = sales.filter(v => !adById.has(v[2])).length;

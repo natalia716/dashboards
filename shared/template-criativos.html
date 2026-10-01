@@ -140,12 +140,12 @@
   .met .v { font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; }
   .met .v.good { color: var(--good); }
   .met .v.bad { color: var(--bad); }
-  .sec { display: flex; justify-content: space-between; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; color: var(--muted); }
+  .sec { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; color: var(--muted); }
   .sec b { color: var(--ink-2); font-weight: 600; }
 
   /* ---------- tabela ---------- */
   .tbl-wrap { overflow-x: auto; padding: 8px 6px 6px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1120px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1220px; }
   th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
   th:first-child, td:first-child { text-align: left; }
@@ -262,6 +262,7 @@
           <option value="ctr">Maior CTR</option>
           <option value="cpc">Menor CPC</option>
           <option value="cpm">Menor CPM</option>
+          <option value="cpi">Menor CPI</option>
         </select>
         <div class="seg" role="group" aria-label="Visualização">
           <button data-view="cards" aria-pressed="true">Cards</button>
@@ -286,7 +287,7 @@
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <div class="dlg-head">
     <strong id="dlgTitle"></strong>
-    <a class="plink" id="dlgLink" target="_blank" rel="noopener">Abrir no Instagram ↗</a>
+    <a class="plink" id="dlgLink" target="_blank" rel="noopener"></a>
     <button class="dlg-close" id="dlgClose" aria-label="Fechar">×</button>
   </div>
   <div class="dlg-body" id="dlgBody"></div>
@@ -323,10 +324,11 @@ const D = /*__DATA__*/{};
       cpm: t.impressions > 0 ? t.spend / t.impressions * 1000 : null,
       ctr: t.impressions > 0 ? t.clicks / t.impressions : null,
       cpc: t.clicks > 0 ? t.spend / t.clicks : null,
+      cpi: t.checkouts > 0 ? t.spend / t.checkouts : null, // custo por finalização de compra iniciada
     };
   }
-  const zero = () => ({ sales: 0, spend: 0, revenue: 0, impressions: 0, clicks: 0 });
-  const add = (a, b) => { for (const k of ['sales', 'spend', 'revenue', 'impressions', 'clicks']) a[k] += b[k] || 0; return a; };
+  const zero = () => ({ sales: 0, spend: 0, revenue: 0, impressions: 0, clicks: 0, checkouts: 0 });
+  const add = (a, b) => { for (const k of ['sales', 'spend', 'revenue', 'impressions', 'clicks', 'checkouts']) a[k] += b[k] || 0; return a; };
 
   // ---------- estado ----------
   const state = { sort: 'sales', dir: null, view: 'cards', q: '' };
@@ -447,19 +449,19 @@ const D = /*__DATA__*/{};
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('periodPop').hidden) closePeriod(); });
   }
 
-  // ---------- agregação do período: linhas diárias [data, criativo, gasto, impressões, cliques, vendas, faturamento] ----------
+  // ---------- agregação do período: linhas diárias [data, criativo, gasto, impressões, cliques, vendas, faturamento, checkouts] ----------
   function aggregate() {
     const byName = new Map();
-    for (const [d, name, spend, impressions, clicks, sales, revenue] of ROWS) {
+    for (const [d, name, spend, impressions, clicks, sales, revenue, checkouts = 0] of ROWS) {
       if (d < state.from || d > state.to) continue;
       const a = byName.get(name) || byName.set(name, { name, ...zero() }).get(name);
-      add(a, { spend, impressions, clicks, sales, revenue });
+      add(a, { spend, impressions, clicks, sales, revenue, checkouts });
     }
     return [...byName.values()].filter(a => a.spend > 0 || a.sales > 0).map(derive);
   }
 
   // ---------- ordenação ----------
-  const ASC_DEFAULT = new Set(['cpa', 'cpc', 'cpm']);
+  const ASC_DEFAULT = new Set(['cpa', 'cpc', 'cpm', 'cpi']);
   function sorted(ads) {
     const k = state.sort;
     const asc = state.dir ? state.dir === 'asc' : ASC_DEFAULT.has(k);
@@ -475,12 +477,13 @@ const D = /*__DATA__*/{};
   }
 
   // ---------- render ----------
-  const IG_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2.8" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="11.6" cy="4.4" r=".8" fill="currentColor"/></svg>';
+  // seta de link externo (abre o post do anúncio numa aba nova)
+  const LINK_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5L7.5 8.5M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const linkOf = meta => meta && (meta.igUrl || meta.previewUrl);
   const linkHtml = meta => {
     const href = linkOf(meta);
     if (!href) return '';
-    return `<a class="plink" href="${esc(href)}" target="_blank" rel="noopener">${IG_ICON}${meta.igUrl ? 'Instagram' : 'Prévia'}</a>`;
+    return `<a class="plink" href="${esc(href)}" target="_blank" rel="noopener">Ver criativo${LINK_ICON}</a>`;
   };
   const kindLabel = t => t === 'VIDEO' ? 'Vídeo' : t === 'PHOTO' ? 'Imagem' : t === 'SHARE' ? 'Post' : null;
 
@@ -501,7 +504,7 @@ const D = /*__DATA__*/{};
           <div class="met"><div class="l">Lucro</div><div class="v num ${tone(a.profit)}">${fmtMoney0(a.profit)}</div></div>
           <div class="met"><div class="l">ROAS</div><div class="v num ${tone(a.roas, 1)}">${fmtX(a.roas)}</div></div>
         </div>
-        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span></div>
+        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span><span title="Custo por finalização de compra iniciada">CPI <b>${fmtMoney(a.cpi)}</b></span></div>
       </div>
     </article>`;
   }
@@ -517,6 +520,7 @@ const D = /*__DATA__*/{};
     { k: 'cpm', l: 'CPM', f: fmtMoney },
     { k: 'ctr', l: 'CTR', f: fmtPct },
     { k: 'cpc', l: 'CPC', f: fmtMoney },
+    { k: 'cpi', l: 'CPI', f: fmtMoney },
   ];
 
   function rowHtml(a) {
@@ -586,10 +590,10 @@ const D = /*__DATA__*/{};
     const link = document.getElementById('dlgLink');
     const href = linkOf(meta);
     link.hidden = !href;
-    if (href) { link.href = href; link.textContent = meta.igUrl ? 'Abrir no Instagram ↗' : 'Abrir prévia ↗'; }
+    if (href) { link.href = href; link.innerHTML = 'Abrir em nova aba' + LINK_ICON; }
     const embed = igEmbed(meta.igUrl);
     document.getElementById('dlgBody').innerHTML = embed
-      ? `<iframe src="${esc(embed)}" title="Prévia no Instagram" loading="lazy" allowfullscreen></iframe>`
+      ? `<iframe src="${esc(embed)}" title="Prévia do criativo" loading="lazy" allowfullscreen></iframe>`
       : meta.thumb ? `<img src="${esc(meta.thumb)}" alt="">` : '<div class="empty">Sem prévia disponível.</div>';
     dlg.showModal();
   });
