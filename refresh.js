@@ -325,17 +325,21 @@ async function fetchHublaSales(ads) {
     if (g(r, col.status).toLowerCase() !== 'paid') continue;
     // eventos de teste (sandbox da Hubla termina o id com "-tester"; nossos testes começam com "TESTE-") não são venda
     if (/-tester$/i.test(invoiceId) || /^TESTE-/i.test(invoiceId) || /sandbox/i.test(g(r, col.uc) + ' ' + g(r, col.uct))) continue;
-    // produtos da fatura: product_id (produto principal) + products_ids (todos, inclui order bump) — a Hubla usa ids diferentes nos dois campos
-    const prods = [...new Set((g(r, col.product) + ' | ' + g(r, col.products)).split('|').map(x => x.trim()).filter(Boolean))];
+    // produtos da fatura: products_ids traz todos (principal + order bumps); product_id é fallback das linhas antigas.
+    // Atenção: a Hubla usa ids DIFERENTES para o mesmo produto nos dois campos, por isso não dá para somar os dois.
+    const prods = (g(r, col.products) || g(r, col.product)).split('|').map(x => x.trim()).filter(Boolean);
+    const prodIds = [...new Set(prods.concat(g(r, col.product) ? [g(r, col.product).trim()] : []))]; // para casar com o config, que pode trazer qualquer um dos ids
     // order bump = fatura com um produto da lista orderBump; sem a lista, qualquer fatura com 2+ produtos
-    const bump = bumpIds.length ? prods.some(x => bumpIds.includes(x)) : prods.length > 1;
+    const bump = bumpIds.length ? prodIds.some(x => bumpIds.includes(x)) : prods.length > 1;
     // venda principal = fatura com o produto principal; sem a lista, tudo que não for só order bump
-    const main = produtos.length ? prods.some(x => produtos.includes(x)) : !(bumpIds.length && prods.every(x => bumpIds.includes(x)));
+    const main = produtos.length ? prodIds.some(x => produtos.includes(x)) : !(bumpIds.length && prods.every(x => bumpIds.includes(x)));
     if (!main && !bump) continue;
     const date = saleDateSP(g(r, col.sale));
     if (!date) continue;
-    const uct = decode(g(r, col.uct)).trim();
-    const adId = adIds.has(uct) ? uct : (adByName.get(normKey(uct)) || null);
+    // utm_content chega como "NOME-DO-ANUNCIO|<ad id>::<rastreio do Facebook>" (ou só o nome, ou só o id)
+    const uct = decode(g(r, col.uct)).split('::')[0].trim();
+    const partes = uct.split('|').map(x => x.trim()).filter(Boolean);
+    const adId = partes.map(x => adIds.has(x) ? x : adByName.get(normKey(x))).find(Boolean) || null;
     sales.push({ date, invoiceId, adId, main, bump, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
   }
   return sales;
