@@ -399,6 +399,8 @@ const D = /*__DATA__*/{};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const $ = id => document.getElementById(id);
 
+  const NAO_ATRIBUIDO = 'nao-atribuido'; // vendas da Hubla sem UTM de anúncio
+
   /* ---------- temperatura pelo nome do conjunto ---------- */
   const QUENTE = /quente|remarketing|rmkt|retarget|envolv|engaj|lista|lead|visitantes|seguidores|inscritos|warm|hot/i;
   const FRIO = /frio|cold|interesse|lookalike|lal|aberto|amplo|advantage/i;
@@ -478,11 +480,11 @@ const D = /*__DATA__*/{};
     // vendas da Hubla: casadas com o anúncio pelo utm_content (= ad id); sem UTM válida → "Não atribuído"
     for (const s of (D.sales || [])) {
       const adId = s.adId && adById.has(s.adId) ? s.adId : null;
-      const k = key(s.date, adId || 'nao-atribuido');
+      const k = key(s.date, adId || NAO_ATRIBUIDO);
       if (!map.has(k)) {
         const ad = adId ? adById.get(adId) : null;
         map.set(k, {
-          campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || 'nao-atribuido',
+          campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || NAO_ATRIBUIDO,
           ad_name: ad ? ad.name : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
           preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
           spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0,
@@ -553,13 +555,15 @@ const D = /*__DATA__*/{};
 
   /* ---------- funil ---------- */
   function renderFunnel(rows) {
-    const t = sum(rows);
+    // o funil é a jornada do anúncio: entram só as vendas atribuídas a um criativo (com UTM).
+    // As linhas "não atribuído" não têm impressão nem gasto, então tirá-las não muda o topo do funil.
+    const t = sum(rows.filter(r => r.ad_id !== NAO_ATRIBUIDO));
     const stages = [
       { name: 'Impressões', small: 'Meta Ads', v: t.impressions },
       { name: 'Cliques no link', small: 'Meta Ads', v: t.link_clicks, rate: t.ctr, tag: 'CTR' },
       { name: 'Visualizações da página', small: 'Meta Ads (pixel)', v: t.lp_views, rate: t.connect, tag: 'Connect rate' },
       { name: 'Checkout iniciado', small: 'Meta Ads (pixel)', v: t.checkouts, rate: t.checkout_rate, tag: 'Página → checkout' },
-      { name: 'Compra', small: 'Hubla (fatura paga)', v: t.sales, rate: t.close_rate, tag: 'Checkout → compra' },
+      { name: 'Compra', small: 'Hubla · só vendas vindas do tráfego', v: t.sales, rate: t.close_rate, tag: 'Checkout → compra' },
     ];
     const max = Math.max(1, ...stages.map(s => s.v));
     const width = v => v > 0 ? Math.max(2, (Math.log10(v + 1) / Math.log10(max + 1)) * 100) : 0;
