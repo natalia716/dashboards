@@ -1,0 +1,49 @@
+# Destrava a fila do "Atualizar dashboards".
+#
+# O atualizar.yml usa `concurrency: pages` — só uma execução por vez, as novas esperam na fila. Em 06/10/2026 uma
+# execução ficou presa em "waiting" antes de começar (falha do GitHub, sem regra de aprovação pendente) e o
+# timeout-minutes não vale para essa espera: por 4 dias cada execução nova entrou na fila e foi cancelada pela
+# seguinte, e os painéis pararam de atualizar.
+#
+# Este workflow não entra no grupo `pages`, então roda mesmo com a fila presa: cancela execuções do atualizar.yml
+# paradas em waiting/queued/in_progress há mais de 30 min (uma execução normal leva ~2 min). Usa o token do próprio
+# Actions — nenhum Secret a mais.
+
+name: Destravar fila dos dashboards
+
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/destravar.yml']
+
+permissions:
+  actions: write
+
+jobs:
+  destravar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancelar execuções presas há mais de 30 min
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          limite=$(date -u -d '30 minutes ago' +%s)
+          for status in waiting queued in_progress; do
+            gh api "repos/$REPO/actions/workflows/atualizar.yml/runs?status=$status&per_page=100" \
+              --jq '.workflow_runs[] | "\(.id) \(.run_started_at // .created_at)"' |
+            while read -r id inicio; do
+              if [ "$(date -u -d "$inicio" +%s)" -lt "$limite" ]; then
+                echo "::warning::execução $id presa em $status desde $inicio — cancelando"
+                # cancelamento normal; se o GitHub não conseguir (job que nunca começou), força
+                gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null 2>&1 ||
+                  gh api -X POST "repos/$REPO/actions/runs/$id/force-cancel" >/dev/null
+              fi
+            done
+          done
+          echo "fila verificada"
