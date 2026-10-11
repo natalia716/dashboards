@@ -408,7 +408,15 @@ async function mainCriativos() {
   fs.mkdirSync(THUMBS, { recursive: true });
   const readCache = name => { try { return JSON.parse(fs.readFileSync(path.join(CACHE, name), 'utf8')); } catch (e) { return null; } };
   const writeCache = (name, obj) => fs.writeFileSync(path.join(CACHE, name), JSON.stringify(obj));
-  const daysAgo = n => new Date(Date.parse(until) - n * 86400000).toISOString().slice(0, 10);
+  const minus = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOString().slice(0, 10);
+  const daysAgo = n => minus(until, n);
+  // janela incremental: os últimos `days` dias até hoje, recuando até `days` dias antes da última coleta que deu
+  // certo — se o workflow ficar parado (em 06/10/2026 ficou 4 dias), a próxima execução cobre o buraco
+  const windowFrom = (days, lastUntil) => {
+    let d = daysAgo(days - 1);
+    if (lastUntil && minus(lastUntil, days - 1) < d) d = minus(lastUntil, days - 1);
+    return d > since ? d : since;
+  };
   const RECENT_DAYS = 7;          // o Meta ainda ajusta os últimos dias: são sempre buscados de novo
   const ADS_MAX_AGE_H = 6;        // lista de anúncios (nomes, posts, miniaturas) muda pouco
   const SALES_RECENT_DAYS = 35;   // vendas: a garantia da Hotmart vai até 30 dias — reembolso nessa janela some do painel
@@ -419,7 +427,7 @@ async function mainCriativos() {
   const cred = hotmart.credentials(slug);
   const cachedSales = readCache('hotmart-sales.json');
   const salesInc = cachedSales && cachedSales.since === since;
-  const salesFrom = salesInc && daysAgo(SALES_RECENT_DAYS - 1) > since ? daysAgo(SALES_RECENT_DAYS - 1) : since;
+  const salesFrom = salesInc ? windowFrom(SALES_RECENT_DAYS, cachedSales.until) : since;
   try {
     if (!cred) throw new Error('sem credenciais HOTMART_*_' + slug.toUpperCase().replace(/-/g, '_'));
     const fresh = await hotmart.fetchSales(cred, salesFrom, until);
@@ -456,11 +464,12 @@ async function mainCriativos() {
   const cachedDaily = readCache('meta-daily.json');
   let daily;
   const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
-  const from = incremental ? (daysAgo(RECENT_DAYS - 1) > since ? daysAgo(RECENT_DAYS - 1) : since) : since;
+  // caches antigos não têm `until`: sem ele, conta como coleta de hoje
+  const from = incremental ? windowFrom(RECENT_DAYS, cachedDaily.until) : since;
   try {
     const fresh = await fetchDaily(from, until);
     daily = (incremental ? cachedDaily.rows.filter(r => r[0] < from) : []).concat(fresh);
-    writeCache('meta-daily.json', { since, rows: daily });
+    writeCache('meta-daily.json', { since, until, rows: daily });
   } catch (e) {
     if (!incremental) throw e;
     // sem Meta nesta rodada: o painel continua com os dados da anterior em vez de derrubar o workflow de todos os clientes
