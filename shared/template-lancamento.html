@@ -761,6 +761,9 @@ const D = /*__DATA__*/{};
     tf.innerHTML = `<tr><td>Total · ${dates.length} dia${dates.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtPct(t.connect, 1)}</td></tr>`;
   }
 
+  const EXT_ICON = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 2H2v8h8V7M7 2h3v3M10 2 5.5 6.5"/></svg>';
+  const linkPrevia = url => `<a class="plink" href="${esc(url)}" target="_blank" rel="noopener">${url.includes('instagram.com') ? 'Ver no Instagram' : 'Prévia'} ${EXT_ICON}</a>`;
+
   /* ---------- criativos ---------- */
   function renderCreatives(rows) {
     const filtered = state.tempFilter === 'all' ? rows : rows.filter(r => tempOf(r) === state.tempFilter);
@@ -971,7 +974,7 @@ const D = /*__DATA__*/{};
         <td class="num">${j.ingresso ? fmtDateLong(j.ingresso) : '—'}</td>
         <td class="num">${j.compra ? fmtDateLong(j.compra) : '—'}</td>
         <td class="num">${fmtMoney(j.valor)}</td>
-        <td>${j.criativo ? esc(j.criativo) : '<span class="dim">sem UTM</span>'}</td>
+        <td>${j.criativo ? `<div class="creative"><div class="nm"><strong>${esc(j.criativo)}</strong>${j.preview ? `<small>${linkPrevia(j.preview)}</small>` : ''}</div></div>` : '<span class="dim">sem UTM</span>'}</td>
         <td>${j.publico ? `${j.temp ? `<span class="tbadge" data-t="${j.temp}">${j.temp}</span> ` : ''}${esc(j.publico)}` : '—'}</td>
         <td>${j.campanha ? esc(j.campanha) : '—'}</td>
       </tr>`).join('');
@@ -996,7 +999,7 @@ const D = /*__DATA__*/{};
     else {
       const maxG = Math.max(1, ...d.porCriativo.map(o => o.gasto));
       tbCri.innerHTML = d.porCriativo.map(o => `<tr>
-        <td><div class="creative"><div class="nm"><strong>${esc(o.rotulo)}</strong><small>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : ''}${o.adset ? esc(o.adset) : ''}</small></div></div></td>
+        <td><div class="creative"><div class="nm"><strong>${esc(o.rotulo)}</strong><small>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : ''}${o.preview ? linkPrevia(o.preview) : ''}${o.adset ? esc(o.adset) : ''}</small></div></div></td>
         <td class="num"><span class="bar-cell"><i style="width:${(o.gasto / maxG * 56).toFixed(0)}px"></i>${fmtMoney(o.gasto)}</span></td>
         <td class="num">${fmtInt(o.ingressos)}</td>
         <td class="num">${cruza ? fmtInt(o.mba) : '—'}</td>

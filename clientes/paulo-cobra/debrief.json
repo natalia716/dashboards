@@ -1,5 +1,5 @@
 {
-  "geradoEm": "2026-10-13T19:58:21.686Z",
+  "geradoEm": "2026-10-13T20:00:55.290Z",
   "temWorkshop": true,
   "fonteWorkshop": "export",
   "produto": "MBA - Mercado Livre do Básico ao Avançado",
@@ -34,6 +34,7 @@
       "gasto": 256.94,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "preview": "https://www.instagram.com/p/Dd9PcyNMHYR/",
       "taxa": 0.2,
       "cpaMba": 256.94
     },
@@ -46,6 +47,7 @@
       "gasto": 91.49000000000001,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "preview": "https://www.instagram.com/p/Dd9Pcm1sa_q/",
       "taxa": 0.5,
       "cpaMba": 91.49000000000001
     },
@@ -58,6 +60,7 @@
       "gasto": 167.98,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "preview": "https://www.instagram.com/p/Dd9Pc2hs1Pf/",
       "taxa": 0,
       "cpaMba": null
     },
@@ -70,6 +73,7 @@
       "gasto": 85.31,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-01",
+      "preview": "https://www.instagram.com/p/Dd9RCVbs4jI/",
       "taxa": 0,
       "cpaMba": null
     },
@@ -82,6 +86,7 @@
       "gasto": 16.31,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "preview": "https://www.instagram.com/p/Dd9Pcq3sqfA/",
       "taxa": 0,
       "cpaMba": null
     },
@@ -94,6 +99,7 @@
       "gasto": 7.92,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "preview": "https://www.instagram.com/p/Dd9PcxSMt5r/",
       "taxa": 0,
       "cpaMba": null
     },
@@ -106,6 +112,7 @@
       "gasto": 73.75,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "preview": "https://www.instagram.com/p/Dd9Pcxls80u/",
       "taxa": 0,
       "cpaMba": null
     },
@@ -118,6 +125,7 @@
       "gasto": 105.99000000000001,
       "temp": "frio",
       "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "preview": "https://www.instagram.com/p/Dd9PciTs_cF/",
       "taxa": 0,
       "cpaMba": null
     }
@@ -195,6 +203,7 @@
       "compra": "2026-10-03",
       "valor": 2463.96,
       "criativo": null,
+      "preview": null,
       "publico": null,
       "temp": null,
       "campanha": null
@@ -205,6 +214,7 @@
       "compra": "2026-10-05",
       "valor": 2388,
       "criativo": "AD18-QUER_COMECAR",
+      "preview": "https://www.instagram.com/p/Dd9PcyNMHYR/",
       "publico": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
       "temp": "frio",
       "campanha": "[VENDAS][IVML][ABO][FRIO][TESTE-CRIATIVOS]01.10.26"
@@ -215,6 +225,7 @@
       "compra": "2026-10-03",
       "valor": 2388,
       "criativo": "AD06-10_MIL_FATURAMENTO",
+      "preview": "https://www.instagram.com/p/Dd9Pcm1sa_q/",
       "publico": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
       "temp": "frio",
       "campanha": "[VENDAS][IVML][ABO][FRIO][TESTE-CRIATIVOS]01.10.26"
