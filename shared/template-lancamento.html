@@ -67,6 +67,29 @@
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(29, 158, 95, .45); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
   }
 
+  /* ---------- abas ---------- */
+  .tabs { display: flex; gap: 4px; padding: 0 24px; max-width: 1400px; margin: 0 auto; }
+  .tabs button {
+    background: none; border: none; border-bottom: 2px solid transparent; color: var(--ink-2);
+    padding: 10px 14px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] { color: var(--accent-strong); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* ---------- debriefing ---------- */
+  .origem { padding: 8px 22px 20px; display: grid; gap: 14px; }
+  .origem-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+  .origem-bar i { display: block; height: 100%; }
+  .origem-leg { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+  .origem-leg span { display: flex; align-items: center; gap: 7px; }
+  .origem-leg i { width: 10px; height: 10px; border-radius: 3px; }
+  .origem-leg b { color: var(--ink); font-weight: 600; }
+  .aviso { margin: 0 22px 18px; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--ink-2); font-size: 13px; line-height: 1.6; }
+  .aviso b { color: var(--ink); }
+  .aviso code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .pill-rate { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pill-rate[data-on="1"] { background: var(--accent-soft); color: var(--accent-strong); }
+
   /* ---------- página ---------- */
   .page > section, .page .card { min-width: 0; } /* o gráfico mede a largura do container; sem isto o SVG antigo mantém a coluna aberta */
   .page { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 24px; display: grid; gap: 18px; }
@@ -274,9 +297,13 @@
     </div>
     </div>
   </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-trafego" aria-selected="true" aria-controls="painel-trafego">Tráfego</button>
+    <button role="tab" id="tab-debrief" aria-selected="false" aria-controls="painel-debrief">Debriefing</button>
+  </div>
 </header>
 
-<main class="page">
+<main class="page" id="painel-trafego" role="tabpanel" aria-labelledby="tab-trafego">
   <div class="status" id="status" hidden>
     <span class="pill" id="status-pill">Dados de exemplo</span>
     <span id="status-text"></span>
@@ -367,6 +394,40 @@
         </tr></thead>
         <tbody></tbody>
         <tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+</main>
+
+<main class="page" id="painel-debrief" role="tabpanel" aria-labelledby="tab-debrief" hidden>
+  <div class="status" id="db-status" hidden><span class="pill">Sem dados</span><span id="db-status-text"></span></div>
+
+  <section aria-label="Resultado do produto final">
+    <div class="kpis" id="db-kpis"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-origem">
+    <div class="card-head"><h2 id="h-origem">De onde vieram os compradores</h2></div>
+    <div class="origem" id="db-origem"></div>
+    <div class="aviso" id="db-aviso" hidden></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-db-publico">
+    <div class="card-head"><h2 id="h-db-publico">Públicos que converteram</h2></div>
+    <div class="tbl-wrap">
+      <table id="db-publicos">
+        <thead><tr><th>Público (conjunto)</th><th>Temperatura</th><th>Ingressos</th><th>Compras</th><th>Tx. ingresso → produto</th></tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-db-criativo">
+    <div class="card-head"><h2 id="h-db-criativo">Criativos que trouxeram comprador</h2></div>
+    <div class="tbl-wrap">
+      <table id="db-criativos">
+        <thead><tr><th>Criativo</th><th>Gasto</th><th>Ingressos</th><th>Compras</th><th>Tx. ingresso → produto</th><th>CPA do produto</th></tr></thead>
+        <tbody></tbody><tfoot></tfoot>
       </table>
     </div>
   </section>
@@ -500,7 +561,7 @@ const D = /*__DATA__*/{};
 
   /* ---------- estado ---------- */
   const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
-  const el = { funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
+  const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
   function maxRange() {
@@ -829,6 +890,94 @@ const D = /*__DATA__*/{};
     let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => renderChart(filteredRows()), 120); });
   }
 
+  /* ---------- debriefing: cruzamento do workshop com o produto final ---------- */
+  function renderDebrief() {
+    const d = D && D.debrief;
+    const kpis = $('db-kpis'), origem = $('db-origem'), aviso = $('db-aviso');
+    if (!d) {
+      kpis.innerHTML = '';
+      origem.innerHTML = '';
+      $('db-status-text').textContent = 'Nenhum export de vendas do produto final foi carregado ainda.';
+      $('db-status').hidden = false;
+      return;
+    }
+    // ROAS geral: faturamento do workshop (todo o período) + do produto final, sobre o gasto total
+    const tudo = sum(state.rows);
+    const receitaTotal = tudo.revenue + d.mba.receita;
+    const card = (lbl, val, sub) => `<div class="card kpi"><div class="lbl">${lbl}</div><div class="val num">${val}</div>${sub ? `<div class="sub"><span>${sub}</span></div>` : ''}</div>`;
+    kpis.innerHTML = [
+      card('Vendas ' + esc(d.produto.split(' - ')[0] || 'produto'), fmtInt(d.mba.vendas), d.mba.reembolsos ? `${fmtInt(d.mba.reembolsos)} reembolsada${d.mba.reembolsos === 1 ? '' : 's'}` : ''),
+      card('Faturamento', fmtMoney0(d.mba.receita), 'Ticket ' + fmtMoney0(d.mba.ticket)),
+      card('CPA', fmtMoney(d.mba.cpa), 'Gasto do lançamento ÷ vendas'),
+      card('ROAS do produto', fmtX(d.mba.roas), ''),
+      card('ROAS geral', fmtX(div(receitaTotal, tudo.spend)), 'Ingressos + produto'),
+      card('Período de vendas', d.mba.primeira ? (d.mba.primeira === d.mba.ultima ? fmtDateLong(d.mba.primeira) : fmtDateShort(d.mba.primeira) + ' – ' + fmtDateShort(d.mba.ultima)) : '—', ''),
+    ].join('');
+
+    const c = d.cruzamento, n = Math.max(1, d.mba.vendas);
+    const fatias = [
+      { lbl: 'Vieram de um criativo', v: c.comCriativo, cor: 'var(--accent)' },
+      { lbl: 'Compraram o ingresso, sem UTM', v: c.doWorkshop - c.comCriativo, cor: 'var(--sand)' },
+      { lbl: 'Sem passar pelo workshop', v: c.diretos, cor: 'var(--line-strong)' },
+    ].filter(f => f.v > 0);
+    origem.innerHTML = `
+      <div class="origem-bar">${fatias.map(f => `<i style="width:${(f.v / n * 100).toFixed(1)}%;background:${f.cor}" title="${f.lbl}"></i>`).join('')}</div>
+      <div class="origem-leg">${fatias.map(f => `<span><i style="background:${f.cor}"></i>${f.lbl} <b class="num">${fmtInt(f.v)}</b> (${fmtPct(f.v / n, 0)})</span>`).join('')}</div>`;
+
+    if (!d.temWorkshop) {
+      aviso.innerHTML = 'Para dizer <b>de qual criativo e público</b> veio cada comprador, falta o export das vendas do workshop — é ele que carrega as UTMs do anúncio junto do e-mail. Exporte as vendas do ingresso na Hubla e salve como <code>clientes/paulo-cobra/entrada/workshop.xlsx</code>.';
+      aviso.hidden = false;
+    } else aviso.hidden = true;
+
+    const tbPub = el.dbPublicos.querySelector('tbody'), tfPub = el.dbPublicos.querySelector('tfoot');
+    if (!d.porPublico.length) { tbPub.innerHTML = '<tr><td colspan="5" class="empty">Depende do export das vendas do workshop.</td></tr>'; tfPub.innerHTML = ''; }
+    else {
+      tbPub.innerHTML = d.porPublico.map(o => `<tr>
+        <td>${esc(o.rotulo)}</td>
+        <td>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : '—'}</td>
+        <td class="num">${fmtInt(o.ingressos)}</td>
+        <td class="num">${fmtInt(o.mba)}</td>
+        <td class="num"><span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span></td>
+      </tr>`).join('');
+      const ti = d.porPublico.reduce((t, o) => t + o.ingressos, 0), tm = d.porPublico.reduce((t, o) => t + o.mba, 0);
+      tfPub.innerHTML = `<tr><td>${d.porPublico.length} público${d.porPublico.length === 1 ? '' : 's'}</td><td></td><td class="num">${fmtInt(ti)}</td><td class="num">${fmtInt(tm)}</td><td class="num">${fmtPct(div(tm, ti), 1)}</td></tr>`;
+    }
+
+    const tbCri = el.dbCriativos.querySelector('tbody'), tfCri = el.dbCriativos.querySelector('tfoot');
+    if (!d.porCriativo.length) { tbCri.innerHTML = '<tr><td colspan="6" class="empty">Depende do export das vendas do workshop.</td></tr>'; tfCri.innerHTML = ''; }
+    else {
+      const maxG = Math.max(1, ...d.porCriativo.map(o => o.gasto));
+      tbCri.innerHTML = d.porCriativo.map(o => `<tr>
+        <td><div class="creative"><div class="nm"><strong>${esc(o.rotulo)}</strong><small>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : ''}${o.adset ? esc(o.adset) : ''}</small></div></div></td>
+        <td class="num"><span class="bar-cell"><i style="width:${(o.gasto / maxG * 56).toFixed(0)}px"></i>${fmtMoney(o.gasto)}</span></td>
+        <td class="num">${fmtInt(o.ingressos)}</td>
+        <td class="num">${fmtInt(o.mba)}</td>
+        <td class="num"><span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span></td>
+        <td class="num">${fmtMoney(o.cpaMba)}</td>
+      </tr>`).join('');
+      const ti = d.porCriativo.reduce((t, o) => t + o.ingressos, 0), tm = d.porCriativo.reduce((t, o) => t + o.mba, 0), tg = d.porCriativo.reduce((t, o) => t + o.gasto, 0);
+      tfCri.innerHTML = `<tr><td>${d.porCriativo.length} criativo${d.porCriativo.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(tg)}</td><td class="num">${fmtInt(ti)}</td><td class="num">${fmtInt(tm)}</td><td class="num">${fmtPct(div(tm, ti), 1)}</td><td class="num">${fmtMoney(div(tg, tm))}</td></tr>`;
+    }
+  }
+
+  function initTabs() {
+    const abas = [['tab-trafego', 'painel-trafego'], ['tab-debrief', 'painel-debrief']];
+    const mostrar = alvo => {
+      for (const [bt, pn] of abas) {
+        const on = bt === alvo;
+        $(bt).setAttribute('aria-selected', String(on));
+        $(pn).hidden = !on;
+      }
+      // o seletor de período vale para o tráfego; o debriefing olha o lançamento inteiro
+      $('periodBtn').closest('.periodWrap').hidden = alvo !== 'tab-trafego';
+      if (alvo === 'tab-trafego') renderChart(filteredRows());
+      try { localStorage.setItem('ato-aba', alvo); } catch (e) {}
+    };
+    for (const [bt] of abas) $(bt).addEventListener('click', () => mostrar(bt));
+    let salva = null; try { salva = localStorage.getItem('ato-aba'); } catch (e) {}
+    if (salva === 'tab-debrief' && D && D.debrief) mostrar('tab-debrief');
+  }
+
   /* ---------- boot ---------- */
   (function boot() {
     const hasData = D && D.summary && D.insights;
@@ -854,6 +1003,8 @@ const D = /*__DATA__*/{};
     initPeriodPicker();
     initControls();
     renderAll();
+    renderDebrief();
+    initTabs();
   })();
 })();
 </script>

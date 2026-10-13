@@ -1,6 +1,9 @@
 # segredos — nunca versionar
 .env
 
+# exports da Hubla com dado pessoal (só o agregado em debrief.json é versionado)
+clientes/*/entrada/
+
 # gerado a cada execução (o Actions regenera)
 clientes/*/out/
 clientes/*/dashboard-completo.html

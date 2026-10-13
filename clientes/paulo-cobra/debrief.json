@@ -1,0 +1,29 @@
+{
+  "geradoEm": "2026-10-13T18:03:23.543Z",
+  "temWorkshop": false,
+  "produto": "MBA - Mercado Livre do Básico ao Avançado",
+  "mba": {
+    "vendas": 8,
+    "reembolsos": 1,
+    "receita": 19092.8,
+    "ticket": 2386.6,
+    "primeira": "2026-10-03",
+    "ultima": "2026-10-05",
+    "roas": 8.736364301925468,
+    "cpa": 273.18000000000006,
+    "gasto": 2185.4400000000005
+  },
+  "workshop": {
+    "compradores": 0,
+    "comTrafego": 0
+  },
+  "cruzamento": {
+    "doWorkshop": 0,
+    "comCriativo": 0,
+    "diretos": 8,
+    "taxa": null
+  },
+  "porCriativo": [],
+  "porPublico": [],
+  "porTemperatura": []
+}

@@ -377,7 +377,23 @@ async function mainLancamento() {
   const activeCampSet = new Set(campaigns.filter(c => c.status === 'ACTIVE').map(c => c.id));
   const keptAds = ads.filter(a => deliveredAdIds.has(a.id) || soldAdIds.has(a.id) || (a.status === 'ACTIVE' && activeCampSet.has(a.campaignId)));
 
+  // ---- Debriefing (exports .xlsx da Hubla em clientes/<cliente>/entrada/) ----
+  // Os .xlsx têm dado pessoal e ficam fora do git; o resultado é só agregado e fica
+  // versionado em clientes/<cliente>/debrief.json, para o Actions republicar sem os arquivos.
+  const gastoPorAdId = {}; let gastoTotal = 0;
+  for (const r of insights) { gastoPorAdId[r[3]] = (gastoPorAdId[r[3]] || 0) + r[4]; gastoTotal += r[4]; }
+  let debrief = null;
+  try {
+    debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal });
+  } catch (e) {
+    console.error(`[${slug}] debriefing ignorado: ${e.message}`);
+  }
+  const snapshot = path.join(DIR, 'debrief.json');
+  if (debrief) fs.writeFileSync(snapshot, JSON.stringify(debrief, null, 2) + '\n');
+  else if (fs.existsSync(snapshot)) debrief = JSON.parse(fs.readFileSync(snapshot, 'utf8'));
+
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
+  write('debrief.json', debrief);
   write('campaigns.json', { rows: campaigns });
   write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'checkouts'], rows: insights });
   write('ads.json', { rows: keptAds });
@@ -385,7 +401,7 @@ async function mainLancamento() {
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
     periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
-    counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null }
+    counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
   });
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
 }

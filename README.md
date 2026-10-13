@@ -74,6 +74,21 @@ no Instagram e mais gastou; a miniatura é baixada uma vez (a URL do Meta expira
 4. Enquanto `hubla` for `null`, o painel mostra o aviso "Hubla pendente" e vendas zeradas; gasto e funil já ficam certos.
 5. `git push` — o Actions publica em `dash.atodigital.com.br/<slug>`.
 
+### Aba de debriefing (cruzar o workshop com o produto final)
+
+Coloque os exports de vendas da Hubla (.xlsx) em `clientes/<slug>/entrada/`:
+
+| Arquivo | O que é |
+|---|---|
+| `mba.xlsx` | vendas do produto final (o que fecha o lançamento) |
+| `workshop.xlsx` | vendas do ingresso — é o que carrega as UTMs do anúncio junto do e-mail |
+
+`node refresh.js <slug>` cruza os dois pelo e-mail do comprador e escreve **só agregados** em
+`clientes/<slug>/debrief.json` (esse sim versionado), respondendo de qual criativo e público
+veio cada comprador do produto final. A pasta `entrada/` tem nome, e-mail e telefone e **fica
+fora do git** — o Actions republica a aba a partir do `debrief.json` já gerado, então basta
+rodar o refresh localmente e commitar quando chegarem exports novos.
+
 Funil, taxas e temperatura vêm de `shared/template-lancamento.html`; o build injeta os JSONs de `clientes/<slug>/out/`.
 Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não atribuído" (contam no total, não na temperatura).
 

@@ -56,6 +56,7 @@ function buildClient(slug) {
       insights: json('insights.json'),
       ads: json('ads.json').rows,
       sales: json('sales.json').rows,
+      debrief: json('debrief.json'),
     };
     const html = templateLancamento
       .split('{{NOME}}').join(esc(cfg.nome))
