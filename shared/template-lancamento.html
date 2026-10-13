@@ -914,49 +914,50 @@ const D = /*__DATA__*/{};
       card('Período de vendas', d.mba.primeira ? (d.mba.primeira === d.mba.ultima ? fmtDateLong(d.mba.primeira) : fmtDateShort(d.mba.primeira) + ' – ' + fmtDateShort(d.mba.ultima)) : '—', ''),
     ].join('');
 
+    const cruza = d.temWorkshop; // dá para ligar comprador do produto ao comprador do ingresso?
     const c = d.cruzamento, n = Math.max(1, d.mba.vendas);
     const fatias = [
       { lbl: 'Vieram de um criativo', v: c.comCriativo, cor: 'var(--accent)' },
       { lbl: 'Compraram o ingresso, sem UTM', v: c.doWorkshop - c.comCriativo, cor: 'var(--sand)' },
-      { lbl: 'Sem passar pelo workshop', v: c.diretos, cor: 'var(--line-strong)' },
+      { lbl: cruza ? 'Sem passar pelo workshop' : 'Origem ainda não cruzada', v: c.diretos, cor: 'var(--line-strong)' },
     ].filter(f => f.v > 0);
     origem.innerHTML = `
       <div class="origem-bar">${fatias.map(f => `<i style="width:${(f.v / n * 100).toFixed(1)}%;background:${f.cor}" title="${f.lbl}"></i>`).join('')}</div>
       <div class="origem-leg">${fatias.map(f => `<span><i style="background:${f.cor}"></i>${f.lbl} <b class="num">${fmtInt(f.v)}</b> (${fmtPct(f.v / n, 0)})</span>`).join('')}</div>`;
 
-    if (!d.temWorkshop) {
-      aviso.innerHTML = 'Para dizer <b>de qual criativo e público</b> veio cada comprador, falta o export das vendas do workshop — é ele que carrega as UTMs do anúncio junto do e-mail. Exporte as vendas do ingresso na Hubla e salve como <code>clientes/paulo-cobra/entrada/workshop.xlsx</code>.';
+    if (!cruza) {
+      aviso.innerHTML = 'As colunas de <b>compras</b> abaixo ainda aparecem como &ldquo;—&rdquo;: para ligar o comprador do produto final ao comprador do ingresso falta uma chave em comum. As vendas do workshop que o painel recebe por webhook não guardam e-mail. Duas saídas: exportar as vendas do ingresso na Hubla e salvar como <code>entrada/workshop.xlsx</code> (resolve este lançamento), ou republicar o <code>webhook-planilha.gs</code> atualizado, que passa a gravar o <b>ID do cliente</b> e o e-mail em hash — daí o cruzamento é automático nos próximos.';
       aviso.hidden = false;
     } else aviso.hidden = true;
 
     const tbPub = el.dbPublicos.querySelector('tbody'), tfPub = el.dbPublicos.querySelector('tfoot');
-    if (!d.porPublico.length) { tbPub.innerHTML = '<tr><td colspan="5" class="empty">Depende do export das vendas do workshop.</td></tr>'; tfPub.innerHTML = ''; }
+    if (!d.porPublico.length) { tbPub.innerHTML = '<tr><td colspan="5" class="empty">Sem ingressos atribuídos a um público no período.</td></tr>'; tfPub.innerHTML = ''; }
     else {
       tbPub.innerHTML = d.porPublico.map(o => `<tr>
         <td>${esc(o.rotulo)}</td>
         <td>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : '—'}</td>
         <td class="num">${fmtInt(o.ingressos)}</td>
-        <td class="num">${fmtInt(o.mba)}</td>
-        <td class="num"><span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span></td>
+        <td class="num">${cruza ? fmtInt(o.mba) : '—'}</td>
+        <td class="num">${cruza ? `<span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span>` : '—'}</td>
       </tr>`).join('');
       const ti = d.porPublico.reduce((t, o) => t + o.ingressos, 0), tm = d.porPublico.reduce((t, o) => t + o.mba, 0);
-      tfPub.innerHTML = `<tr><td>${d.porPublico.length} público${d.porPublico.length === 1 ? '' : 's'}</td><td></td><td class="num">${fmtInt(ti)}</td><td class="num">${fmtInt(tm)}</td><td class="num">${fmtPct(div(tm, ti), 1)}</td></tr>`;
+      tfPub.innerHTML = `<tr><td>${d.porPublico.length} público${d.porPublico.length === 1 ? '' : 's'}</td><td></td><td class="num">${fmtInt(ti)}</td><td class="num">${cruza ? fmtInt(tm) : '—'}</td><td class="num">${cruza ? fmtPct(div(tm, ti), 1) : '—'}</td></tr>`;
     }
 
     const tbCri = el.dbCriativos.querySelector('tbody'), tfCri = el.dbCriativos.querySelector('tfoot');
-    if (!d.porCriativo.length) { tbCri.innerHTML = '<tr><td colspan="6" class="empty">Depende do export das vendas do workshop.</td></tr>'; tfCri.innerHTML = ''; }
+    if (!d.porCriativo.length) { tbCri.innerHTML = '<tr><td colspan="6" class="empty">Sem ingressos atribuídos a um criativo no período.</td></tr>'; tfCri.innerHTML = ''; }
     else {
       const maxG = Math.max(1, ...d.porCriativo.map(o => o.gasto));
       tbCri.innerHTML = d.porCriativo.map(o => `<tr>
         <td><div class="creative"><div class="nm"><strong>${esc(o.rotulo)}</strong><small>${o.temp ? `<span class="tbadge" data-t="${o.temp}">${o.temp}</span>` : ''}${o.adset ? esc(o.adset) : ''}</small></div></div></td>
         <td class="num"><span class="bar-cell"><i style="width:${(o.gasto / maxG * 56).toFixed(0)}px"></i>${fmtMoney(o.gasto)}</span></td>
         <td class="num">${fmtInt(o.ingressos)}</td>
-        <td class="num">${fmtInt(o.mba)}</td>
-        <td class="num"><span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span></td>
-        <td class="num">${fmtMoney(o.cpaMba)}</td>
+        <td class="num">${cruza ? fmtInt(o.mba) : '—'}</td>
+        <td class="num">${cruza ? `<span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span>` : '—'}</td>
+        <td class="num">${cruza ? fmtMoney(o.cpaMba) : '—'}</td>
       </tr>`).join('');
       const ti = d.porCriativo.reduce((t, o) => t + o.ingressos, 0), tm = d.porCriativo.reduce((t, o) => t + o.mba, 0), tg = d.porCriativo.reduce((t, o) => t + o.gasto, 0);
-      tfCri.innerHTML = `<tr><td>${d.porCriativo.length} criativo${d.porCriativo.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(tg)}</td><td class="num">${fmtInt(ti)}</td><td class="num">${fmtInt(tm)}</td><td class="num">${fmtPct(div(tm, ti), 1)}</td><td class="num">${fmtMoney(div(tg, tm))}</td></tr>`;
+      tfCri.innerHTML = `<tr><td>${d.porCriativo.length} criativo${d.porCriativo.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(tg)}</td><td class="num">${fmtInt(ti)}</td><td class="num">${cruza ? fmtInt(tm) : '—'}</td><td class="num">${cruza ? fmtPct(div(tm, ti), 1) : '—'}</td><td class="num">${cruza ? fmtMoney(div(tg, tm)) : '—'}</td></tr>`;
     }
   }
 

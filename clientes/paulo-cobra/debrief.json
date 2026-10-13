@@ -1,6 +1,7 @@
 {
-  "geradoEm": "2026-10-13T18:03:23.543Z",
+  "geradoEm": "2026-10-13T19:51:29.410Z",
   "temWorkshop": false,
+  "fonteWorkshop": "nenhuma",
   "produto": "MBA - Mercado Livre do Básico ao Avançado",
   "mba": {
     "vendas": 8,
@@ -14,16 +15,165 @@
     "gasto": 2185.4400000000005
   },
   "workshop": {
-    "compradores": 0,
-    "comTrafego": 0
+    "compradores": 29,
+    "comTrafego": 17
   },
   "cruzamento": {
     "doWorkshop": 0,
     "comCriativo": 0,
     "diretos": 8,
-    "taxa": null
+    "taxa": 0
   },
-  "porCriativo": [],
-  "porPublico": [],
-  "porTemperatura": []
+  "porCriativo": [
+    {
+      "chave": "120250569062860082",
+      "rotulo": "AD18-QUER_COMECAR",
+      "ingressos": 5,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 256.94,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250569149500082",
+      "rotulo": "AD14-PENSA_EM_VENDER_PELA_INTERNET",
+      "ingressos": 3,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 167.98,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250560846360082",
+      "rotulo": "AD01-ONDE_COMPRO",
+      "ingressos": 3,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 85.31,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-01",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250568973510082",
+      "rotulo": "AD06-10_MIL_FATURAMENTO",
+      "ingressos": 2,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 91.49000000000001,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250568973540082",
+      "rotulo": "AD09-PRODUTO_TA_BARATO",
+      "ingressos": 1,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 16.31,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250569062850082",
+      "rotulo": "AD17-NUNCA_VENDEU_NA_INTERNET",
+      "ingressos": 1,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 7.92,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250568973530082",
+      "rotulo": "AD08-3_MILHOES",
+      "ingressos": 1,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 73.75,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "taxa": 0,
+      "cpaMba": null
+    },
+    {
+      "chave": "120250569149540082",
+      "rotulo": "AD11-NAO_ENTENDO_NADA_DE_VENDER",
+      "ingressos": 1,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 105.99000000000001,
+      "temp": "frio",
+      "adset": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "taxa": 0,
+      "cpaMba": null
+    }
+  ],
+  "porPublico": [
+    {
+      "chave": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "rotulo": "[F]-[AUTO]-ADVANTAGE+INTERESSES-03",
+      "ingressos": 6,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 0,
+      "temp": "frio",
+      "taxa": 0
+    },
+    {
+      "chave": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "rotulo": "[F]-[AUTO]-ADVANTAGE+INTERESSES-04",
+      "ingressos": 4,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 0,
+      "temp": "frio",
+      "taxa": 0
+    },
+    {
+      "chave": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "rotulo": "[F]-[AUTO]-ADVANTAGE+INTERESSES-02",
+      "ingressos": 4,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 0,
+      "temp": "frio",
+      "taxa": 0
+    },
+    {
+      "chave": "[F]-[AUTO]-ADVANTAGE+INTERESSES-01",
+      "rotulo": "[F]-[AUTO]-ADVANTAGE+INTERESSES-01",
+      "ingressos": 3,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 0,
+      "temp": "frio",
+      "taxa": 0
+    }
+  ],
+  "porTemperatura": [
+    {
+      "chave": "frio",
+      "rotulo": "frio",
+      "ingressos": 17,
+      "mba": 0,
+      "receitaMba": 0,
+      "gasto": 0,
+      "temp": "frio",
+      "taxa": 0
+    }
+  ]
 }

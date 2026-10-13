@@ -25,7 +25,9 @@ var SEGREDO = 'TROQUE-POR-UMA-SENHA-LONGA';
 var ABA = 'vendas';
 var COLUNAS = ['recebido_em', 'evento', 'invoice_id', 'status', 'sale_date', 'total_cents', 'product_id', 'product_name',
                'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'src', 'sck',
-               'products_ids', 'products_names']; // todos os produtos da fatura (produto principal + order bumps), separados por " | "
+               'products_ids', 'products_names', // todos os produtos da fatura (produto principal + order bumps), separados por " | "
+               'customer_id', 'email_hash'];      // para cruzar com os exports da Hubla (debriefing) sem guardar dado pessoal:
+                                                  // customer_id = "ID do cliente" do export; email_hash = SHA-256 do e-mail em minúsculas
 
 function doPost(e) {
   try {
@@ -44,6 +46,7 @@ function doPost(e) {
     var params = ps.params || {};
     var amount = inv.amount || {};
     var prods = Array.isArray(ev.products) && ev.products.length ? ev.products : (prod.id ? [prod] : []);
+    var user = ev.user || inv.user || {};
 
     var linha = [
       new Date(),
@@ -57,7 +60,9 @@ function doPost(e) {
       utm.source || '', utm.medium || '', utm.campaign || '', utm.content || '', utm.term || '',
       params.src || '', params.sck || '',
       prods.map(function (x) { return x.id || ''; }).join(' | '),
-      prods.map(function (x) { return x.name || ''; }).join(' | ')
+      prods.map(function (x) { return x.name || ''; }).join(' | '),
+      user.id || '',
+      sha256_(user.email)
     ];
 
     var lock = LockService.getScriptLock();
@@ -91,6 +96,15 @@ function aba_() {
     aba.getRange(1, 1, 1, COLUNAS.length).setValues([COLUNAS]);
   }
   return aba;
+}
+
+// SHA-256 do e-mail em minúsculas: permite cruzar o comprador com os exports da Hubla
+// sem que o e-mail em si fique guardado na planilha (que é lida pelo painel público).
+function sha256_(email) {
+  var e = String(email || '').trim().toLowerCase();
+  if (!e) return '';
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, e, Utilities.Charset.UTF_8);
+  return bytes.map(function (b) { return ((b & 0xff) + 0x100).toString(16).slice(1); }).join('');
 }
 
 function json_(obj, status) {

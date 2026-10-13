@@ -307,7 +307,8 @@ async function fetchHublaSales(ads) {
   const idx = name => header.indexOf(normKey(name));
   const col = {
     invoice: idx('invoice_id'), status: idx('status'), sale: idx('sale_date'), total: idx('total_cents'),
-    product: idx('product_id'), products: idx('products_ids'), uc: idx('utm_campaign'), uct: idx('utm_content')
+    product: idx('product_id'), products: idx('products_ids'), uc: idx('utm_campaign'), uct: idx('utm_content'),
+    customer: idx('customer_id'), emailHash: idx('email_hash') // só existem a partir da v2 do webhook-planilha.gs
   };
   for (const k of ['invoice', 'status', 'sale']) if (col[k] < 0) throw new Error(`planilha da Hubla sem a coluna ${k} — use o hubla/webhook-planilha.gs deste repositório`);
   const g = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
@@ -340,7 +341,7 @@ async function fetchHublaSales(ads) {
     const uct = decode(g(r, col.uct)).split('::')[0].trim();
     const partes = uct.split('|').map(x => x.trim()).filter(Boolean);
     const adId = partes.map(x => adIds.has(x) ? x : adByName.get(normKey(x))).find(Boolean) || null;
-    sales.push({ date, invoiceId, adId, main, bump, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
+    sales.push({ date, invoiceId, adId, main, bump, customerId: g(r, col.customer) || null, emailHash: (g(r, col.emailHash) || '').toLowerCase() || null, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
   }
   return sales;
 }
@@ -384,7 +385,7 @@ async function mainLancamento() {
   for (const r of insights) { gastoPorAdId[r[3]] = (gastoPorAdId[r[3]] || 0) + r[4]; gastoTotal += r[4]; }
   let debrief = null;
   try {
-    debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal });
+    debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [] });
   } catch (e) {
     console.error(`[${slug}] debriefing ignorado: ${e.message}`);
   }
