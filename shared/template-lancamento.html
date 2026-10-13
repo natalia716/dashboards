@@ -412,6 +412,16 @@
     <div class="aviso" id="db-aviso" hidden></div>
   </section>
 
+  <section class="card" aria-labelledby="h-db-campanha">
+    <div class="card-head"><h2 id="h-db-campanha">Campanhas que converteram</h2></div>
+    <div class="tbl-wrap">
+      <table id="db-campanhas">
+        <thead><tr><th>Campanha do workshop</th><th>Ingressos</th><th>Compras</th><th>Tx. ingresso → produto</th></tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+
   <section class="card" aria-labelledby="h-db-publico">
     <div class="card-head"><h2 id="h-db-publico">Públicos que converteram</h2></div>
     <div class="tbl-wrap">
@@ -428,6 +438,15 @@
       <table id="db-criativos">
         <thead><tr><th>Criativo</th><th>Gasto</th><th>Ingressos</th><th>Compras</th><th>Tx. ingresso → produto</th><th>CPA do produto</th></tr></thead>
         <tbody></tbody><tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+  <section class="card" id="sec-jornada" aria-labelledby="h-db-jornada" hidden>
+    <div class="card-head"><h2 id="h-db-jornada">Jornada de cada comprador</h2></div>
+    <div class="tbl-wrap">
+      <table id="db-jornada">
+        <thead><tr><th>#</th><th>Ingresso</th><th>Compra</th><th>Valor</th><th>Criativo</th><th>Público</th><th>Campanha</th></tr></thead>
+        <tbody></tbody>
       </table>
     </div>
   </section>
@@ -561,7 +580,7 @@ const D = /*__DATA__*/{};
 
   /* ---------- estado ---------- */
   const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
-  const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
+  const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), dbCampanhas: $('db-campanhas'), dbJornada: $('db-jornada'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
   function maxRange() {
@@ -929,6 +948,34 @@ const D = /*__DATA__*/{};
       aviso.innerHTML = 'As colunas de <b>compras</b> abaixo ainda aparecem como &ldquo;—&rdquo;: para ligar o comprador do produto final ao comprador do ingresso falta uma chave em comum. As vendas do workshop que o painel recebe por webhook não guardam e-mail. Duas saídas: exportar as vendas do ingresso na Hubla e salvar como <code>entrada/workshop.xlsx</code> (resolve este lançamento), ou republicar o <code>webhook-planilha.gs</code> atualizado, que passa a gravar o <b>ID do cliente</b> e o e-mail em hash — daí o cruzamento é automático nos próximos.';
       aviso.hidden = false;
     } else aviso.hidden = true;
+
+    const camps = d.porCampanha || [];
+    const tbCam = el.dbCampanhas.querySelector('tbody'), tfCam = el.dbCampanhas.querySelector('tfoot');
+    if (!camps.length) { tbCam.innerHTML = '<tr><td colspan="4" class="empty">Sem ingressos atribuídos a uma campanha no período.</td></tr>'; tfCam.innerHTML = ''; }
+    else {
+      tbCam.innerHTML = camps.map(o => `<tr>
+        <td>${esc(o.rotulo)}</td>
+        <td class="num">${fmtInt(o.ingressos)}</td>
+        <td class="num">${cruza ? fmtInt(o.mba) : '—'}</td>
+        <td class="num">${cruza ? `<span class="pill-rate" data-on="${o.mba ? 1 : 0}">${fmtPct(o.taxa, 1)}</span>` : '—'}</td>
+      </tr>`).join('');
+      const ti = camps.reduce((t, o) => t + o.ingressos, 0), tm = camps.reduce((t, o) => t + o.mba, 0);
+      tfCam.innerHTML = `<tr><td>${camps.length} campanha${camps.length === 1 ? '' : 's'}</td><td class="num">${fmtInt(ti)}</td><td class="num">${cruza ? fmtInt(tm) : '—'}</td><td class="num">${cruza ? fmtPct(div(tm, ti), 1) : '—'}</td></tr>`;
+    }
+
+    const jornada = d.jornada || [];
+    $('sec-jornada').hidden = !jornada.length;
+    if (jornada.length) {
+      el.dbJornada.querySelector('tbody').innerHTML = jornada.map(j => `<tr>
+        <td class="num">${j.n}</td>
+        <td class="num">${j.ingresso ? fmtDateLong(j.ingresso) : '—'}</td>
+        <td class="num">${j.compra ? fmtDateLong(j.compra) : '—'}</td>
+        <td class="num">${fmtMoney(j.valor)}</td>
+        <td>${j.criativo ? esc(j.criativo) : '<span class="dim">sem UTM</span>'}</td>
+        <td>${j.publico ? `${j.temp ? `<span class="tbadge" data-t="${j.temp}">${j.temp}</span> ` : ''}${esc(j.publico)}` : '—'}</td>
+        <td>${j.campanha ? esc(j.campanha) : '—'}</td>
+      </tr>`).join('');
+    }
 
     const tbPub = el.dbPublicos.querySelector('tbody'), tfPub = el.dbPublicos.querySelector('tfoot');
     if (!d.porPublico.length) { tbPub.innerHTML = '<tr><td colspan="5" class="empty">Sem ingressos atribuídos a um público no período.</td></tr>'; tfPub.innerHTML = ''; }

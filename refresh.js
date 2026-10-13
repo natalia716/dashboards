@@ -385,7 +385,7 @@ async function mainLancamento() {
   for (const r of insights) { gastoPorAdId[r[3]] = (gastoPorAdId[r[3]] || 0) + r[4]; gastoTotal += r[4]; }
   let debrief = null;
   try {
-    debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [] });
+    debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [], campaigns });
   } catch (e) {
     console.error(`[${slug}] debriefing ignorado: ${e.message}`);
   }
