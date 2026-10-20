@@ -54,12 +54,19 @@ async function postback(req, env) {
 
   const type = s(body.type);
   const id = s(body.transaction_id);
+  // último evento (sem dado pessoal): ajuda a entender um postback que não virou venda
+  metas.push(db.prepare('INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)').bind('ultimo_evento', JSON.stringify({
+    em: now, type, status: s(body.status), payment_status: s((body.transaction || {}).payment_status), test: !!body.test, tem_id: !!id })));
   // carrinho abandonado não é venda (e traz dado de contato): não guarda
   if (!id || type === 'abandoned-cart' || body.status === 'lost_cart') { await db.batch(metas); return json({ ok: true, ignorado: type || 'sem transaction_id' }); }
 
   const t = body.transaction || {};
   const link = body.link || {};
-  const src = link.sources || {};
+  // UTMs: link.sources (as do checkout); na falta, os parâmetros da URL do checkout ou da origem do cliente
+  const origin = body.origin || (body.customer || {}).origin || {};
+  const qs = [link.sources, link.query_params, origin.query_params, (origin.most_recent_campaign || {}).last_query_params].filter(Boolean);
+  const pick = k => { for (const q of qs) if (q[k] != null && q[k] !== '') return q[k]; return null; };
+  const src = { utm_source: pick('utm_source'), utm_medium: pick('utm_medium'), utm_campaign: pick('utm_campaign'), utm_content: pick('utm_content'), utm_term: pick('utm_term'), src: pick('src') };
   const prod = body.product || {};
   const comm = Array.isArray(body.commission) ? body.commission : [];
   const producer = comm.filter(c => String(c.type || '').toLowerCase() === 'producer');
