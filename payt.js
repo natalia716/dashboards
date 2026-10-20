@@ -9,12 +9,16 @@
 
 const readKey = slug => process.env['PAYT_READ_KEY_' + slug.toUpperCase().replace(/-/g, '_')] || null;
 
-// utm_content dos anúncios = {{ad.name}}|{{ad.id}} — o ID é o último trecho numérico
-function origin(utmContent) {
+// utm_content dos anúncios = {{ad.name}}|{{ad.id}} — o ID é o último trecho numérico. Só conta como Meta com
+// utm_source do Facebook/Instagram (o tracker acrescenta sufixo: "FBjLj6aba…"); o Google também manda ID numérico
+// no utm_content (ex.: 824766346248). Sem utm_source, vale o ID com cara de Meta (15+ dígitos).
+function origin(utmContent, utmSource) {
   const parts = String(utmContent || '').split('::')[0].split('|').map(x => x.trim()).filter(Boolean);
   const i = parts.map(p => /^\d{10,}$/.test(p)).lastIndexOf(true);
-  if (i >= 0) return { origem: 'meta', adId: parts[i], adName: parts.slice(0, i).join('|') || null };
-  return { origem: 'semId', adId: null, adName: null };
+  const src = String(utmSource || '').trim();
+  const meta = src ? /^(fb|facebook|ig|instagram|meta)/i.test(src) : i >= 0 && parts[i].length >= 15;
+  if (i >= 0 && meta) return { origem: 'meta', adId: parts[i], adName: parts.slice(0, i).join('|') || null };
+  return { origem: i >= 0 || src ? 'outro' : 'semId', adId: null, adName: null };
 }
 
 // "AAAA-MM-DD HH:MM:SS" da Payt (horário de Brasília) → "AAAA-MM-DD"
@@ -38,8 +42,8 @@ async function fetchSales(cfg, slug, since) {
     const date = dayOf(r.paid_at) || dayOf(r.created_at);
     if (!date || date < since) continue;
     const upsell = /upsell/.test(r.type || '');
-    let o = origin(r.utm_content);
-    if (!o.adId && upsell && r.upsell_from && byId.has(r.upsell_from)) o = origin(byId.get(r.upsell_from).utm_content);
+    let o = origin(r.utm_content, r.utm_source);
+    if (!o.adId && upsell && r.upsell_from && byId.has(r.upsell_from)) { const p = byId.get(r.upsell_from); o = origin(p.utm_content, p.utm_source); }
     if (r.producer_cents == null) semComissao++;
     const cents = r.producer_cents != null ? r.producer_cents : r.total_cents || 0;
     out.push([r.transaction_id, date, o.adId, o.adName, Math.round(cents) / 100, String(r.product_code || ''), o.origem, upsell ? 0 : 1]);

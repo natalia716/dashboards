@@ -76,6 +76,10 @@ num banco D1. O refresh busca as vendas lá a cada execução.
 - Novo cliente: copie `payt/wrangler.toml` trocando `name`/banco (`npx wrangler d1 create payt-<slug>`), publique com
   `npx wrangler deploy --config <arquivo>` e grave os dois segredos com `npx wrangler secret put`.
 - Sem chave ou com o Worker fora do ar, o painel sai só com o Meta e um aviso (não derruba os outros clientes).
+- **Histórico** (vendas de antes do postback): exporte *Relatórios → Origem de vendas* da Payt (é o único export com as
+  UTMs; o relatório de vendas comum não tem UTM e traz dado pessoal) e rode
+  `node importar-payt.js <slug> origem_de_vendas_….xlsx` → `clientes/<slug>/vendas/payt.json` (sem dado do comprador).
+  Só conta como anúncio do Meta a venda com `utm_source` do Facebook/Instagram (o Google também manda ID no `utm_content`).
 
 **Várias contas de anúncio** (`"contas": ["act_…", …]` no lugar de `conta`): as métricas se somam e os criativos de
 mesmo nome viram um card só. Conta em outro Business Manager: token próprio em `META_TOKEN_ACT_<número da conta>`

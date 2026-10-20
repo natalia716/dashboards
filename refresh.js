@@ -475,7 +475,7 @@ async function mainCriativos() {
     if (manual) {
       const live = new Set(allSales.map(v => v[0]));
       allSales = manual.vendas.filter(v => !live.has(v[0])).concat(allSales);
-      salesSince = manual.vendas.length ? null : salesSince;
+      salesSince = manual.desde || salesSince;
     }
   } else {
     const cred = hotmart.credentials(slug);
