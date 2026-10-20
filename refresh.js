@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const hotmart = require('./hotmart');
+const payt = require('./payt');
 
 const slug = process.argv[2];
 if (!slug || !/^[a-z0-9-]+$/.test(slug)) { console.error('uso: node refresh.js <cliente>   (ex.: omundoclinico)'); process.exit(1); }
@@ -47,8 +48,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Erros transitórios do Graph: 1/2 (unknown/service), 4/17/80000 (rate limit), 341 (app limit)
 const TRANSIENT = new Set([1, 2, 4, 17, 341, 80000]);
 
-async function graphGetAll(edge, params) {
-  let url = `${GRAPH}/${edge}?${new URLSearchParams({ ...params, access_token: TOKEN, limit: params.limit || '500' })}`;
+// token de uma conta: META_TOKEN_ACT_<número da conta> (conta em outro Business Manager), senão o do cliente/geral
+const tokenFor = act => process.env['META_TOKEN_ACT_' + String(act).replace(/^act_/, '')] || TOKEN;
+
+async function graphGetAll(edge, params, token = TOKEN) {
+  let url = `${GRAPH}/${edge}?${new URLSearchParams({ ...params, access_token: token, limit: params.limit || '500' })}`;
   const rows = [];
   while (url) {
     let j, lastErr;
@@ -408,14 +412,18 @@ async function mainLancamento() {
 }
 
 // ---- Criativos: Meta por anúncio e por dia + vendas da Hotmart (API, ver hotmart.js; plano B: clientes/<cliente>/vendas/
-//      hotmart.json do importar-hotmart.js). Venda e anúncio se ligam pelo ID do anúncio que vem no SCK da Hotmart —
-//      nunca pelas conversões do Meta. Gasto, impressões e cliques vêm do Meta. O card agrupa por nome do anúncio. ----
+//      hotmart.json do importar-hotmart.js) ou da Payt (postback → Worker, ver payt.js). Venda e anúncio se ligam pelo ID
+//      do anúncio que vem no SCK (Hotmart) ou no utm_content (Payt) — nunca pelas conversões do Meta. Gasto, impressões e
+//      cliques vêm do Meta, somando todas as contas de `contas` (ou só `conta`). O card agrupa por nome do anúncio.
+//      Conta em outra moeda (ex.: USD) tem o gasto convertido para reais pela PTAX de venda do dia (Banco Central). ----
 async function mainCriativos() {
-  const VENDAS = path.join(DIR, 'vendas', 'hotmart.json');
+  const PLATAFORMA = CFG.vendas === 'payt' ? 'Payt' : 'Hotmart';
+  const VENDAS = path.join(DIR, 'vendas', PLATAFORMA.toLowerCase() + '.json');
   const manual = fs.existsSync(VENDAS) ? JSON.parse(fs.readFileSync(VENDAS, 'utf8')) : null;
   const since = CFG.desde || (manual && manual.vendas[0] && manual.vendas[0][1]);
   if (!since) throw new Error(`defina "desde" (AAAA-MM-DD) em clientes/${slug}/config.json`);
   const until = todaySP();
+  const ACCOUNTS = [].concat(CFG.contas || CFG.conta);
 
   // ---- cache entre execuções (out/cache, guardado pelo actions/cache do workflow): métricas do Meta, miniaturas e
   //      vendas só com código/data/anúncio/valor/produto — nada do comprador. Buscar o histórico inteiro a cada 15 min
@@ -439,36 +447,67 @@ async function mainCriativos() {
   const SALES_RECENT_DAYS = 35;   // vendas: a garantia da Hotmart vai até 30 dias — reembolso nessa janela some do painel
   const warnings = [];
 
-  // ---- vendas: API da Hotmart (incremental sobre o cache) ou, sem credencial, o import manual ----
-  let allSales, salesUntil, salesSource;
-  const cred = hotmart.credentials(slug);
-  const cachedSales = readCache('hotmart-sales.json');
-  const salesInc = cachedSales && cachedSales.since === since;
-  const salesFrom = salesInc ? windowFrom(SALES_RECENT_DAYS, cachedSales.until) : since;
-  try {
-    if (!cred) throw new Error('sem credenciais HOTMART_*_' + slug.toUpperCase().replace(/-/g, '_'));
-    const fresh = await hotmart.fetchSales(cred, salesFrom, until);
-    allSales = (salesInc && salesFrom > since ? cachedSales.rows.filter(v => v[1] < salesFrom) : []).concat(fresh);
-    writeCache('hotmart-sales.json', { since, until, rows: allSales });
-    salesUntil = until; salesSource = 'api';
-  } catch (e) {
-    if (salesInc) { allSales = cachedSales.rows; salesUntil = cachedSales.until; salesSource = 'api'; }
-    else if (manual) { allSales = manual.vendas; salesUntil = manual.ate; salesSource = 'arquivo'; }
-    else throw e;
-    if (cred) warnings.push(`vendas da Hotmart não atualizaram (${e.message}) — usadas as de ${salesSource === 'api' ? 'antes' : 'clientes/' + slug + '/vendas/hotmart.json'}`);
+  // ---- vendas ----
+  let allSales, salesUntil, salesSource, salesFrom = since, salesSince = null;
+  if (PLATAFORMA === 'Payt') {
+    // o Worker guarda o estado atual de cada transação: busca tudo desde `since` a cada execução (são poucas linhas)
+    const cached = readCache('payt-sales.json');
+    try {
+      const r = await payt.fetchSales(CFG, slug, since);
+      if (r.semComissao) warnings.push(`${r.semComissao} venda(s) da Payt sem comissão de produtor no postback — contado o valor total`);
+      allSales = r.rows; salesSince = r.firstDay;
+      writeCache('payt-sales.json', { since, until, firstDay: r.firstDay, rows: allSales });
+      salesUntil = until; salesSource = 'api';
+    } catch (e) {
+      if (cached && cached.since === since) {
+        warnings.push(`vendas da Payt não atualizaram (${e.message}) — usadas as de antes`);
+        allSales = cached.rows; salesSince = cached.firstDay; salesUntil = cached.until; salesSource = 'api';
+      } else if (manual) {
+        warnings.push(`vendas da Payt não atualizaram (${e.message}) — só o histórico importado`);
+        allSales = []; salesUntil = manual.ate; salesSource = 'arquivo';
+      } else {
+        // sem receptor/chave ainda: o painel sai só com o Meta (e um aviso) em vez de derrubar o workflow de todos os clientes
+        warnings.push(`vendas da Payt indisponíveis (${e.message}) — painel sem vendas nesta rodada`);
+        allSales = []; salesUntil = null; salesSource = 'pendente';
+      }
+    }
+    // histórico importado de um export da Payt (antes do postback existir): o postback manda quando o código se repete
+    if (manual) {
+      const live = new Set(allSales.map(v => v[0]));
+      allSales = manual.vendas.filter(v => !live.has(v[0])).concat(allSales);
+      salesSince = manual.vendas.length ? null : salesSince;
+    }
+  } else {
+    const cred = hotmart.credentials(slug);
+    const cachedSales = readCache('hotmart-sales.json');
+    const salesInc = cachedSales && cachedSales.since === since;
+    salesFrom = salesInc ? windowFrom(SALES_RECENT_DAYS, cachedSales.until) : since;
+    try {
+      if (!cred) throw new Error('sem credenciais HOTMART_*_' + slug.toUpperCase().replace(/-/g, '_'));
+      const fresh = await hotmart.fetchSales(cred, salesFrom, until);
+      allSales = (salesInc && salesFrom > since ? cachedSales.rows.filter(v => v[1] < salesFrom) : []).concat(fresh);
+      writeCache('hotmart-sales.json', { since, until, rows: allSales });
+      salesUntil = until; salesSource = 'api';
+    } catch (e) {
+      if (salesInc) { allSales = cachedSales.rows; salesUntil = cachedSales.until; salesSource = 'api'; }
+      else if (manual) { allSales = manual.vendas; salesUntil = manual.ate; salesSource = 'arquivo'; }
+      else throw e;
+      if (cred) warnings.push(`vendas da Hotmart não atualizaram (${e.message}) — usadas as de ${salesSource === 'api' ? 'antes' : 'clientes/' + slug + '/vendas/hotmart.json'}`);
+    }
   }
-  const sales = allSales.filter(v => v[6] === 'meta' && v[1] >= since); // [codigo, data, adId, adName, valorLiquido, produto, origem]
+  // [codigo, data, adId, adName, valorLiquido, produto, origem, contaVenda?] — contaVenda 0 = upsell (só soma faturamento)
+  const sales = allSales.filter(v => v[6] === 'meta' && v[1] >= since);
 
-  // ---- Meta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia ----
-  const fetchDaily = async (from, to) => {
+  // ---- Meta, por conta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia ----
+  const fetchDaily = async (act, token, from, to) => {
     const out = [];
     for (let start = from; start <= to;) {
       const end = new Date(Math.min(Date.parse(to), Date.parse(start) + 29 * 86400000)).toISOString().slice(0, 10);
-      const rows = await graphGetAll(`${ACCOUNT}/insights`, {
+      const rows = await graphGetAll(`${act}/insights`, {
         level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions',
         limit: '100', // com `actions` por dia, páginas de 500 voltam quebradas do Graph
         time_range: JSON.stringify({ since: start, until: end })
-      });
+      }, token);
       for (const r of rows) {
         // o nome do action_type de checkout varia entre contas — usa o primeiro que existir (como no painel de lançamento)
         const act = types => { for (const t of types) { const a = (r.actions || []).find(x => x.action_type === t); if (a) return Number(a.value || 0); } return 0; };
@@ -478,40 +517,62 @@ async function mainCriativos() {
     }
     return out;
   };
-  const cachedDaily = readCache('meta-daily.json');
-  let daily;
-  const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
-  // caches antigos não têm `until`: sem ele, conta como coleta de hoje
-  const from = incremental ? windowFrom(RECENT_DAYS, cachedDaily.until) : since;
-  try {
-    const fresh = await fetchDaily(from, until);
-    daily = (incremental ? cachedDaily.rows.filter(r => r[0] < from) : []).concat(fresh);
-    writeCache('meta-daily.json', { since, until, rows: daily });
-  } catch (e) {
-    if (!incremental) throw e;
-    // sem Meta nesta rodada: o painel continua com os dados da anterior em vez de derrubar o workflow de todos os clientes
-    warnings.push(`métricas do Meta não atualizaram (${e.message}) — mantidos os dados anteriores`);
-    daily = cachedDaily.rows;
-  }
-
-  // ---- Meta: nome, miniatura e post do Instagram de cada anúncio (renovado a cada ADS_MAX_AGE_H horas) ----
-  let cachedAds = readCache('meta-ads.json');
-  if (!cachedAds || Date.now() - Date.parse(cachedAds.fetchedAt) > ADS_MAX_AGE_H * 3600000) {
+  // com uma conta só, os nomes de cache de antes (painéis já no ar continuam incrementais)
+  const cacheName = (base, act) => ACCOUNTS.length === 1 ? `${base}.json` : `${base}-${act.replace(/^act_/, '')}.json`;
+  const daily = [];        // [data, adId, gasto na moeda da conta, impressões, cliques, checkouts, moeda]
+  let adsRaw = [];
+  let metaStale = false, metaOk = 0;
+  const currencies = new Set();
+  for (const act of ACCOUNTS) {
+    const token = tokenFor(act);
+    const cachedDaily = readCache(cacheName('meta-daily', act));
+    const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
+    // caches antigos não têm `until`: sem ele, conta como coleta de hoje
+    const from = incremental ? windowFrom(RECENT_DAYS, cachedDaily.until) : since;
+    let rows, currency = cachedDaily && cachedDaily.currency;
     try {
-      const raw = await graphGetAll(`${ACCOUNT}/ads`, {
-        fields: 'id,name,preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
-        limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
-      });
-      cachedAds = { fetchedAt: new Date().toISOString(), rows: raw };
-      writeCache('meta-ads.json', cachedAds);
+      if (!currency) currency = await accountCurrency(act, token);
+      const fresh = await fetchDaily(act, token, from, until);
+      rows = (incremental ? cachedDaily.rows.filter(r => r[0] < from) : []).concat(fresh);
+      writeCache(cacheName('meta-daily', act), { since, until, currency, rows });
+      metaOk++;
     } catch (e) {
-      if (!cachedAds) throw e;
-      warnings.push(`lista de anúncios não atualizou (${e.message}) — mantida a anterior`);
+      // sem Meta nesta rodada: o painel continua com os dados da anterior em vez de derrubar o workflow de todos os clientes
+      if (incremental) { warnings.push(`métricas do Meta (${act}) não atualizaram (${e.message}) — mantidos os dados anteriores`); rows = cachedDaily.rows; }
+      else if (ACCOUNTS.length > 1) { warnings.push(`métricas do Meta (${act}) indisponíveis (${e.message}) — conta fora do painel nesta rodada`); rows = []; }
+      else throw e;
+      metaStale = true;
     }
+    currency = currency || 'BRL';
+    currencies.add(currency);
+    for (const r of rows) daily.push([...r, currency]);
+
+    // ---- nome, miniatura e post do Instagram de cada anúncio (renovado a cada ADS_MAX_AGE_H horas) ----
+    let cachedAds = readCache(cacheName('meta-ads', act));
+    if (!cachedAds || Date.now() - Date.parse(cachedAds.fetchedAt) > ADS_MAX_AGE_H * 3600000) {
+      try {
+        const raw = await graphGetAll(`${act}/ads`, {
+          fields: 'id,name,preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
+          limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
+        }, token);
+        cachedAds = { fetchedAt: new Date().toISOString(), rows: raw };
+        writeCache(cacheName('meta-ads', act), cachedAds);
+      } catch (e) {
+        if (!cachedAds && ACCOUNTS.length === 1) throw e;
+        warnings.push(`lista de anúncios (${act}) não atualizou (${e.message})${cachedAds ? ' — mantida a anterior' : ''}`);
+      }
+    }
+    if (cachedAds) adsRaw = adsRaw.concat(cachedAds.rows);
   }
-  const adsRaw = cachedAds.rows;
+  if (!metaOk && !daily.length) throw new Error('nenhuma conta do Meta respondeu');
+
+  // ---- câmbio: PTAX de venda do dia (Banco Central) para contas fora do real; fim de semana/feriado usa o último dia útil ----
+  const rates = {};
+  for (const cur of [...currencies].filter(c => c !== 'BRL')) rates[cur] = await ptax(cur, since, until, readCache, writeCache, warnings);
+  const toBRL = (v, cur, d) => cur === 'BRL' ? v : v * rateOn(rates[cur], d);
+
   const adById = new Map(adsRaw.map(a => [a.id, a]));
-  // o nome atual no Meta manda; o do SCK só vale se o anúncio sumiu da conta (o SCK chega a vir cortado: "AD_copy_14AE29F3-7...")
+  // o nome atual no Meta manda; o do SCK/UTM só vale se o anúncio sumiu da conta (o SCK chega a vir cortado: "AD_copy_14AE29F3-7...")
   const nameOf = (adId, fallback) => adById.has(adId) ? adById.get(adId).name : (fallback || `Anúncio ${adId}`);
 
   // ---- linhas diárias por criativo: [data, nome, gasto, impressões, cliques, vendas, faturamento líquido, checkouts] ----
@@ -519,14 +580,15 @@ async function mainCriativos() {
   const agg = new Map();
   const row = (d, n) => agg.get(key(d, n)) || agg.set(key(d, n), [d, n, 0, 0, 0, 0, 0, 0]).get(key(d, n));
   const spendByAd = new Map();
-  for (const [d, adId, spend, imp, clk, chk] of daily) {
+  for (const [d, adId, spendRaw, imp, clk, chk, cur] of daily) {
+    const spend = toBRL(spendRaw, cur, d);
     const r = row(d, nameOf(adId));
     r[2] += spend; r[3] += imp; r[4] += clk; r[7] += chk;
     spendByAd.set(adId, (spendByAd.get(adId) || 0) + spend);
   }
-  for (const [, d, adId, adName, net] of sales) {
+  for (const [, d, adId, adName, net, , , conta] of sales) {
     const r = row(d, nameOf(adId, adName));
-    r[5] += 1; r[6] += net;
+    r[5] += conta === 0 ? 0 : 1; r[6] += net;
   }
   const rows = [...agg.values()].map(r => [r[0], r[1], +r[2].toFixed(2), r[3], r[4], r[5], +r[6].toFixed(2), r[7]])
     .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
@@ -562,14 +624,56 @@ async function mainCriativos() {
   write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts'], rows });
   write('ads.json', { rows: ads });
   // updatedAt = quando o Meta respondeu de fato (numa rodada sem Meta, fica o horário do cache)
-  const metaStale = warnings.some(w => w.startsWith('métricas do Meta'));
-  const metaAt = metaStale && cachedDaily ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
-  const summary = { updatedAt: metaAt || new Date().toISOString(), account: ACCOUNT, since, until, vendasAte: salesUntil, vendasFonte: salesSource };
+  const metaAt = metaStale && !metaOk ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
+  const summary = {
+    updatedAt: metaAt || new Date().toISOString(), account: ACCOUNTS.join(','), since, until,
+    plataforma: PLATAFORMA, vendasAte: salesUntil, vendasFonte: salesSource, vendasDesde: salesSince,
+    cambio: [...currencies].filter(c => c !== 'BRL')
+  };
   write('summary.json', summary);
-  if (!metaStale) writeCache('summary.json', summary);
+  if (metaOk) writeCache('summary.json', summary);
   for (const w of warnings) console.log(`::warning::[${slug}] ${w}`);
   const orphan = sales.filter(v => !adById.has(v[2])).length;
-  console.log(`[${slug}] OK`, JSON.stringify({ dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: salesUntil, vendasFonte: salesSource, vendasDesde: salesFrom, metaDesde: from }));
+  console.log(`[${slug}] OK`, JSON.stringify({ contas: ACCOUNTS.length, contasOk: metaOk, dias: new Set(rows.map(r => r[0])).size, criativos: names.size, comPrevia: ads.filter(a => a.thumb).length, vendasMeta: sales.length, vendasDeAnuncioForaDaConta: orphan, vendasAte: salesUntil, vendasFonte: salesSource, vendasDesde: salesFrom, cambio: summary.cambio }));
+}
+
+async function accountCurrency(act, token) {
+  const res = await fetch(`${GRAPH}/${act}?fields=currency&access_token=${token}`);
+  const j = await res.json();
+  if (j.error) throw new Error(`Graph API ${act}: ${j.error.message}`);
+  return j.currency;
+}
+
+// PTAX de venda por dia útil, do Banco Central (olinda.bcb.gov.br), guardada no cache: { 'AAAA-MM-DD': cotação }.
+// Os últimos 10 dias são sempre buscados de novo (a PTAX do dia sai por volta das 13h).
+async function ptax(cur, since, until, readCache, writeCache, warnings) {
+  const name = `ptax-${cur}.json`;
+  const cached = readCache(name) || { rates: {} };
+  const from = Object.keys(cached.rates).length && Object.keys(cached.rates).sort()[0] <= since
+    ? new Date(Date.parse(until) - 10 * 86400000).toISOString().slice(0, 10)
+    : new Date(Date.parse(since) - 10 * 86400000).toISOString().slice(0, 10); // folga para o 1º dia cair num fim de semana
+  const mdy = iso => { const [y, m, d] = iso.split('-'); return `${m}-${d}-${y}`; };
+  const url = cur === 'USD'
+    ? `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@dataInicial='${mdy(from)}'&@dataFinalCotacao='${mdy(until)}'&$format=json&$select=cotacaoVenda,dataHoraCotacao`
+    : `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='${cur}'&@dataInicial='${mdy(from)}'&@dataFinalCotacao='${mdy(until)}'&$format=json&$filter=tipoBoletim%20eq%20'Fechamento'&$select=cotacaoVenda,dataHoraCotacao`;
+  try {
+    const j = await (await fetch(url)).json();
+    if (!Array.isArray(j.value)) throw new Error('resposta inesperada');
+    for (const v of j.value) cached.rates[v.dataHoraCotacao.slice(0, 10)] = v.cotacaoVenda;
+    writeCache(name, cached);
+  } catch (e) {
+    if (!Object.keys(cached.rates).length) throw new Error(`PTAX ${cur} indisponível (${e.message}) e sem cotações guardadas`);
+    warnings.push(`PTAX ${cur} não atualizou (${e.message}) — usadas as cotações guardadas`);
+  }
+  return Object.entries(cached.rates).sort((a, b) => a[0] < b[0] ? -1 : 1);
+}
+
+// cotação do dia ou, sem ela (fim de semana, feriado, hoje antes das 13h), a do último dia útil anterior
+function rateOn(sorted, d) {
+  let r = sorted.length ? sorted[0][1] : null;
+  for (const [day, v] of sorted) { if (day > d) break; r = v; }
+  if (r == null) throw new Error('sem cotação para converter o gasto');
+  return r;
 }
 
 const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : mainLeads;

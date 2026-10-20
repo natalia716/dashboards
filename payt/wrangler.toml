@@ -1,0 +1,11 @@
+# Receptor do postback da Payt da Chef Bernadete (conta Cloudflare da ATO, separado do escala-inevitavel).
+# Publicar: npx wrangler deploy --config payt/wrangler.toml
+name = "payt-chefbernadete"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "payt-chefbernadete"
+database_id = "3710506f-8904-41fa-b08c-c4aa4585e106"

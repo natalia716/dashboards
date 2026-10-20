@@ -17,3 +17,7 @@ public/
 clientes/*/vendas/*.xls
 clientes/*/vendas/*.xlsx
 clientes/*/vendas/*.csv
+
+# cache local do wrangler (Cloudflare)
+.wrangler/
+payt/.wrangler/

@@ -3,13 +3,14 @@
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
 Três tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla)
-e **criativos** (Meta por anúncio e por dia + vendas da Hotmart).
+e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 
 | Cliente | Tipo | Endereço |
 |---|---|---|
 | O Mundo Clínico | leads | https://dash.atodigital.com.br/omundoclinico |
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 | Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
+| Chef Bernadete | criativos (Payt) | https://dash.atodigital.com.br/chefbernadete |
 
 ## Como funciona
 
@@ -58,6 +59,31 @@ O SCK que a Hotmart grava hoje (parâmetros de URL do Meta, com `hQwK21wXxR` com
 anúncio é o trecho antes do último separador. Venda sem SCK, com macro não substituída
 (`{{ad.id}}`) ou do link na bio fica fora dos cards. Entre anúncios com o mesmo nome, a prévia vem do que tem post
 no Instagram e mais gastou; a miniatura é baixada uma vez (a URL do Meta expira) e fica no cache.
+
+## Cliente de criativos com vendas da Payt (ex.: chefbernadete)
+
+A Payt não tem API de vendas: cada evento chega por **postback** num Cloudflare Worker do cliente
+(`payt/worker.js`, conta Cloudflare da ATO), que guarda o último estado de cada transação **sem dado do comprador**
+num banco D1. O refresh busca as vendas lá a cada execução.
+
+- `config.json`: `"vendas": "payt"`, `"payt": { "url": "https://payt-<slug>.natalia-337.workers.dev", "produtos": [] }`
+  (`produtos` opcional: códigos de produto da Payt que contam; vazio = todos).
+- Venda = `payment_status` "paid" e `test` falso, na data do pagamento; valor = **comissão da produtora**
+  (`commission[type=producer]`). Upsell soma no faturamento do anúncio mas não conta como venda nova.
+- Anúncio pelo `utm_content` (`{{ad.name}}|{{ad.id}}` nos parâmetros de URL do Meta).
+- Segredos: `PAYT_READ_KEY_<SLUG>` (.env e Secrets do GitHub) = `READ_KEY` do Worker. A URL do postback (com o
+  `POSTBACK_TOKEN`) fica só no `.env` (`PAYT_POSTBACK_URL_<SLUG>`) e na Payt (*Ferramentas → Postbacks*, tipo PayT V1).
+- Novo cliente: copie `payt/wrangler.toml` trocando `name`/banco (`npx wrangler d1 create payt-<slug>`), publique com
+  `npx wrangler deploy --config <arquivo>` e grave os dois segredos com `npx wrangler secret put`.
+- Sem chave ou com o Worker fora do ar, o painel sai só com o Meta e um aviso (não derruba os outros clientes).
+
+**Várias contas de anúncio** (`"contas": ["act_…", …]` no lugar de `conta`): as métricas se somam e os criativos de
+mesmo nome viram um card só. Conta em outro Business Manager: token próprio em `META_TOKEN_ACT_<número da conta>`
+(.env + Secret + `env:` do workflow). Conta que falhar sai do painel naquela rodada, com aviso.
+
+**Conta em dólar (ou outra moeda)**: o gasto é convertido para reais pela **PTAX de venda do dia** (Banco Central;
+fim de semana/feriado usa o último dia útil). Cotações ficam em `out/cache/ptax-USD.json`. Cada conta separa os dias
+no próprio fuso horário.
 
 ## Adicionar um cliente de lançamento (vendas via Hubla)
 

@@ -7,6 +7,8 @@
 #                         (ex.: META_TOKEN_OMUNDOCLINICO)
 #   HOTMART_CLIENT_ID_<CLIENTE>, HOTMART_CLIENT_SECRET_<CLIENTE>, HOTMART_BASIC_<CLIENTE>
 #                         clientes de criativos: credencial da API da Hotmart (Ferramentas → Credenciais Developers)
+#   META_TOKEN_ACT_<NÚMERO DA CONTA>  opcional — token de uma conta de anúncio específica (outro Business Manager)
+#   PAYT_READ_KEY_<CLIENTE>  clientes de criativos com Payt: chave de leitura do receptor de postback (payt/worker.js)
 #
 # Em Settings → Pages, "Source" precisa estar em "GitHub Actions".
 
@@ -63,6 +65,8 @@ jobs:
           HOTMART_CLIENT_ID_GLAUBORGES: ${{ secrets.HOTMART_CLIENT_ID_GLAUBORGES }}
           HOTMART_CLIENT_SECRET_GLAUBORGES: ${{ secrets.HOTMART_CLIENT_SECRET_GLAUBORGES }}
           HOTMART_BASIC_GLAUBORGES: ${{ secrets.HOTMART_BASIC_GLAUBORGES }}
+          META_TOKEN_ACT_538876983472217: ${{ secrets.META_TOKEN_ACT_538876983472217 }}
+          PAYT_READ_KEY_CHEFBERNADETE: ${{ secrets.PAYT_READ_KEY_CHEFBERNADETE }}
         run: |
           set -e
           for dir in clientes/*/; do

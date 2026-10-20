@@ -346,6 +346,8 @@ const D = /*__DATA__*/{};
   const SINCE = (D.summary && D.summary.since) || (ROWS[0] && ROWS[0][0]);
   const UNTIL = (D.summary && D.summary.until) || (ROWS.length && ROWS[ROWS.length - 1][0]);
   const SALES_UNTIL = D.summary && D.summary.vendasAte;
+  const SALES_SINCE = D.summary && D.summary.vendasDesde;      // Payt: primeiro dia com postback (sem histórico importado)
+  const PLAT = (D.summary && D.summary.plataforma) || 'Hotmart';
   const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
   state.preset = 'max';
 
@@ -360,10 +362,16 @@ const D = /*__DATA__*/{};
   function updatePeriodButton() {
     $('periodLabel').textContent = PRESET_LABEL[state.preset] || 'Período';
     $('periodRange').textContent = state.from ? fmtRange(state.from, state.to) : '';
-    // vendas vêm do export da Hotmart: avisa quando o período passa da última importação
+    // avisa quando o período passa da última importação de vendas, ou começa antes do primeiro postback (Payt)
     const stale = SALES_UNTIL && state.to > SALES_UNTIL;
-    $('salesNote').hidden = !stale;
-    if (stale) $('salesNote').textContent = `Vendas da Hotmart importadas até ${fmtDate(SALES_UNTIL)}: os dias seguintes ainda aparecem sem venda.`;
+    const early = PLAT === 'Payt' && D.summary.vendasFonte === 'api' && (!SALES_SINCE || state.from < SALES_SINCE);
+    const note = D.summary.vendasFonte === 'pendente' ? `Vendas da ${PLAT} não conectadas nesta atualização: os criativos aparecem sem venda.`
+      : stale ? `Vendas da ${PLAT} importadas até ${fmtDate(SALES_UNTIL)}: os dias seguintes ainda aparecem sem venda.`
+      : early ? (SALES_SINCE ? `Vendas da ${PLAT} registradas a partir de ${fmtDate(SALES_SINCE)}: antes disso os criativos aparecem sem venda.`
+                             : `Aguardando a primeira venda da ${PLAT} pelo postback: por enquanto os criativos aparecem sem venda.`)
+      : '';
+    $('salesNote').hidden = !note;
+    $('salesNote').textContent = note;
   }
 
   const cal = { y: 0, m: 0 };            // mês exibido
@@ -605,7 +613,9 @@ const D = /*__DATA__*/{};
   // ---------- rodapé ----------
   const upd = D.summary && D.summary.updatedAt ? new Date(D.summary.updatedAt) : null;
   const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
-  document.getElementById('foot').textContent = 'Vendas da Hotmart ligadas ao anúncio pelo ID; investimento, impressões e cliques do Meta Ads'
+  const cambio = (D.summary && D.summary.cambio) || [];
+  document.getElementById('foot').textContent = `Vendas da ${PLAT} ligadas ao anúncio pelo ID; investimento, impressões e cliques do Meta Ads`
+    + (cambio.length ? ` · investimento em ${cambio.map(c => c === 'USD' ? 'dólar' : c).join(' e ')} convertido para reais pela PTAX do dia (Banco Central)` : '')
     + (SALES_UNTIL && D.summary.vendasFonte !== 'api' ? ` · vendas importadas até ${fmtDate(SALES_UNTIL)}` : '') + (updTxt ? ` · atualizado em ${updTxt}` : '') + '.';
 
   applyPreset();
