@@ -444,7 +444,8 @@ async function mainCriativos() {
   };
   const RECENT_DAYS = 7;          // o Meta ainda ajusta os últimos dias: são sempre buscados de novo
   const ADS_MAX_AGE_H = 6;        // lista de anúncios (nomes, posts, miniaturas) muda pouco
-  const SALES_RECENT_DAYS = 35;   // vendas: a garantia da Hotmart vai até 30 dias — reembolso nessa janela some do painel
+  const SALES_RECENT_DAYS = 35;
+  const META_CACHE_V = 2;         // v2: + views de 3s e ThruPlays por linha — cache de outra versão é coletado de novo desde `since`   // vendas: a garantia da Hotmart vai até 30 dias — reembolso nessa janela some do painel
   const warnings = [];
 
   // ---- vendas ----
@@ -498,20 +499,22 @@ async function mainCriativos() {
   // [codigo, data, adId, adName, valorLiquido, produto, origem, contaVenda?] — contaVenda 0 = upsell (só soma faturamento)
   const sales = allSales.filter(v => v[6] === 'meta' && v[1] >= since);
 
-  // ---- Meta, por conta: gasto/impressões/cliques no link/finalizações de compra iniciadas por anúncio e por dia ----
+  // ---- Meta, por conta: gasto/impressões/cliques no link/finalizações de compra iniciadas/views de 3s/ThruPlays por anúncio e por dia ----
   const fetchDaily = async (act, token, from, to) => {
     const out = [];
     for (let start = from; start <= to;) {
       const end = new Date(Math.min(Date.parse(to), Date.parse(start) + 29 * 86400000)).toISOString().slice(0, 10);
       const rows = await graphGetAll(`${act}/insights`, {
-        level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions',
+        level: 'ad', time_increment: '1', fields: 'ad_id,spend,impressions,inline_link_clicks,actions,video_thruplay_watched_actions',
         limit: '100', // com `actions` por dia, páginas de 500 voltam quebradas do Graph
         time_range: JSON.stringify({ since: start, until: end })
       }, token);
       for (const r of rows) {
         // o nome do action_type de checkout varia entre contas — usa o primeiro que existir (como no painel de lançamento)
         const act = types => { for (const t of types) { const a = (r.actions || []).find(x => x.action_type === t); if (a) return Number(a.value || 0); } return 0; };
-        out.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0), act(['omni_initiated_checkout', 'initiate_checkout'])]);
+        // video_view = visualização de 3s (hook rate); ThruPlay = 15s ou o vídeo inteiro, se for mais curto (hold rate)
+        const thru = (r.video_thruplay_watched_actions || []).reduce((s, a) => s + Number(a.value || 0), 0);
+        out.push([r.date_start, r.ad_id, Number(r.spend || 0), Number(r.impressions || 0), Number(r.inline_link_clicks || 0), act(['omni_initiated_checkout', 'initiate_checkout']), act(['video_view']), thru]);
       }
       start = new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10);
     }
@@ -519,14 +522,15 @@ async function mainCriativos() {
   };
   // com uma conta só, os nomes de cache de antes (painéis já no ar continuam incrementais)
   const cacheName = (base, act) => ACCOUNTS.length === 1 ? `${base}.json` : `${base}-${act.replace(/^act_/, '')}.json`;
-  const daily = [];        // [data, adId, gasto na moeda da conta, impressões, cliques, checkouts, moeda]
+  const daily = [];        // [data, adId, gasto na moeda da conta, impressões, cliques, checkouts, views 3s, ThruPlays, moeda]
+  const statusById = new Map();
   let adsRaw = [];
   let metaStale = false, metaOk = 0;
   const currencies = new Set();
   for (const act of ACCOUNTS) {
     const token = tokenFor(act);
     const cachedDaily = readCache(cacheName('meta-daily', act));
-    const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.rows.length;
+    const incremental = cachedDaily && cachedDaily.since === since && cachedDaily.v === META_CACHE_V && cachedDaily.rows.length;
     // caches antigos não têm `until`: sem ele, conta como coleta de hoje
     const from = incremental ? windowFrom(RECENT_DAYS, cachedDaily.until) : since;
     let rows, currency = cachedDaily && cachedDaily.currency;
@@ -534,7 +538,7 @@ async function mainCriativos() {
       if (!currency) currency = await accountCurrency(act, token);
       const fresh = await fetchDaily(act, token, from, until);
       rows = (incremental ? cachedDaily.rows.filter(r => r[0] < from) : []).concat(fresh);
-      writeCache(cacheName('meta-daily', act), { since, until, currency, rows });
+      writeCache(cacheName('meta-daily', act), { v: META_CACHE_V, since, until, currency, rows });
       metaOk++;
     } catch (e) {
       // sem Meta nesta rodada: o painel continua com os dados da anterior em vez de derrubar o workflow de todos os clientes
@@ -545,7 +549,7 @@ async function mainCriativos() {
     }
     currency = currency || 'BRL';
     currencies.add(currency);
-    for (const r of rows) daily.push([...r, currency]);
+    for (const r of rows) daily.push([r[0], r[1], r[2], r[3], r[4], r[5], r[6] || 0, r[7] || 0, currency]);
 
     // ---- nome, miniatura e post do Instagram de cada anúncio (renovado a cada ADS_MAX_AGE_H horas) ----
     let cachedAds = readCache(cacheName('meta-ads', act));
@@ -563,6 +567,17 @@ async function mainCriativos() {
       }
     }
     if (cachedAds) adsRaw = adsRaw.concat(cachedAds.rows);
+
+    // ---- status de veiculação (ativo/pausado) de cada anúncio: leve, buscado a cada execução ----
+    let cachedStatus = readCache(cacheName('meta-status', act));
+    try {
+      const st = await graphGetAll(`${act}/ads`, { fields: 'id,effective_status' }, token);
+      cachedStatus = { fetchedAt: new Date().toISOString(), rows: st.map(a => [a.id, a.effective_status]) };
+      writeCache(cacheName('meta-status', act), cachedStatus);
+    } catch (e) {
+      warnings.push(`status dos anúncios (${act}) não atualizou (${e.message})${cachedStatus ? ' — mantido o anterior' : ''}`);
+    }
+    for (const [id, st] of (cachedStatus && cachedStatus.rows) || []) statusById.set(id, st);
   }
   if (!metaOk && !daily.length) throw new Error('nenhuma conta do Meta respondeu');
 
@@ -575,22 +590,29 @@ async function mainCriativos() {
   // o nome atual no Meta manda; o do SCK/UTM só vale se o anúncio sumiu da conta (o SCK chega a vir cortado: "AD_copy_14AE29F3-7...")
   const nameOf = (adId, fallback) => adById.has(adId) ? adById.get(adId).name : (fallback || `Anúncio ${adId}`);
 
-  // ---- linhas diárias por criativo: [data, nome, gasto, impressões, cliques, vendas, faturamento líquido, checkouts] ----
+  // ---- upsell acompanhado no painel (config "upsell": { "nome": ..., "produtos": [nomes ou códigos] }): venda de upsell
+  //      desses produtos ÷ vendas do criativo = taxa de conversão para o upsell ----
+  const UPSELL = CFG.upsell && (CFG.upsell.produtos || []).length ? CFG.upsell : null;
+  const normP = v => stripAccents(String(v || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const isUpsell = (conta, produto) => conta === 0 && !!UPSELL && UPSELL.produtos.some(p => normP(produto).startsWith(normP(p)));
+
+  // ---- linhas diárias por criativo: [data, nome, gasto, impressões, cliques, vendas, faturamento líquido, checkouts,
+  //      views de 3s, ThruPlays, upsells] ----
   const key = (d, n) => d + '\u0000' + n;
   const agg = new Map();
-  const row = (d, n) => agg.get(key(d, n)) || agg.set(key(d, n), [d, n, 0, 0, 0, 0, 0, 0]).get(key(d, n));
+  const row = (d, n) => agg.get(key(d, n)) || agg.set(key(d, n), [d, n, 0, 0, 0, 0, 0, 0, 0, 0, 0]).get(key(d, n));
   const spendByAd = new Map();
-  for (const [d, adId, spendRaw, imp, clk, chk, cur] of daily) {
+  for (const [d, adId, spendRaw, imp, clk, chk, v3s, thru, cur] of daily) {
     const spend = toBRL(spendRaw, cur, d);
     const r = row(d, nameOf(adId));
-    r[2] += spend; r[3] += imp; r[4] += clk; r[7] += chk;
+    r[2] += spend; r[3] += imp; r[4] += clk; r[7] += chk; r[8] += v3s; r[9] += thru;
     spendByAd.set(adId, (spendByAd.get(adId) || 0) + spend);
   }
-  for (const [, d, adId, adName, net, , , conta] of sales) {
+  for (const [, d, adId, adName, net, produto, , conta] of sales) {
     const r = row(d, nameOf(adId, adName));
-    r[5] += conta === 0 ? 0 : 1; r[6] += net;
+    r[5] += conta === 0 ? 0 : 1; r[6] += net; r[10] += isUpsell(conta, produto) ? 1 : 0;
   }
-  const rows = [...agg.values()].map(r => [r[0], r[1], +r[2].toFixed(2), r[3], r[4], r[5], +r[6].toFixed(2), r[7]])
+  const rows = [...agg.values()].map(r => [r[0], r[1], +r[2].toFixed(2), r[3], r[4], r[5], +r[6].toFixed(2), r[7], r[8], r[9], r[10]])
     .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
   const names = new Set(rows.map(r => r[1]));
 
@@ -603,6 +625,9 @@ async function mainCriativos() {
     const [ig, s] = rank(a);
     if (!cur || ig > rank(cur)[0] || (ig === rank(cur)[0] && s > rank(cur)[1])) best.set(a.name, a);
   }
+
+  // ativo = algum anúncio com esse nome está veiculando (effective_status ACTIVE já considera campanha e conjunto)
+  const activeNames = new Set(adsRaw.filter(a => statusById.get(a.id) === 'ACTIVE').map(a => a.name));
 
   // miniaturas do Meta expiram em dias: baixa uma vez para out/cache/thumbs (a imagem de um anúncio não muda)
   // e o build publica junto da página
@@ -617,18 +642,18 @@ async function mainCriativos() {
       } catch (e) { console.warn(`[${slug}] miniatura de ${name} não baixou: ${e.message}`); }
     }
     const thumb = fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null;
-    ads.push({ name, adId: a.id, type: cr.object_type || null, igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null, thumb });
+    ads.push({ name, adId: a.id, type: cr.object_type || null, igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null, thumb, active: activeNames.has(name) });
   }
 
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
-  write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts'], rows });
+  write('daily.json', { cols: ['date', 'name', 'spend', 'impressions', 'clicks', 'sales', 'revenue', 'checkouts', 'views3s', 'thruplays', 'upsells'], rows });
   write('ads.json', { rows: ads });
   // updatedAt = quando o Meta respondeu de fato (numa rodada sem Meta, fica o horário do cache)
   const metaAt = metaStale && !metaOk ? (readCache('summary.json') || {}).updatedAt : new Date().toISOString();
   const summary = {
     updatedAt: metaAt || new Date().toISOString(), account: ACCOUNTS.join(','), since, until,
     plataforma: PLATAFORMA, vendasAte: salesUntil, vendasFonte: salesSource, vendasDesde: salesSince,
-    cambio: [...currencies].filter(c => c !== 'BRL')
+    cambio: [...currencies].filter(c => c !== 'BRL'), upsell: UPSELL ? UPSELL.nome || 'upsell' : null
   };
   write('summary.json', summary);
   if (metaOk) writeCache('summary.json', summary);

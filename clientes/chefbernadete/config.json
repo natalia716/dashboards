@@ -2,10 +2,20 @@
   "nome": "Chef Bernadete",
   "tipo": "criativos",
   "vendas": "payt",
-  "contas": ["act_538876983472217", "act_856906167418046", "act_1369339681603778"],
+  "contas": [
+    "act_538876983472217",
+    "act_856906167418046",
+    "act_1369339681603778"
+  ],
   "desde": "2026-07-01",
   "payt": {
     "url": "https://payt-chefbernadete.natalia-337.workers.dev",
     "produtos": []
+  },
+  "upsell": {
+    "nome": "Comunidade",
+    "produtos": [
+      "Comunidade Culinária Japonesa"
+    ]
   }
 }

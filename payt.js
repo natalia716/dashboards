@@ -33,7 +33,7 @@ async function fetchSales(cfg, slug, since) {
   if (!res.ok || !j.ok) throw new Error(`Payt (receptor): HTTP ${res.status} ${j.error || ''}`.trim());
 
   const produtos = (cfg.payt.produtos || []).map(String);
-  const valid = j.rows.filter(r => !r.test && r.payment_status === 'paid' && (!produtos.length || produtos.includes(String(r.product_code))));
+  const valid = j.rows.filter(r => !r.test && r.payment_status === 'paid' && (!produtos.length || (produtos.includes(String(r.product_code)) || produtos.includes(String(r.product_name)))));
   // upsell sem UTM própria herda o anúncio da compra de origem
   const byId = new Map(j.rows.map(r => [r.transaction_id, r]));
   const out = [];
@@ -46,7 +46,7 @@ async function fetchSales(cfg, slug, since) {
     if (!o.adId && upsell && r.upsell_from && byId.has(r.upsell_from)) { const p = byId.get(r.upsell_from); o = origin(p.utm_content, p.utm_source); }
     if (r.producer_cents == null) semComissao++;
     const cents = r.producer_cents != null ? r.producer_cents : r.total_cents || 0;
-    out.push([r.transaction_id, date, o.adId, o.adName, Math.round(cents) / 100, String(r.product_code || ''), o.origem, upsell ? 0 : 1]);
+    out.push([r.transaction_id, date, o.adId, o.adName, Math.round(cents) / 100, String(r.product_name || r.product_code || ''), o.origem, upsell ? 0 : 1]);
   }
   // primeiro dia com postback recebido: antes dele não há venda da Payt no painel (a não ser pelo import do histórico)
   const firstDay = j.rows.map(r => (r.recebido_em || '').slice(0, 10)).filter(Boolean).sort()[0] || null;

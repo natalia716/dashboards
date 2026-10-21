@@ -134,6 +134,11 @@
   .ad-title strong { font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; line-height: 1.3; }
   .plink { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; text-decoration: none; border: 1px solid var(--line-strong); border-radius: 6px; padding: 2px 8px; color: var(--ink-2); background: var(--surface); white-space: nowrap; flex: none; }
   .plink:hover { border-color: var(--accent); color: var(--accent-strong); }
+  button.plink { cursor: pointer; font-family: inherit; }
+  .links { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
+  /* status de veiculação: verde = ativo, cinza = pausado */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #b9c1cb; margin-right: 7px; vertical-align: 1px; flex: none; }
+  .dot.on { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
   .plink svg { width: 12px; height: 12px; }
   .mets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; }
   .met .l { font-size: 11px; color: var(--muted); }
@@ -145,7 +150,7 @@
 
   /* ---------- tabela ---------- */
   .tbl-wrap { overflow-x: auto; padding: 8px 6px 6px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1220px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1680px; }
   th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
   th:first-child, td:first-child { text-align: left; }
@@ -175,6 +180,17 @@
   .dlg-body { overflow: auto; max-height: calc(100dvh - 100px); }
   .dlg-body iframe { display: block; width: 100%; height: 640px; border: 0; }
   .dlg-body img { display: block; width: 100%; }
+  /* ---------- dia a dia do criativo ---------- */
+  dialog.wide { width: min(1320px, calc(100vw - 32px)); }
+  .days-head { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .days-head img, .days-head .ph { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--surface-2); border: 1px solid var(--line); flex: none; }
+  .days-head .info { display: grid; gap: 3px; min-width: 0; margin-right: auto; }
+  .days-head strong { font-size: 14px; overflow-wrap: anywhere; }
+  .days-head .sub { color: var(--muted); font-size: 12.5px; }
+  .days-wrap { overflow: auto; max-height: calc(100dvh - 190px); padding: 0 6px 6px; }
+  .days-wrap table { min-width: 1500px; }
+  .days-wrap td:first-child { min-width: 0; }
+  .days-wrap tr.off td { color: var(--muted); }
 
   footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 16px 28px; }
 
@@ -263,6 +279,10 @@
           <option value="cpc">Menor CPC</option>
           <option value="cpm">Menor CPM</option>
           <option value="cpi">Menor CPI</option>
+          <option value="ticket">Maior ticket médio</option>
+          <option value="hook">Maior hook rate</option>
+          <option value="hold">Maior hold rate</option>
+          <option value="upsell" data-upsell>Maior taxa de upsell</option>
         </select>
         <div class="seg" role="group" aria-label="Visualização">
           <button data-view="cards" aria-pressed="true">Cards</button>
@@ -293,6 +313,11 @@
   <div class="dlg-body" id="dlgBody"></div>
 </dialog>
 
+<dialog id="dayDlg" class="wide" aria-labelledby="dayTitle">
+  <div class="days-head" id="dayHead"></div>
+  <div class="days-wrap"><table><thead><tr id="dayThead"></tr></thead><tbody id="dayBody"></tbody><tfoot id="dayFoot"></tfoot></table></div>
+</dialog>
+
 <script>
 const D = /*__DATA__*/{};
 (function () {
@@ -313,6 +338,7 @@ const D = /*__DATA__*/{};
 
   const ROWS = (D.daily && D.daily.rows) || [];
   const AD_META = new Map((D.ads || []).map(a => [a.name, a]));
+  const UPSELL = D.summary && D.summary.upsell;               // ex.: "Comunidade" — sem upsell configurado, a métrica some
 
   // ---------- métricas derivadas de somas ----------
   function derive(t) {
@@ -325,10 +351,18 @@ const D = /*__DATA__*/{};
       ctr: t.impressions > 0 ? t.clicks / t.impressions : null,
       cpc: t.clicks > 0 ? t.spend / t.clicks : null,
       cpi: t.checkouts > 0 ? t.spend / t.checkouts : null, // custo por finalização de compra iniciada
+      ticket: t.sales > 0 ? t.revenue / t.sales : null,      // faturamento (com upsells) ÷ vendas
+      hook: t.views3s > 0 && t.impressions > 0 ? t.views3s / t.impressions : null,  // views de 3s ÷ impressões
+      hold: t.views3s > 0 ? t.thruplays / t.views3s : null,  // ThruPlays ÷ views de 3s
+      upsell: t.sales > 0 ? t.upsells / t.sales : null,      // upsells do produto acompanhado ÷ vendas
     };
   }
-  const zero = () => ({ sales: 0, spend: 0, revenue: 0, impressions: 0, clicks: 0, checkouts: 0 });
-  const add = (a, b) => { for (const k of ['sales', 'spend', 'revenue', 'impressions', 'clicks', 'checkouts']) a[k] += b[k] || 0; return a; };
+  const SUMS = ['sales', 'spend', 'revenue', 'impressions', 'clicks', 'checkouts', 'views3s', 'thruplays', 'upsells'];
+  const zero = () => Object.fromEntries(SUMS.map(k => [k, 0]));
+  const add = (a, b) => { for (const k of SUMS) a[k] += b[k] || 0; return a; };
+  // linha diária [data, criativo, gasto, impressões, cliques, vendas, faturamento, checkouts, views 3s, ThruPlays, upsells]
+  const unpack = ([date, name, spend, impressions, clicks, sales, revenue, checkouts = 0, views3s = 0, thruplays = 0, upsells = 0]) =>
+    ({ date, name, spend, impressions, clicks, sales, revenue, checkouts, views3s, thruplays, upsells });
 
   // ---------- estado ----------
   const state = { sort: 'sales', dir: null, view: 'cards', q: '' };
@@ -460,10 +494,11 @@ const D = /*__DATA__*/{};
   // ---------- agregação do período: linhas diárias [data, criativo, gasto, impressões, cliques, vendas, faturamento, checkouts] ----------
   function aggregate() {
     const byName = new Map();
-    for (const [d, name, spend, impressions, clicks, sales, revenue, checkouts = 0] of ROWS) {
-      if (d < state.from || d > state.to) continue;
-      const a = byName.get(name) || byName.set(name, { name, ...zero() }).get(name);
-      add(a, { spend, impressions, clicks, sales, revenue, checkouts });
+    for (const raw of ROWS) {
+      const r = unpack(raw);
+      if (r.date < state.from || r.date > state.to) continue;
+      const a = byName.get(r.name) || byName.set(r.name, { name: r.name, ...zero() }).get(r.name);
+      add(a, r);
     }
     return [...byName.values()].filter(a => a.spend > 0 || a.sales > 0).map(derive);
   }
@@ -493,6 +528,8 @@ const D = /*__DATA__*/{};
     if (!href) return '';
     return `<a class="plink" href="${esc(href)}" target="_blank" rel="noopener">Ver criativo${LINK_ICON}</a>`;
   };
+  const dotHtml = meta => `<span class="dot${meta && meta.active ? ' on' : ''}" title="${meta && meta.active ? 'Ativo' : 'Pausado'}" aria-label="${meta && meta.active ? 'Ativo' : 'Pausado'}"></span>`;
+  const daysBtn = name => `<button type="button" class="plink" data-days="${esc(name)}" title="Métricas dia a dia deste criativo">Dia a dia</button>`;
   const kindLabel = t => t === 'VIDEO' ? 'Vídeo' : t === 'PHOTO' ? 'Imagem' : t === 'SHARE' ? 'Post' : null;
 
   function cardHtml(a, i) {
@@ -503,7 +540,7 @@ const D = /*__DATA__*/{};
     return `<article class="ad">
       <button class="thumb" data-open="${esc(a.name)}" aria-label="Ver prévia de ${esc(a.name)}">${img}${play}<span class="rank">#${i + 1}</span>${kind ? `<span class="kind">${kind}</span>` : ''}</button>
       <div class="ad-body">
-        <div class="ad-title"><strong>${esc(a.name)}</strong>${linkHtml(meta)}</div>
+        <div class="ad-title"><strong>${dotHtml(meta)}${esc(a.name)}</strong><span class="links">${daysBtn(a.name)}${linkHtml(meta)}</span></div>
         <div class="mets">
           <div class="met"><div class="l">Vendas</div><div class="v num">${fmtInt(a.sales)}</div></div>
           <div class="met"><div class="l">Investimento</div><div class="v num">${fmtMoney0(a.spend)}</div></div>
@@ -512,7 +549,7 @@ const D = /*__DATA__*/{};
           <div class="met"><div class="l">Lucro</div><div class="v num ${tone(a.profit)}">${fmtMoney0(a.profit)}</div></div>
           <div class="met"><div class="l">ROAS</div><div class="v num ${tone(a.roas, 1)}">${fmtX(a.roas)}</div></div>
         </div>
-        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span><span title="Custo por finalização de compra iniciada">CPI <b>${fmtMoney(a.cpi)}</b></span></div>
+        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span><span title="Custo por finalização de compra iniciada">CPI <b>${fmtMoney(a.cpi)}</b></span><span title="Visualizações de 3s ÷ impressões">Hook <b>${fmtPct(a.hook)}</b></span><span title="ThruPlays ÷ visualizações de 3s">Hold <b>${fmtPct(a.hold)}</b></span><span title="Faturamento ÷ vendas">Ticket <b>${fmtMoney(a.ticket)}</b></span>${UPSELL ? `<span title="Vendas do upsell ${esc(UPSELL)} ÷ vendas">Upsell <b>${fmtPct(a.upsell)}</b></span>` : ''}</div>
       </div>
     </article>`;
   }
@@ -523,19 +560,23 @@ const D = /*__DATA__*/{};
     { k: 'spend', l: 'Investimento', f: fmtMoney },
     { k: 'cpa', l: 'CPA', f: fmtMoney },
     { k: 'revenue', l: 'Faturamento', f: fmtMoney },
+    { k: 'ticket', l: 'Ticket médio', f: fmtMoney },
     { k: 'profit', l: 'Lucro', f: fmtMoney, t: v => tone(v) },
     { k: 'roas', l: 'ROAS', f: fmtX, t: v => tone(v, 1) },
+    ...(UPSELL ? [{ k: 'upsell', l: `Upsell ${UPSELL}`, f: fmtPct }] : []),
     { k: 'cpm', l: 'CPM', f: fmtMoney },
     { k: 'ctr', l: 'CTR', f: fmtPct },
     { k: 'cpc', l: 'CPC', f: fmtMoney },
     { k: 'cpi', l: 'CPI', f: fmtMoney },
+    { k: 'hook', l: 'Hook rate', f: fmtPct },
+    { k: 'hold', l: 'Hold rate', f: fmtPct },
   ];
 
   function rowHtml(a) {
     const meta = AD_META.get(a.name) || {};
     const mini = `<button class="mini" data-open="${esc(a.name)}" aria-label="Ver prévia de ${esc(a.name)}">${meta.thumb ? `<img src="${esc(meta.thumb)}" alt="" loading="lazy">` : ''}</button>`;
     return '<tr>' + COLS.map(c => c.k === 'name'
-      ? `<td><div class="creative">${mini}<div class="nm"><strong>${esc(a.name)}</strong><small>${linkHtml(meta)}</small></div></div></td>`
+      ? `<td><div class="creative">${mini}<div class="nm"><strong>${dotHtml(meta)}${esc(a.name)}</strong><small class="links" style="justify-content:flex-start">${daysBtn(a.name)}${linkHtml(meta)}</small></div></div></td>`
       : `<td class="num ${c.t ? c.t(a[c.k]) : ''}">${c.f(a[c.k])}</td>`).join('') + '</tr>';
   }
 
@@ -610,6 +651,38 @@ const D = /*__DATA__*/{};
   dlg.addEventListener('click', e => { if (e.target === dlg) closeDlg(); });
   dlg.addEventListener('close', () => { document.getElementById('dlgBody').innerHTML = ''; });
 
+  // ---------- dia a dia de um criativo: do primeiro dia com investimento ou venda até o último (ou até hoje, se ativo) ----------
+  const dayDlg = document.getElementById('dayDlg');
+  const DAY_COLS = COLS.filter(c => c.k !== 'name');
+  const fmtDay = iso => { const [y, m, d] = iso.split('-'); const wd = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][new Date(iso + 'T12:00:00Z').getUTCDay()]; return `${d}/${m}/${y.slice(2)} <small style="color:var(--muted)">${wd}</small>`; };
+  function openDays(name) {
+    const meta = AD_META.get(name) || {};
+    const byDay = new Map();
+    for (const raw of ROWS) if (raw[1] === name) { const r = unpack(raw); add(byDay.get(r.date) || byDay.set(r.date, zero()).get(r.date), r); }
+    const live = [...byDay].filter(([, t]) => t.spend > 0 || t.sales > 0).map(([d]) => d).sort();
+    if (!live.length) return;
+    const first = live[0], last = meta.active ? UNTIL : live[live.length - 1];
+    const days = [];
+    for (let d = first; d <= last; d = addDays(d, 1)) days.push(d);
+    const total = derive(days.reduce((s, d) => add(s, byDay.get(d) || zero()), zero()));
+    const img = meta.thumb ? `<img src="${esc(meta.thumb)}" alt="">` : '<span class="ph"></span>';
+    const desde = first === SINCE ? ` (o painel começa em ${fmtDate(SINCE)})` : '';
+    document.getElementById('dayHead').innerHTML = `${img}<div class="info"><strong id="dayTitle">${dotHtml(meta)}${esc(name)}</strong>
+      <span class="sub">${meta.active ? 'Ativo' : 'Pausado'} · ${fmtRange(first, last)}${desde} · ${days.length} ${days.length === 1 ? 'dia' : 'dias'}</span></div>
+      <span class="links">${linkHtml(meta)}</span><button class="dlg-close" id="dayClose" aria-label="Fechar">×</button>`;
+    document.getElementById('dayThead').innerHTML = '<th>Dia</th>' + DAY_COLS.map(c => `<th>${c.l}</th>`).join('');
+    document.getElementById('dayBody').innerHTML = days.map(d => {
+      const t = derive(byDay.get(d) || zero());
+      return `<tr${t.spend > 0 || t.sales > 0 ? '' : ' class="off"'}><td>${fmtDay(d)}</td>` + DAY_COLS.map(c => `<td class="num ${c.t ? c.t(t[c.k]) : ''}">${c.f(t[c.k])}</td>`).join('') + '</tr>';
+    }).join('');
+    document.getElementById('dayFoot').innerHTML = '<tr><td>Total</td>' + DAY_COLS.map(c => `<td class="num">${c.f(total[c.k])}</td>`).join('') + '</tr>';
+    document.getElementById('dayClose').addEventListener('click', () => dayDlg.close());
+    dayDlg.showModal();
+    dayDlg.querySelector('.days-wrap').scrollTop = 0;
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) openDays(b.dataset.days); });
+  dayDlg.addEventListener('click', e => { if (e.target === dayDlg) dayDlg.close(); });
+
   // ---------- rodapé ----------
   const upd = D.summary && D.summary.updatedAt ? new Date(D.summary.updatedAt) : null;
   const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
@@ -618,6 +691,7 @@ const D = /*__DATA__*/{};
     + (cambio.length ? ` · investimento em ${cambio.map(c => c === 'USD' ? 'dólar' : c).join(' e ')} convertido para reais pela PTAX do dia (Banco Central)` : '')
     + (SALES_UNTIL && D.summary.vendasFonte !== 'api' ? ` · vendas importadas até ${fmtDate(SALES_UNTIL)}` : '') + (updTxt ? ` · atualizado em ${updTxt}` : '') + '.';
 
+  if (!UPSELL) document.querySelectorAll('#sort [data-upsell]').forEach(o => o.remove());
   applyPreset();
   initPeriodPicker();
   updatePeriodButton();
