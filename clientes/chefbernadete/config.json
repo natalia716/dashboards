@@ -11,11 +11,5 @@
   "payt": {
     "url": "https://payt-chefbernadete.natalia-337.workers.dev",
     "produtos": []
-  },
-  "upsell": {
-    "nome": "Comunidade",
-    "produtos": [
-      "Comunidade Culinária Japonesa"
-    ]
   }
 }

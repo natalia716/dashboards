@@ -232,6 +232,7 @@
       </button>
       <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
         <div class="periodPresets" id="periodPresets">
+          <button data-p="month">Este mês</button>
           <button data-p="max">Período completo</button>
           <button data-p="today">Hoje</button>
           <button data-p="7">Últimos 7 dias</button>
@@ -268,6 +269,11 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <input id="q" type="search" placeholder="Buscar criativo" aria-label="Buscar criativo">
         </label>
+        <select class="sel" id="status" aria-label="Status do criativo">
+          <option value="all">Todos os criativos</option>
+          <option value="on">Somente ativos</option>
+          <option value="off">Somente desativados</option>
+        </select>
         <select class="sel" id="sort" aria-label="Ordenar por">
           <option value="sales">Mais vendas</option>
           <option value="profit">Maior lucro</option>
@@ -279,14 +285,14 @@
           <option value="cpc">Menor CPC</option>
           <option value="cpm">Menor CPM</option>
           <option value="cpi">Menor CPI</option>
-          <option value="ticket">Maior ticket médio</option>
+          <option value="ticket">Maior Ticket Médio</option>
           <option value="hook">Maior hook rate</option>
           <option value="hold">Maior hold rate</option>
           <option value="upsell" data-upsell>Maior taxa de upsell</option>
         </select>
         <div class="seg" role="group" aria-label="Visualização">
-          <button data-view="cards" aria-pressed="true">Cards</button>
-          <button data-view="table" aria-pressed="false">Tabela</button>
+          <button data-view="table" aria-pressed="true">Tabela</button>
+          <button data-view="cards" aria-pressed="false">Cards</button>
         </div>
       </div>
     </div>
@@ -365,9 +371,9 @@ const D = /*__DATA__*/{};
     ({ date, name, spend, impressions, clicks, sales, revenue, checkouts, views3s, thruplays, upsells });
 
   // ---------- estado ----------
-  const state = { sort: 'sales', dir: null, view: 'cards', q: '' };
+  const state = { sort: 'sales', dir: null, view: 'table', q: '', status: 'all' };
   try {
-    const v = localStorage.getItem('ato-criativos-view');
+    const v = localStorage.getItem('ato-criativos-view2');
     if (v === 'cards' || v === 'table') state.view = v;
   } catch (e) { /* sem storage: fica o padrão */ }
 
@@ -382,12 +388,13 @@ const D = /*__DATA__*/{};
   const SALES_UNTIL = D.summary && D.summary.vendasAte;
   const SALES_SINCE = D.summary && D.summary.vendasDesde;      // Payt: primeiro dia com postback (sem histórico importado)
   const PLAT = (D.summary && D.summary.plataforma) || 'Hotmart';
-  const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
-  state.preset = 'max';
+  const PRESET_LABEL = { month: 'Este mês', max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
+  state.preset = 'month';
 
   function applyPreset() {
     const p = state.preset, U = UNTIL;
     if (p === 'max') { state.from = SINCE; state.to = U; }
+    else if (p === 'month') { state.from = U.slice(0, 8) + '01'; state.to = U; }
     else if (p === 'today') { state.from = U; state.to = U; }
     else if (p === '7' || p === '14' || p === '30') { state.to = U; state.from = addDays(U, -(+p - 1)); }
     if (state.from < SINCE) state.from = SINCE;
@@ -549,7 +556,7 @@ const D = /*__DATA__*/{};
           <div class="met"><div class="l">Lucro</div><div class="v num ${tone(a.profit)}">${fmtMoney0(a.profit)}</div></div>
           <div class="met"><div class="l">ROAS</div><div class="v num ${tone(a.roas, 1)}">${fmtX(a.roas)}</div></div>
         </div>
-        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span><span title="Custo por finalização de compra iniciada">CPI <b>${fmtMoney(a.cpi)}</b></span><span title="Visualizações de 3s ÷ impressões">Hook <b>${fmtPct(a.hook)}</b></span><span title="ThruPlays ÷ visualizações de 3s">Hold <b>${fmtPct(a.hold)}</b></span><span title="Faturamento ÷ vendas">Ticket <b>${fmtMoney(a.ticket)}</b></span>${UPSELL ? `<span title="Vendas do upsell ${esc(UPSELL)} ÷ vendas">Upsell <b>${fmtPct(a.upsell)}</b></span>` : ''}</div>
+        <div class="sec num"><span>CPM <b>${fmtMoney(a.cpm)}</b></span><span>CTR <b>${fmtPct(a.ctr)}</b></span><span>CPC <b>${fmtMoney(a.cpc)}</b></span><span title="Custo por finalização de compra iniciada">CPI <b>${fmtMoney(a.cpi)}</b></span><span title="Visualizações de 3s ÷ impressões">Hook <b>${fmtPct(a.hook)}</b></span><span title="ThruPlays ÷ visualizações de 3s">Hold <b>${fmtPct(a.hold)}</b></span><span title="Faturamento ÷ vendas">Ticket Médio <b>${fmtMoney(a.ticket)}</b></span>${UPSELL ? `<span title="Vendas do upsell ${esc(UPSELL)} ÷ vendas">Upsell <b>${fmtPct(a.upsell)}</b></span>` : ''}</div>
       </div>
     </article>`;
   }
@@ -560,7 +567,7 @@ const D = /*__DATA__*/{};
     { k: 'spend', l: 'Investimento', f: fmtMoney },
     { k: 'cpa', l: 'CPA', f: fmtMoney },
     { k: 'revenue', l: 'Faturamento', f: fmtMoney },
-    { k: 'ticket', l: 'Ticket médio', f: fmtMoney },
+    { k: 'ticket', l: 'Ticket Médio', f: fmtMoney },
     { k: 'profit', l: 'Lucro', f: fmtMoney, t: v => tone(v) },
     { k: 'roas', l: 'ROAS', f: fmtX, t: v => tone(v, 1) },
     ...(UPSELL ? [{ k: 'upsell', l: `Upsell ${UPSELL}`, f: fmtPct }] : []),
@@ -584,7 +591,9 @@ const D = /*__DATA__*/{};
     const ads = aggregate();
     // lista
     const q = state.q.trim().toLowerCase();
-    const list = sorted(ads.filter(a => !q || a.name.toLowerCase().includes(q)));
+    const isOn = a => !!(AD_META.get(a.name) || {}).active;
+    const list = sorted(ads.filter(a => (!q || a.name.toLowerCase().includes(q))
+      && (state.status === 'all' || (state.status === 'on') === isOn(a))));
     document.getElementById('count').textContent = `${list.length} ${list.length === 1 ? 'criativo' : 'criativos'}`;
     document.getElementById('empty').hidden = list.length > 0;
     const cards = state.view === 'cards';
@@ -605,12 +614,13 @@ const D = /*__DATA__*/{};
   // ---------- controles ----------
   const sortSel = document.getElementById('sort');
   sortSel.addEventListener('change', () => { state.sort = sortSel.value; state.dir = null; render(); });
+  document.getElementById('status').addEventListener('change', e => { state.status = e.target.value; render(); });
   document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; render(); });
   document.querySelector('.seg').addEventListener('click', e => {
     const b = e.target.closest('button[data-view]');
     if (!b) return;
     state.view = b.dataset.view;
-    try { localStorage.setItem('ato-criativos-view', state.view); } catch (err) { /* ok */ }
+    try { localStorage.setItem('ato-criativos-view2', state.view); } catch (err) { /* ok */ }
     render();
   });
   document.getElementById('thead').addEventListener('click', e => {

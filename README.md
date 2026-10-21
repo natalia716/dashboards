@@ -31,7 +31,8 @@ localmente pelo arquivo `.env` (ignorado pelo git).
 
 Um card por criativo (nome do anúncio) com prévia, link "Ver criativo", bolinha de status (verde = algum anúncio com esse
 nome veiculando, cinza = pausado), vendas, investimento, CPA, faturamento, lucro, ROAS, ticket médio, CPM, CTR, CPC, CPI,
-hook rate (views de 3s ÷ impressões) e hold rate (ThruPlays ÷ views de 3s), filtrável por período. "Dia a dia" abre as
+hook rate (views de 3s ÷ impressões) e hold rate (ThruPlays ÷ views de 3s), filtrável por período (padrão: este mês)
+e por status (todos / somente ativos / somente desativados). Abre na tabela; cards ficam como opção. "Dia a dia" abre as
 métricas diárias do criativo, do primeiro dia com gasto ou venda até o último (ou até hoje, se ativo). Com
 `"upsell": { "nome": "…", "produtos": ["…"] }` no config, aparece também a taxa de upsell (vendas de upsell desses
 produtos ÷ vendas). **Vendas e faturamento vêm só da Hotmart**, ligados ao anúncio pelo ID
