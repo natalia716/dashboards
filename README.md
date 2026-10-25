@@ -144,7 +144,24 @@ A planilha precisa estar como "qualquer pessoa com o link pode ver" e ter `Date`
 - **Criativo** = `utm_content` com o nome do anúncio; a tabela agrupa anúncios de mesmo nome, com miniatura (baixada
   uma vez para `out/cache/thumbs`) e link para o post no Instagram — do anúncio que mais gastou no filtro escolhido.
 - E-mail repetido conta uma vez (vale o primeiro cadastro). Nome, e-mail e telefone não saem do `refresh.js`.
-- Investimento na moeda da conta (ex.: pesos uruguaios), sem conversão.
+- **Funil do tráfego**: impressões → cliques no link → page views → leads do tráfego (planilha), com CTR, connect rate e
+  taxa de conversão entre as etapas e CPM, CPC, CPLP (custo por page view) e CPL ao lado.
+- **Conversão por página**: a página do anúncio sai do link do criativo; a do lead, da coluna `pagina` (ou do `page_url`).
+  Com mais de uma página (ex.: `/mapa` e `/mapa1`), o funil ganha um seletor de página.
+- Investimento na moeda da conta ou, com `"moeda": "USD"` no config, convertido pela cotação de cada dia
+  (currency-api, cache em `out/cache/fx-<de>-<para>.json`).
+- `"metas": { "leads": …, "investimento": … }` mostra nos KPIs o % realizado (acumulado do lançamento, não do período).
+- Abas no topo: **Captação**, **Pesquisa** e, ainda desativadas, Remarketing e Debriefing (`#captacao`, `#pesquisa`).
+
+### Pesquisa de qualificação (`"pesquisa"` no config)
+
+`planilha` (precisa estar "qualquer pessoa com o link pode ver", com `Date` e `email`), `perguntas` (colunas fechadas
+que viram gráfico), `multipla` (respostas separadas por `;`), `pontos` (pergunta → começo da opção → pontos) e `faixas`
+(`media`: nota mínima; `alta`: nota mínima ou `{ "minimos": { pergunta: pontos } }` — alta só quem cumpre todos os mínimos). Cada resposta é ligada ao lead **pelo e-mail** (o primeiro cadastro dele) e herda
+temperatura, criativo, conjunto e país da campanha; a nota é a soma dos pontos. A aba mostra a qualificação por origem,
+por criativo e por público (conjunto + país da campanha no tráfego, `utm_source · utm_medium` no orgânico), com taxa de
+resposta, % de alta qualificação, % com faturamento ≥ US$ 500 e custo por lead qualificado estimado
+(CPL ÷ % alta entre quem respondeu). E-mail e respostas abertas não saem do `refresh.js`; "Otro: <texto>" vira "Otro".
 
 ## Adicionar um cliente de leads
 

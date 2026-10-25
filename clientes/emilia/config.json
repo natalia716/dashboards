@@ -1,12 +1,41 @@
 {
   "nome": "Emilia",
   "tipo": "captacao",
-  "lancamento": "Black · OUT-26",
+  "lancamento": "Black · 2026",
   "conta": "act_329235313219407",
+  "moeda": "USD",
   "filtroCampanha": "\\[BLACK\\]\\[OUT-26\\]",
   "desde": "2026-10-21",
+  "metas": {
+    "leads": 25000,
+    "investimento": 25000
+  },
   "planilha": {
     "id": "1dymPgBYsR8GZ7w-Ibhd7vI7_3wKRi5Aodt0537Irn98",
     "gid": "0"
+  },
+  "pesquisa": {
+    "planilha": {
+      "id": "1wfmVLdJZDbHo9kJLtWjhszVOeQfFT_iB3n32s2VK6I8",
+      "gid": "0"
+    },
+    "perguntas": [
+      "Facturación mensual",
+      "Etapa del negocio",
+      "Antigüedad del negocio",
+      "Ante un problema",
+      "Qué frena su crecimiento",
+      "Hace cuánto tiene la traba",
+      "Hace cuánto me sigue",
+      "País"
+    ],
+    "multipla": ["Qué frena su crecimiento"],
+    "pontos": {
+      "Facturación mensual": { "Menos de USD 500": 0, "USD 500 a 1.000": 1, "USD 1.000 a 2.500": 2, "USD 2.500 a 5.000": 3, "USD 5.000 a 10.000": 3, "Más de USD 10.000": 3 },
+      "Etapa del negocio": { "Estoy empezando": 0, "Ya tengo clientes": 3, "Vendo todos los meses": 4, "Mi negocio funciona": 4 },
+      "Antigüedad del negocio": { "Todavía estoy empezando": 0, "3 a 6 meses": 1, "6 a 12 meses": 2, "1 a 2 años": 3, "Más de 2 años": 3 },
+      "Ante un problema": { "Compro cursos": 1, "Busco mentoría": 1, "Contrato a alguien": 0, "Pregunto a otras": 0, "Voy probando": 0, "Busco contenido gratuito": 0 }
+    },
+    "faixas": { "alta": 7, "media": 5 }
   }
 }

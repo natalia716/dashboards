@@ -429,6 +429,93 @@ const tempCaptacao = (adsetName, campaignName) => tempTag(adsetName) || tempTag(
 const PAID_SOURCE = /^(fb|ig|meta|facebook|instagram|messenger|audience)[_ -]?(ads|stories|feed|reels|mobile|explore|network|instream|search|marketplace|video|profile)/i;
 const looksPaid = (src, med, camp) => /\[[^\]]+\]/.test(camp + med) || /\{\{/.test(src + med + camp) || PAID_SOURCE.test(src);
 
+// página de destino como caminho: "/mapa", "/mapa1" (sem domínio, barra final nem parâmetros)
+const normPage = p => { const s = String(p || '').trim().toLowerCase().split(/[?#]/)[0].replace(/\/+$/, ''); return s ? (s.startsWith('/') ? s : '/' + s) : null; };
+const urlPage = u => { try { return normPage(new URL(u).pathname) || (u ? '/' : null); } catch (e) { return null; } };
+// destino do anúncio: link do botão (vídeo/imagem), do carrossel ou do asset feed (anúncio dinâmico)
+function adPage(cr) {
+  const s = cr.object_story_spec || {};
+  const link = (s.video_data && s.video_data.call_to_action && s.video_data.call_to_action.value && s.video_data.call_to_action.value.link)
+    || (s.link_data && (s.link_data.link || (s.link_data.call_to_action && s.link_data.call_to_action.value && s.link_data.call_to_action.value.link)))
+    || (cr.asset_feed_spec && (cr.asset_feed_spec.link_urls || [])[0] && cr.asset_feed_spec.link_urls[0].website_url);
+  return link ? urlPage(link) : null;
+}
+
+// Cotação diária `de` → `para` (quantas unidades de `de` valem 1 de `para`), da currency-api (fawazahmed0, dados abertos).
+// Fica em out/cache/fx-<de>-<para>.json; os dois últimos dias são buscados de novo (a do dia ainda muda).
+// Dia sem cotação usa a do último dia anterior que tiver.
+async function fxRates(de, para, dates) {
+  const file = path.join(OUT, 'cache', `fx-${de}-${para}.json`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  let cache = {};
+  try { cache = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { /* primeira vez */ }
+  const recent = new Date(Date.parse(todaySP()) - 86400000).toISOString().slice(0, 10);
+  const f = para.toLowerCase(), t = de.toLowerCase();
+  for (const d of dates.filter(d => !cache[d] || d >= recent).sort()) {
+    for (const url of [`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${d}/v1/currencies/${f}.json`, `https://${d}.currency-api.pages.dev/v1/currencies/${f}.json`]) {
+      try {
+        const j = await (await fetch(url)).json();
+        if (j && j[f] && j[f][t]) { cache[d] = j[f][t]; break; }
+      } catch (e) { /* tenta o espelho */ }
+    }
+  }
+  fs.writeFileSync(file, JSON.stringify(cache));
+  const known = Object.keys(cache).sort();
+  if (!known.length) throw new Error(`sem cotação ${de}→${para} para converter o gasto`);
+  return d => { let k = known[0]; for (const x of known) if (x <= d) k = x; return cache[k]; };
+}
+
+// país-alvo da campanha: a última tag do nome ("…[PAG-A][UY]" → "UY")
+const campTag = name => { const t = (decode(name || '').match(/\[([^\]]+)\]/g) || []).pop(); return t ? t.slice(1, -1).trim().toUpperCase() : null; };
+
+// ---- Pesquisa de qualificação: cada resposta é ligada ao lead pelo e-mail (o primeiro cadastro dele) e herda temperatura,
+//      criativo, conjunto e país da campanha. Só as perguntas fechadas do config saem daqui (nada de texto livre nem e-mail).
+//      Nota = soma dos pontos das respostas (config "pontos", casando pelo começo da opção); faixa alta/média/baixa pela nota.
+async function fetchPesquisa(leads, leadByEmail) {
+  const P = CFG.pesquisa;
+  const rows = parseCSV(await (await fetch(sheetCsvUrl(P.planilha), { redirect: 'follow' })).text());
+  if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha da pesquisa vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
+  const header = rows[0].map(h => h.trim());
+  const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
+  const cTs = idx('Date', 'Data', 'Data/Hora'), cEmail = idx('email', 'e-mail');
+  if (cTs < 0 || cEmail < 0) throw new Error('planilha da pesquisa sem as colunas Date e email');
+  const multi = new Set((P.multipla || []).map(normKey));
+  const qs = P.perguntas.map(q => ({ q, i: idx(q), multi: multi.has(normKey(q)), options: [] })).filter(x => x.i >= 0);
+  const g = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
+  // "Otro: <texto livre>" vira só "Otro" (o texto pode identificar a pessoa)
+  const opt = v => /^otro\b/i.test(v) ? 'Otro' : v;
+  const code = (q, v) => { let k = q.options.indexOf(v); if (k < 0) { k = q.options.length; q.options.push(v); } return k; };
+  const pontos = Object.entries(P.pontos || {}).map(([q, m]) => ({ q: normKey(q), i: idx(q), m: Object.entries(m).map(([o, p]) => [normKey(o), p]) }));
+  // faixas: "alta" é uma nota mínima ou { "minimos": { pergunta: pontos } } — aí é alta quem cumpre TODOS os mínimos
+  // (a soma sozinha deixaria passar, por exemplo, quem fatura pouco mas tem negócio antigo); "media" é sempre nota mínima
+  const faixas = P.faixas || { alta: 6, media: 3 };
+  const minimos = faixas.alta && typeof faixas.alta === 'object' ? Object.entries(faixas.alta.minimos || {}).map(([q, p]) => [normKey(q), p]) : null;
+  const byEmail = new Map();   // a última resposta de cada e-mail vale
+  for (const r of rows.slice(1)) {
+    const ts = parseTS(g(r, cTs)); const email = g(r, cEmail).toLowerCase();
+    if (!ts || ts.date < SINCE) continue;
+    byEmail.set(email || Symbol(), { r, ts, email });
+  }
+  const out = [];   // [data, temperatura, criativo, conjunto, país da campanha, origem orgânica, nota, faixa, respostas…]
+  for (const { r, ts, email } of [...byEmail.values()].sort((a, b) => a.ts.date.localeCompare(b.ts.date))) {
+    const li = typeof email === 'string' ? leadByEmail.get(email) : undefined;
+    const l = li != null ? leads[li] : null;
+    const pts = new Map(pontos.map(p => { const v = normKey(g(r, p.i)); const h = p.m.find(([o]) => v.startsWith(o)); return [p.q, h ? h[1] : 0]; }));
+    const nota = [...pts.values()].reduce((s, x) => s + x, 0);
+    const alta = minimos ? minimos.every(([q, min]) => (pts.get(q) || 0) >= min) : nota >= faixas.alta;
+    const faixa = alta ? 'alta' : nota >= faixas.media ? 'media' : 'baixa';
+    const ans = qs.map(q => {
+      const v = g(r, q.i);
+      if (!v) return null;
+      return q.multi ? [...new Set(v.split(';').map(s => opt(s.trim())).filter(Boolean))].map(s => code(q, s)) : code(q, opt(v));
+    });
+    out.push([ts.date, l ? l[2] : 'sem_lead', l ? l[5] : null, l ? l[7] : null, l ? l[8] : null, l ? l[4] : null, nota, faixa, ...ans]);
+  }
+  // pontuação para o painel explicar a nota
+  const regras = Object.entries(P.pontos || {}).map(([q, m]) => ({ q, opcoes: Object.entries(m) }));
+  return { cols: ['date', 'temp', 'criativo', 'conjunto', 'paisCampanha', 'origem', 'nota', 'faixa'], perguntas: qs.map(q => ({ q: q.q, multi: q.multi, options: q.options })), rows: out, regras, faixas, max: regras.reduce((s, x) => s + Math.max(...x.opcoes.map(o => o[1])), 0), semLead: out.filter(x => x[1] === 'sem_lead').length };
+}
+
 async function mainCaptacao() {
   const until = todaySP();
   const { campaigns, since: metaSince } = await fetchCampaigns();
@@ -438,9 +525,17 @@ async function mainCaptacao() {
   // [data, campanha, conjunto, anúncio, gasto, impressões, cliques, cliques no link, views da página, leads do Meta, views de 3s]
   const insights = await fetchInsights(campIds, metaSince, until, [['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_web_lead'], ['video_view']]);
 
+  // ---- câmbio: "moeda" no config (ex.: "USD") converte o gasto pela cotação do dia; sem ela, fica na moeda da conta ----
+  const contaMoeda = await accountCurrency(ACCOUNT, TOKEN);
+  const moeda = (CFG.moeda || contaMoeda).toUpperCase();
+  if (moeda !== contaMoeda) {
+    const rate = await fxRates(contaMoeda, moeda, [...new Set(insights.map(r => r[0]))]);
+    for (const r of insights) r[4] = +(r[4] / rate(r[0])).toFixed(2);
+  }
+
   // ---- Meta: anúncios com miniatura e post do Instagram; a miniatura é baixada uma vez (a URL do Meta expira) ----
   const adsRaw = await graphGetAll(`${ACCOUNT}/ads`, {
-    fields: 'id,name,effective_status,adset{id,name},campaign{id},preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
+    fields: 'id,name,effective_status,adset{id,name},campaign{id},preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type,object_story_spec,asset_feed_spec}',
     filtering: JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campIds }]),
     limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
   });
@@ -461,7 +556,7 @@ async function mainCaptacao() {
       id: a.id, name: a.name, active: a.effective_status === 'ACTIVE', campaignId, adsetName,
       temp: tempCaptacao(adsetName, campName.get(campaignId) || ''), type: cr.object_type || null,
       igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null,
-      thumb: fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null
+      thumb: fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null, page: adPage(cr)
     });
   }
   // temperatura de um criativo pelo nome (o mesmo nome roda em conjuntos quentes e frios: só vale se for um só)
@@ -476,19 +571,21 @@ async function mainCaptacao() {
   const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
   const col = {
     ts: idx('Date', 'Data', 'Data/Hora'), email: idx('Email', 'E-mail'), pais: idx('pais', 'país', 'country'),
-    src: idx('utm_source'), med: idx('utm_medium'), camp: idx('utm_campaign'), cont: idx('utm_content')
+    src: idx('utm_source'), med: idx('utm_medium'), camp: idx('utm_campaign'), cont: idx('utm_content'),
+    pagina: idx('pagina', 'página', 'page'), url: idx('page_url', 'url')
   };
   if (col.ts < 0) throw new Error('planilha sem a coluna de data (Date)');
   const g = (r, i) => (i >= 0 && r[i] != null ? decode(String(r[i])).trim() : '');
   const seen = new Set();
   let cadastros = 0;
-  const leads = [];   // [data, hora, temperatura, país, origem orgânica, criativo]
+  const leads = [];   // [data, hora, temperatura, país, origem orgânica, criativo, página, conjunto, país da campanha]
+  const leadByEmail = new Map();   // só para cruzar com a pesquisa; o e-mail não sai do refresh
   const parsed = rows.slice(1).map(r => ({ r, ts: parseTS(g(r, col.ts)) })).filter(x => x.ts && x.ts.date >= SINCE)
     .sort((a, b) => (a.ts.date + (a.ts.time || '')).localeCompare(b.ts.date + (b.ts.time || '')));
   for (const { r, ts } of parsed) {
     cadastros++;
     const email = g(r, col.email).toLowerCase();
-    if (email) { if (seen.has(email)) continue; seen.add(email); }
+    if (email) { if (seen.has(email)) continue; seen.add(email); leadByEmail.set(email, leads.length); }
     const src = g(r, col.src), med = g(r, col.med), camp = g(r, col.camp);
     const adName = g(r, col.cont).split('|')[0].trim();
     let temp = 'organico', origem = null, criativo = null;
@@ -500,7 +597,9 @@ async function mainCaptacao() {
       origem = [src || 'sem utm_source', med && normKey(med) !== normKey(src) ? med : ''].filter(Boolean).join(' · ');
       if (!src && !med) origem = 'Sem UTM';
     }
-    leads.push([ts.date, ts.time, temp, g(r, col.pais) || null, origem, criativo]);
+    const paid = temp !== 'organico';
+    leads.push([ts.date, ts.time, temp, g(r, col.pais) || null, origem, criativo, normPage(g(r, col.pagina)) || urlPage(String(col.url >= 0 && r[col.url] || '')),
+      paid && med && !/\{\{/.test(med) ? med : null, paid ? campTag(camp) : null]);
   }
 
   // o painel começa no primeiro lead ou no primeiro dia de anúncio, o que vier antes (orgânico costuma vir antes do pago)
@@ -509,10 +608,12 @@ async function mainCaptacao() {
   write('campaigns.json', { rows: campaigns });
   write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'metaLeads', 'views3s'], rows: insights });
   write('ads.json', { rows: ads });
-  write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo'], rows: leads });
+  write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo', 'pagina', 'conjunto', 'paisCampanha'], rows: leads });
+  const pesquisa = CFG.pesquisa ? await fetchPesquisa(leads, leadByEmail) : null;
+  write('pesquisa.json', pesquisa);
   write('summary.json', {
-    updatedAt: new Date().toISOString(), account: ACCOUNT, currency: await accountCurrency(ACCOUNT, TOKEN),
-    since, until, cadastros, lancamento: CFG.lancamento || null
+    updatedAt: new Date().toISOString(), account: ACCOUNT, currency: moeda, contaMoeda,
+    since, until, cadastros, lancamento: CFG.lancamento || null, metas: CFG.metas || null
   });
   const n = t => leads.filter(l => l[2] === t).length;
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: ads.length, comMiniatura: ads.filter(a => a.thumb).length, cadastros, leads: leads.length, organico: n('organico'), quente: n('quente'), frio: n('frio'), pagoSemTemperatura: n('pago') }));
