@@ -117,7 +117,8 @@
   .qrow .nm { display: flex; align-items: center; gap: 8px; font-weight: 600; }
   .qrow .nm i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .qrow .qbar { height: 22px; }
-  table.qtbl { min-width: 1260px; }
+  table.qtbl { min-width: 1100px; }
+  table.qtbl.org { min-width: 900px; }
   table.qtbl td:first-child { min-width: 300px; }
   table.qtbl td.bar { min-width: 180px; }
   .qgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 36px; padding: 6px 22px 20px; }
@@ -145,9 +146,12 @@
   .page { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 24px; display: grid; gap: 18px; }
   .page > * { min-width: 0; }
   .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); min-width: 0; }
-  .card-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; flex-wrap: wrap; }
-  .card-head h2 { font-size: 16px; }
-  .card-head .count { color: var(--muted); font-size: 13px; }
+  /* cabeçalho de seção: título forte com traço laranja da marca e linha fina separando do conteúdo */
+  .card-head { display: flex; align-items: center; gap: 10px 12px; padding: 18px 22px 14px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .card-head h2 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+  .card-head h2::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--accent); flex: none; }
+  .card-head .count { color: var(--muted); font-size: 12.5px; font-weight: 500; background: var(--surface-2); border-radius: 999px; padding: 2px 10px; }
+  .card-head .count:empty { display: none; }
   .card-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .two > * { min-width: 0; }
@@ -159,8 +163,11 @@
   .kpi .lbl i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); white-space: nowrap; }
   .kpi .sub { color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
-  .kpi .sub b { color: var(--ink-2); font-weight: 600; }
+  .kpi .sub b { color: var(--ink-2); font-weight: 600; white-space: nowrap; }
   .kpi .goal { display: grid; gap: 5px; margin-bottom: 2px; }
+  /* uma linha só: o valor da meta vai menor e, se ainda faltar espaço, é cortado com "…" em vez de quebrar */
+  .kpi .goal .gl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .goal .gl small { font-size: 11px; }
   .kpi .goal i { display: block; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
   .kpi .goal i b { display: block; height: 100%; min-width: 3px; background: var(--accent); border-radius: 3px; }
 
@@ -248,7 +255,7 @@
 
   /* ---------- tabela de criativos ---------- */
   .tbl-wrap { overflow-x: auto; padding: 8px 6px 6px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1320px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
   th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
   th:first-child, td:first-child { text-align: left; }
@@ -283,8 +290,11 @@
   /* ---------- prévia (modal) ---------- */
   dialog { border: none; border-radius: 12px; padding: 0; box-shadow: var(--pop-shadow); width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: var(--surface); color: var(--ink); }
   dialog::backdrop { background: rgba(8, 31, 45, .55); }
-  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  .dlg-head strong { font-size: 13.5px; overflow-wrap: anywhere; margin-right: auto; }
+  /* título em cima (com o ×), link para o Instagram embaixo: nomes longos de anúncio não espremem o botão */
+  .dlg-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .dlg-head strong { font-size: 13.5px; overflow-wrap: anywhere; }
+  .dlg-head .plink { grid-row: 2; justify-self: start; }
+  .dlg-head .dlg-close { grid-column: 2; grid-row: 1; }
   .dlg-close { border: none; background: none; width: 32px; height: 32px; border-radius: 6px; font-size: 20px; line-height: 1; color: var(--ink-2); cursor: pointer; flex: none; }
   .dlg-close:hover { background: var(--hover); color: var(--ink); }
   .dlg-body { overflow: auto; max-height: calc(100dvh - 100px); }
@@ -293,7 +303,7 @@
 
   footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 16px 28px; }
 
-  @media (max-width: 1280px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 1400px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 1000px) { .two { grid-template-columns: 1fr; } }
   @media (max-width: 640px) {
     .top-inner { padding: 10px 16px; gap: 10px; }
@@ -302,12 +312,14 @@
     .periodPop { left: 0; right: auto; flex-direction: column; max-width: 100%; }
     .periodPresets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
     .periodCal { width: 100%; max-width: 300px; }
-    .page { padding-inline: 16px; gap: 14px; }
+    .page { padding-inline: 16px; gap: 22px; }
     .two { gap: 14px; }
     .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .kpi { padding: 14px 16px; }
     .kpi .val { font-size: 20px; }
-    .card-head { padding: 16px 16px 0; }
+    .card-head { padding: 18px 16px 14px; }
+    .card-head h2 { font-size: 18px; }
+    .card { border-radius: 14px; }
     .card-head .right { margin-left: 0; width: 100%; }
     .search { flex: 1; }
     .search input { width: 100%; }
@@ -319,12 +331,41 @@
     .note { padding-inline: 16px; }
   }
   @media (max-width: 860px) { .fnl { display: none; } .fnlm { display: grid; } .qgrid { grid-template-columns: 1fr; } }
+  .mobileOnly { display: none; }
   @media (max-width: 640px) {
-    .tabs-inner { padding: 0 8px; }
-    .view { gap: 14px; }
-    .qrows { padding-inline: 16px; overflow-x: auto; }
-    .qrow { grid-template-columns: 110px minmax(120px, 1fr) 70px 70px; }
-    .qrow > :nth-child(n+5) { display: none; }
+    /* topo: rola junto com a página (fixo, ocupava um quarto da tela) e abas dividem a largura */
+    .top { position: static; }
+    .tabs-inner { padding: 0 4px; gap: 0; }
+    .tabs a, .tabs span { flex: 1; text-align: center; padding: 11px 2px 10px; font-size: 13px; }
+    .kpi .goal .dm { display: none; }
+    .mobileOnly { display: block; }
+    .card-head .right > * { flex: 1 1 auto; }
+    .tempRow { grid-template-columns: minmax(100px, 1.4fr) repeat(3, minmax(44px, 1fr)); }
+    .tempRow > :nth-child(4) { display: none; }
+    /* tabelas → cards: primeira coluna em cima, métricas em grade de 3 com o nome da coluna acima do valor */
+    .tbl-wrap { padding: 4px 0 0; overflow: visible; }
+    table.resp, table.resp.pages, table.resp.qtbl { min-width: 0; }
+    table.resp thead { display: none; }
+    table.resp tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    table.resp td { display: block; padding: 0; border: 0; text-align: left; white-space: normal; min-width: 0; font-weight: 600; font-size: 13.5px; }
+    table.resp td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-bottom: 1px; }
+    table.resp td:first-child { grid-column: 1 / -1; min-width: 0; font-weight: 500; }
+    table.resp td:first-child::before, table.resp td:not([data-label])::before { display: none; }
+    table.resp td.bar { grid-column: 1 / -1; min-width: 0; }
+    table.resp td.bar .qbar { height: 12px; }
+    table.resp tfoot tr { background: var(--surface-2); }
+    table.resp tfoot td { background: none; }
+    .creative .nm strong { max-width: none; }
+    .view { gap: 22px; }
+    /* qualificação por origem → card: nome e barra em cima, números em grade de 4 com o rótulo acima */
+    .qrows { padding-inline: 16px; }
+    .qrow.head { display: none; }
+    .qrow { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 10px; padding: 12px 0; }
+    .qrow .nm, .qrow .qbar { grid-column: 1 / -1; }
+    .qrow > :nth-child(n+3) { text-align: left; font-weight: 600; }
+    .qrow [data-label]::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+    .seg { display: flex; }
+    .seg button { flex: 1; }
     .qgrid, .rules { padding-inline: 16px; }
   }
 </style>
@@ -398,7 +439,7 @@
 
   <section class="card" aria-labelledby="h-pages">
     <div class="card-head"><h2 id="h-pages">Conversão por página</h2></div>
-    <div class="tbl-wrap"><table class="pages"><thead><tr id="pagesHead"></tr></thead><tbody id="pagesBody"></tbody><tfoot id="pagesFoot"></tfoot></table></div>
+    <div class="tbl-wrap"><table class="pages resp"><thead><tr id="pagesHead"></tr></thead><tbody id="pagesBody"></tbody><tfoot id="pagesFoot"></tfoot></table></div>
   </section>
 
   <section class="card" aria-labelledby="h-daily">
@@ -434,6 +475,7 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <input id="q" type="search" placeholder="Buscar criativo" aria-label="Buscar criativo">
         </label>
+        <select class="sel mobileOnly" id="adsSort" aria-label="Ordenar criativos"></select>
         <select class="sel" id="status" aria-label="Status do criativo">
           <option value="all">Todos os criativos</option>
           <option value="on">Somente ativos</option>
@@ -447,7 +489,7 @@
       </div>
     </div>
     <div class="tbl-wrap" id="tblWrap">
-      <table>
+      <table class="resp">
         <thead><tr id="thead"></tr></thead>
         <tbody id="tbody"></tbody>
         <tfoot id="tfoot"></tfoot>
@@ -471,15 +513,23 @@
   <section class="card" aria-labelledby="h-pqads">
     <div class="card-head"><h2 id="h-pqads">Qualificação por criativo</h2><span class="count" id="pqAdsCount"></span></div>
     <div class="legend" id="pqLegend2"></div>
-    <div class="tbl-wrap"><table class="qtbl"><thead><tr id="pqAdsHead"></tr></thead><tbody id="pqAdsBody"></tbody></table></div>
+    <div class="tbl-wrap"><table class="qtbl resp"><thead><tr id="pqAdsHead"></tr></thead><tbody id="pqAdsBody"></tbody></table></div>
     <div class="empty" id="pqAdsEmpty" hidden>Nenhuma resposta de lead do tráfego no período.</div>
   </section>
 
   <section class="card" aria-labelledby="h-pqseg">
-    <div class="card-head"><h2 id="h-pqseg">Qualificação por público</h2><span class="count" id="pqSegCount"></span></div>
+    <div class="card-head"><h2 id="h-pqseg">Qualificação por público do tráfego</h2><span class="count" id="pqSegCount"></span></div>
     <div class="legend" id="pqLegend3"></div>
-    <div class="tbl-wrap"><table class="qtbl"><thead><tr id="pqSegHead"></tr></thead><tbody id="pqSegBody"></tbody></table></div>
-    <p class="note">Custo por lead qualificado (estimado) = CPL ÷ % de alta qualificação entre quem respondeu. Com poucas respostas, os percentuais oscilam bastante.</p>
+    <div class="tbl-wrap"><table class="qtbl resp"><thead><tr id="pqSegHead"></tr></thead><tbody id="pqSegBody"></tbody></table></div>
+    <div class="empty" id="pqSegEmpty" hidden>Nenhum lead do tráfego no período.</div>
+    <p class="note">Com poucas respostas por público, os percentuais oscilam bastante.</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-pqorg">
+    <div class="card-head"><h2 id="h-pqorg">Qualificação por origem orgânica</h2><span class="count" id="pqOrgCount"></span></div>
+    <div class="legend" id="pqLegend5"></div>
+    <div class="tbl-wrap"><table class="qtbl resp org"><thead><tr id="pqOrgHead"></tr></thead><tbody id="pqOrgBody"></tbody></table></div>
+    <div class="empty" id="pqOrgEmpty" hidden>Nenhum lead orgânico no período.</div>
   </section>
 
   <section class="card" aria-labelledby="h-pqq">
@@ -682,6 +732,9 @@ const D = /*__DATA__*/{};
     tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
   }
   const hideTip = () => { tip.style.display = 'none'; };
+  const hideTipMouse = ev => { if (ev.pointerType !== 'touch') hideTip(); };
+  addEventListener('scroll', hideTip, { passive: true });
+  document.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && !e.target.closest('#dailyHit, .stack i, #paises .hbar')) hideTip(); });
   const tipRow = (label, val, color) => `<div><span>${color ? `<i style="background:${color}"></i>` : ''}${label}</span><span>${val}</span></div>`;
   const legendHtml = () => shownTemps.map(t => `<span><i style="background:${t.c}"></i>${t.l}</span>`).join('');
 
@@ -692,7 +745,7 @@ const D = /*__DATA__*/{};
     const org = leads.filter(l => l.temp === 'organico').length;
     const share = v => leads.length ? fmtPct1(v / leads.length) : '—';
     // meta do lançamento: sempre o acumulado até agora (não depende do período escolhido)
-    const goal = (done, meta, f) => meta ? `<span class="goal" title="Acumulado do lançamento até agora: ${f(done)} de ${f(meta)}"><i><b style="width:${Math.min(100, done / meta * 100).toFixed(2)}%"></b></i><span><b>${fmtPct1(done / meta)}</b> da meta (${f(meta)})</span></span>` : '';
+    const goal = (done, meta, f) => meta ? `<span class="goal" title="Acumulado do lançamento até agora: ${f(done)} de ${f(meta)}"><i><b style="width:${Math.min(100, done / meta * 100).toFixed(2)}%"></b></i><span class="gl"><b>${fmtPct1(done / meta)}</b><span class="dm"> da meta</span> <small>(${f(meta)})</small></span></span>` : '';
     const k = (lbl, val, sub, color) => `<div class="card kpi"><div class="lbl">${color ? `<i style="background:${color}"></i>` : ''}${lbl}</div><div class="val num">${val}</div><div class="sub">${sub}</div></div>`;
     $('kpis').innerHTML = [
       k('Leads', fmtInt(leads.length), goal(LEADS.length, METAS.leads, fmtInt)),
@@ -805,7 +858,9 @@ const D = /*__DATA__*/{};
     g += `<rect id="dailyHi" x="0" y="${padT}" width="${step}" height="${H0}" fill="var(--ink)" opacity="0" pointer-events="none"/>`;
     box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" font-family="var(--font)" role="img" aria-label="Leads por dia, por temperatura do público">${g}</svg>`;
     const svg = box.querySelector('svg'), hi = box.querySelector('#dailyHi');
-    box.querySelector('#dailyHit').addEventListener('mousemove', ev => {
+    box.querySelector('#dailyHit').addEventListener('pointermove', onDaily);
+    box.querySelector('#dailyHit').addEventListener('pointerdown', onDaily);
+    function onDaily(ev) {
       const rect = svg.getBoundingClientRect();
       const i = Math.max(0, Math.min(n - 1, Math.floor(((ev.clientX - rect.left) * (W / rect.width) - padL) / step)));
       const r = rows[i];
@@ -813,8 +868,8 @@ const D = /*__DATA__*/{};
       const paid = r.quente + r.frio + r.pago;
       showTip(`<b>${weekday(r.date)} ${fmtDate(r.date)}</b>` + shownTemps.map(t => tipRow(t.l, fmtInt(r[t.k]), t.c)).join('')
         + `<hr>${tipRow('Total', fmtInt(r.total))}${tipRow('Investimento', fmtMoney(r.spend))}${tipRow('CPL do tráfego', fmtMoney(paid ? r.spend / paid : null))}`, ev);
-    });
-    box.querySelector('#dailyHit').addEventListener('mouseleave', () => { hi.setAttribute('opacity', '0'); hideTip(); });
+    }
+    box.querySelector('#dailyHit').addEventListener('pointerleave', ev => { if (ev.pointerType === 'touch') return; hi.setAttribute('opacity', '0'); hideTip(); });
   }
 
   // ---------- temperatura ----------
@@ -831,8 +886,9 @@ const D = /*__DATA__*/{};
     $('temps').innerHTML = (total ? `<div class="stack" role="img" aria-label="Divisão dos leads por temperatura">${bar}</div>` : '<div class="chart-empty">Sem leads no período.</div>')
       + `<div class="tempRows"><div class="tempRow head"><span>Público</span><span>Leads</span><span>% dos leads</span><span>Investimento</span><span>CPL</span></div>${shownTemps.map(row).join('')}</div>`;
     $('temps').querySelectorAll('[data-tt]').forEach(el => {
-      el.addEventListener('mousemove', ev => { const t = TEMP[el.dataset.tt], n = c.get(t.k); showTip(`<b>${t.l}</b>${tipRow('Leads', fmtInt(n), t.c)}${tipRow('% dos leads', fmtPct1(n / total))}`, ev); });
-      el.addEventListener('mouseleave', hideTip);
+      el.addEventListener('pointermove', tipTemp); el.addEventListener('pointerdown', tipTemp);
+      function tipTemp(ev) { const t = TEMP[el.dataset.tt], n = c.get(t.k); showTip(`<b>${t.l}</b>${tipRow('Leads', fmtInt(n), t.c)}${tipRow('% dos leads', fmtPct1(n / total))}`, ev); }
+      el.addEventListener('pointerleave', hideTipMouse);
     });
   }
 
@@ -855,8 +911,9 @@ const D = /*__DATA__*/{};
         + (list.length > LIMIT ? `<button class="more" id="paisMore">${state.allPaises ? 'Mostrar menos' : `Ver todos os ${list.length} países`}</button>` : '');
     $('paises').querySelectorAll('.hbar').forEach(el => {
       const p = shown[+el.dataset.i];
-      el.addEventListener('mousemove', ev => showTip(`<b>${esc(p.k)}</b>` + shownTemps.map(t => tipRow(t.l, fmtInt(p[t.k]), t.c)).join('') + `<hr>${tipRow('Total', fmtInt(p.total))}`, ev));
-      el.addEventListener('mouseleave', hideTip);
+      const tipPais = ev => showTip(`<b>${esc(p.k)}</b>` + shownTemps.map(t => tipRow(t.l, fmtInt(p[t.k]), t.c)).join('') + `<hr>${tipRow('Total', fmtInt(p.total))}`, ev);
+      el.addEventListener('pointermove', tipPais); el.addEventListener('pointerdown', tipPais);
+      el.addEventListener('pointerleave', hideTipMouse);
     });
     const more = $('paisMore');
     if (more) more.addEventListener('click', () => { state.allPaises = !state.allPaises; renderPaises(leads); });
@@ -883,15 +940,11 @@ const D = /*__DATA__*/{};
   const LINK_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5L7.5 8.5M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const COLS = [
     { k: 'name', l: 'Criativo' },
-    { k: 'leads', l: 'Leads', f: fmtInt },
     { k: 'spend', l: 'Investimento', f: fmtMoney },
+    { k: 'leads', l: 'Leads', f: fmtInt },
     { k: 'cpl', l: 'CPL', f: fmtMoney },
-    { k: 'metaLeads', l: 'Leads (Meta)', f: fmtInt },
-    { k: 'cpm', l: 'CPM', f: fmtMoney },
     { k: 'ctr', l: 'CTR', f: fmtPct },
     { k: 'cpc', l: 'CPC', f: fmtMoney },
-    { k: 'connect', l: 'Connect rate', f: fmtPct },
-    { k: 'conv', l: 'Conv. página', f: fmtPct },
     { k: 'hook', l: 'Hook rate', f: fmtPct },
   ];
   const ASC_DEFAULT = new Set(['cpl', 'cpm', 'cpc']);
@@ -1034,10 +1087,11 @@ const D = /*__DATA__*/{};
   const segLabel = (conj, pc) => `${prettySet(conj) || 'Conjunto não identificado'}${pc ? ' · ' + (PAISES_CAMP[pc] || pc) : ''}`;
   const qIdx = name => PQ ? PQ.perguntas.findIndex(p => norm(p.q) === norm(name)) : -1;
   const FAT = qIdx('Facturación mensual');
-  const fat500 = r => { if (FAT < 0 || r.ans[FAT] == null) return null; return !/^menos de/i.test(PQ.perguntas[FAT].options[r.ans[FAT]]); };
+  // fatura US$ 1.000 ou mais: qualquer faixa que não seja "Menos de USD 500" nem "USD 500 a 1.000"
+  const fat1k = r => { if (FAT < 0 || r.ans[FAT] == null) return null; return !/^(menos de|usd 500 a)/i.test(PQ.perguntas[FAT].options[r.ans[FAT]]); };
   const qAgg = list => {
     const a = { n: list.length, alta: 0, media: 0, baixa: 0, nota: 0, fatN: 0, fatOk: 0 };
-    for (const r of list) { a[r.faixa]++; a.nota += r.nota; const f = fat500(r); if (f != null) { a.fatN++; if (f) a.fatOk++; } }
+    for (const r of list) { a[r.faixa]++; a.nota += r.nota; const f = fat1k(r); if (f != null) { a.fatN++; if (f) a.fatOk++; } }
     a.pAlta = a.n ? a.alta / a.n : null; a.notaMed = a.n ? a.nota / a.n : null; a.pFat = a.fatN ? a.fatOk / a.fatN : null;
     return a;
   };
@@ -1072,11 +1126,11 @@ const D = /*__DATA__*/{};
     ].join('');
 
     // ---- por origem do lead (temperatura) ----
-    $('pqLegend1').innerHTML = $('pqLegend2').innerHTML = $('pqLegend3').innerHTML = faixaLegend();
+    $('pqLegend1').innerHTML = $('pqLegend2').innerHTML = $('pqLegend3').innerHTML = $('pqLegend5').innerHTML = faixaLegend();
     const leadsBy = countBy(leads, l => l.temp);
     $('pqTemps').innerHTML = `<div class="qrow head"><span>Origem</span><span>Qualificação</span><span>Respostas</span><span>Taxa de resposta</span><span>% alta</span><span>Nota média</span></div>`
       + PQ_TEMPS.map(tp => ({ tp, a: qAgg(rows.filter(r => r.temp === tp.k)) })).filter(x => x.a.n).map(({ tp, a }) =>
-        `<div class="qrow"><span class="nm"><i style="background:${tp.c}"></i>${tp.l}</span>${qbarHtml(a)}<span>${fmtInt(a.n)}</span><span>${tp.k === 'sem_lead' ? '—' : pct(a.n, leadsBy.get(tp.k) || 0)}</span><span>${fmtPct1(a.pAlta)}</span><span>${fmtNota(a.notaMed)}</span></div>`).join('');
+        `<div class="qrow"><span class="nm"><i style="background:${tp.c}"></i>${tp.l}</span>${qbarHtml(a)}<span data-label="Respostas">${fmtInt(a.n)}</span><span data-label="Taxa de resposta">${tp.k === 'sem_lead' ? '—' : pct(a.n, leadsBy.get(tp.k) || 0)}</span><span data-label="% alta">${fmtPct1(a.pAlta)}</span><span data-label="Nota média">${fmtNota(a.notaMed)}</span></div>`).join('');
 
     // ---- por criativo (só leads do tráfego) ----
     const spendByName = new Map();
@@ -1084,16 +1138,18 @@ const D = /*__DATA__*/{};
     const leadsByName = countBy(leads.filter(l => PAID.has(l.temp) && l.criativo), l => norm(l.criativo));
     const byAd = new Map();
     for (const r of rows) if (PAID.has(r.temp) && r.criativo) (byAd.get(norm(r.criativo)) || byAd.set(norm(r.criativo), { name: r.criativo, rows: [] }).get(norm(r.criativo))).rows.push(r);
-    const COLS_Q = ['Leads', 'Respostas', 'Taxa de resposta', 'Qualificação', '% alta', 'Nota média', 'Fatura ≥ US$ 500', 'Investimento', 'CPL', 'Custo por lead qualificado'];
+    const COLS_Q = ['Leads', 'Respostas', 'Taxa de resposta', 'Qualificação', '% alta', 'Nota média', 'Fatura ≥ US$ 1.000'];
+    const COLS_SPEND = ['Investimento', 'CPL'];
+    // `spend` undefined = tabela sem colunas de investimento (orgânico)
     const qCells = (a, nLeads, spend) => {
-      const cpl = nLeads ? spend / nLeads : null;
-      return `<td class="num">${fmtInt(nLeads)}</td><td class="num">${fmtInt(a.n)}</td><td class="num">${pct(a.n, nLeads)}</td><td class="bar">${qbarHtml(a)}</td><td class="num">${fmtPct1(a.pAlta)}</td><td class="num">${fmtNota(a.notaMed)}</td><td class="num">${fmtPct1(a.pFat)}</td>`
-        + `<td class="num">${spend != null ? fmtMoney(spend) : '—'}</td><td class="num">${spend != null ? fmtMoney(cpl) : '—'}</td><td class="num">${spend != null && cpl && a.pAlta ? fmtMoney(cpl / a.pAlta) : '—'}</td>`;
+      const base = `<td class="num">${fmtInt(nLeads)}</td><td class="num">${fmtInt(a.n)}</td><td class="num">${pct(a.n, nLeads)}</td><td class="bar">${qbarHtml(a)}</td><td class="num">${fmtPct1(a.pAlta)}</td><td class="num">${fmtNota(a.notaMed)}</td><td class="num">${fmtPct1(a.pFat)}</td>`;
+      if (spend === undefined) return base;
+      return base + `<td class="num">${spend != null ? fmtMoney(spend) : '—'}</td><td class="num">${spend != null && nLeads ? fmtMoney(spend / nLeads) : '—'}</td>`;
     };
     const adRows = [...byAd.values()].map(x => ({ ...x, a: qAgg(x.rows) })).sort((p, q) => q.a.n - p.a.n || (q.a.pAlta || 0) - (p.a.pAlta || 0));
     $('pqAdsCount').textContent = adRows.length ? `${adRows.length} ${adRows.length === 1 ? 'criativo' : 'criativos'}` : '';
     $('pqAdsEmpty').hidden = adRows.length > 0;
-    $('pqAdsHead').innerHTML = '<th>Criativo</th>' + COLS_Q.map(c => `<th>${c}</th>`).join('');
+    $('pqAdsHead').innerHTML = '<th>Criativo</th>' + COLS_Q.concat(COLS_SPEND).map(c => `<th>${c}</th>`).join('');
     $('pqAdsBody').innerHTML = adRows.map(x => {
       const m = thumbOf(x.name) || {};
       const key = norm(x.name);
@@ -1119,11 +1175,19 @@ const D = /*__DATA__*/{};
       s.spend += r.spend;
     }
     const segRows = [...segs.values()].filter(s => s.rows.length || s.leads).map(s => ({ ...s, a: qAgg(s.rows) }))
-      .sort((p, q) => (p.key[0] === q.key[0] ? 0 : p.key[0] === 'p' ? -1 : 1) || q.a.n - p.a.n || q.leads - p.leads);
-    $('pqSegCount').textContent = segRows.length ? `${segRows.length} públicos` : '';
-    $('pqSegHead').innerHTML = '<th>Público</th>' + COLS_Q.map(c => `<th>${c}</th>`).join('');
-    $('pqSegBody').innerHTML = segRows.map(s => `<tr><td><div class="nm" style="display:grid;gap:5px"><strong style="font-weight:500">${esc(s.label)}</strong><span class="links">${TEMPS.map(tp => tp.k).filter(tk => s.temps.has(tk)).map(tempChip).join('')}</span></div></td>`
-      + qCells(s.a, s.leads, s.spend || null) + '</tr>').join('');
+      .sort((p, q) => q.a.n - p.a.n || q.leads - p.leads);
+    // duas tabelas: tráfego (conjunto + país, com investimento e CPL) e orgânico (origem, sem colunas de custo)
+    const segRow = (s, paid) => `<tr><td><div class="nm" style="display:grid;gap:5px"><strong style="font-weight:500">${esc(s.label)}</strong>${paid ? `<span class="links">${TEMPS.map(tp => tp.k).filter(tk => s.temps.has(tk)).map(tempChip).join('')}</span>` : ''}</div></td>`
+      + qCells(s.a, s.leads, paid ? (s.spend || null) : undefined) + '</tr>';
+    const segPaid = segRows.filter(s => s.key[0] === 'p'), segOrg = segRows.filter(s => s.key[0] === 'o');
+    $('pqSegCount').textContent = segPaid.length ? `${segPaid.length} públicos` : '';
+    $('pqSegHead').innerHTML = '<th>Público</th>' + COLS_Q.concat(COLS_SPEND).map(c => `<th>${c}</th>`).join('');
+    $('pqSegBody').innerHTML = segPaid.map(s => segRow(s, true)).join('');
+    $('pqSegEmpty').hidden = segPaid.length > 0;
+    $('pqOrgCount').textContent = segOrg.length ? `${segOrg.length} origens` : '';
+    $('pqOrgHead').innerHTML = '<th>Origem</th>' + COLS_Q.map(c => `<th>${c}</th>`).join('');
+    $('pqOrgBody').innerHTML = segOrg.map(s => segRow(s, false)).join('');
+    $('pqOrgEmpty').hidden = segOrg.length > 0;
 
     // ---- respostas por pergunta, em barras divididas pela origem do lead ----
     renderQuestions(rows);
@@ -1176,7 +1240,16 @@ const D = /*__DATA__*/{};
   addEventListener('hashchange', setTab);
 
   let cur = { leads: [], ins: [] };
-  function renderAdsOnly() { renderAds(cur.leads, cur.ins); }
+  function renderAdsOnly() { renderAds(cur.leads, cur.ins); labelCells(); }
+  // no celular as tabelas viram cards: cada célula leva o nome da coluna (data-label) para o CSS mostrar acima do valor
+  function labelCells() {
+    document.querySelectorAll('table.resp').forEach(t => {
+      const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.replace(/[↑↓]/g, '').trim());
+      t.querySelectorAll('tbody tr, tfoot tr').forEach(tr => [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.label = heads[i]; }));
+    });
+  }
+  $('adsSort').innerHTML = COLS.filter(c => c.k !== 'name').map(c => `<option value="${c.k}">Ordenar: ${c.l}</option>`).join('');
+  $('adsSort').addEventListener('change', e => { state.sort = e.target.value; state.dir = null; renderAdsOnly(); });
   function render() {
     cur = { leads: LEADS.filter(inPeriod), ins: INS.filter(inPeriod) };
     renderKpis(cur.leads, cur.ins);
@@ -1188,6 +1261,8 @@ const D = /*__DATA__*/{};
     renderOrigens(cur.leads);
     renderAds(cur.leads, cur.ins);
     renderPesquisa(cur.leads, cur.ins);   // depois dos criativos: reaproveita o mapa das prévias
+    labelCells();
+    $('adsSort').value = state.sort;
   }
   let rt;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => renderDaily(cur.leads, cur.ins), 150); });
@@ -1195,10 +1270,7 @@ const D = /*__DATA__*/{};
   // ---------- rodapé ----------
   const upd = S.updatedAt ? new Date(S.updatedAt) : null;
   const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
-  const dup = S.cadastros && S.cadastros > LEADS.length ? ` (${fmtInt(S.cadastros)} cadastros; e-mails repetidos contam uma vez)` : '';
-  $('foot').textContent = `Leads da planilha${dup}, separados pelas UTMs: com campanha do Meta = tráfego (quente/frio pela tag do conjunto ou da campanha), o resto = orgânico`
-    + ` · investimento, cliques e views da página do Meta Ads, em ${CUR === 'USD' ? 'dólares' : CUR === 'UYU' ? 'pesos uruguaios' : CUR}`
-    + (S.contaMoeda && S.contaMoeda !== CUR ? ` (convertido de ${S.contaMoeda === 'UYU' ? 'pesos uruguaios' : S.contaMoeda} pela cotação de cada dia)` : '') + (updTxt ? ` · atualizado em ${updTxt}` : '') + '.';
+  $('foot').textContent = updTxt ? `Atualizado em ${updTxt}` : '';
 
   applyPreset();
   initPeriodPicker();
