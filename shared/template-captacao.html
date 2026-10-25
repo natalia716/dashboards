@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>ATO · {{NOME}}</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* ============ ATO · captação de leads de lançamento — mesmo visual do painel de lançamento ============ */
+  :root {
+    color-scheme: light;
+    --bg: #f2f4f7;
+    --surface: #ffffff;
+    --surface-2: #f6f7f9;
+    --hover: #eef1f5;
+    --line: #e6e9ef;
+    --line-strong: #d5dae2;
+    --ink: #081f2d;           /* azul petróleo da marca */
+    --ink-2: #4b5b69;
+    --muted: #8a97a5;
+    --accent: #ff6b00;        /* laranja da marca */
+    --accent-strong: #e86000;
+    --accent-soft: rgba(255, 107, 0, .10);
+    --logo: #081f2d;
+    --dot: #ff6b00;
+    /* temperatura do público (validado para daltonismo: orgânico · quente · frio) */
+    --organico: #2a9d8f;
+    --quente: #ff6b00;
+    --frio: #1a6294;
+    --pago: #9aa5b1;
+    --good: #1d9e5f;
+    --good-soft: rgba(29, 158, 95, .10);
+    --grid: #eceff3;
+    --shadow: 0 1px 2px rgba(8, 31, 45, .06), 0 1px 3px rgba(8, 31, 45, .04);
+    --pop-shadow: 0 12px 32px rgba(8, 31, 45, .16);
+    --radius: 10px;
+    --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--accent-strong); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  /* ---------- barra superior ---------- */
+  .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); box-shadow: var(--shadow); }
+  .top-inner { max-width: 1400px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-right: auto; min-width: 0; }
+  .brand svg { height: 30px; width: auto; display: block; flex: none; }
+  .brand svg .lg { fill: var(--logo); }
+  .brand svg .dt { fill: var(--dot); }
+  .brand h1 { font-size: 17px; color: var(--ink); }
+  .brand h1 span { color: var(--muted); font-weight: 500; }
+
+  /* ---- período (menu suspenso: presets + calendário) — o mesmo dos outros painéis ---- */
+  .periodWrap { position: relative; }
+  .periodBtn { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 12px; min-height: 38px; font-size: 13.5px; cursor: pointer; }
+  .periodBtn:hover { border-color: var(--accent); }
+  .periodBtn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
+  .periodBtn .periodRange { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .periodBtn .chev { margin-left: auto; transition: transform .15s; }
+  .periodBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .periodPop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--pop-shadow); overflow: hidden; }
+  .periodPresets { display: flex; flex-direction: column; padding: 6px; border-right: 1px solid var(--line); min-width: 176px; }
+  .periodPresets button { text-align: left; background: none; border: none; color: var(--ink-2); font-size: 13.5px; padding: 8px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .periodPresets button:hover { background: var(--hover); color: var(--ink); }
+  .periodPresets button.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  .periodCal { padding: 10px 12px 10px; width: 280px; }
+  .calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .calHead span { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .calHead button { background: none; border: 1px solid transparent; color: var(--ink-2); font-size: 18px; line-height: 1; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
+  .calHead button:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+  .calHead button:disabled { opacity: .3; cursor: default; }
+  .calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-variant-numeric: tabular-nums; }
+  .calGrid .wd { text-align: center; font-size: 10.5px; color: var(--muted); padding: 2px 0 4px; letter-spacing: .04em; }
+  .calGrid .d { height: 30px; border: none; background: none; color: var(--ink); font-size: 12.5px; border-radius: 6px; cursor: pointer; padding: 0; }
+  .calGrid .d:hover { background: var(--hover); }
+  .calGrid .d.out { color: var(--muted); opacity: .6; }
+  .calGrid .d:disabled { color: var(--muted); opacity: .35; cursor: default; background: none; }
+  .calGrid .d.in { background: var(--accent-soft); border-radius: 0; }
+  .calGrid .d.from, .calGrid .d.to { background: var(--accent); color: #fff; font-weight: 600; }
+  .calGrid .d.from { border-radius: 6px 0 0 6px; }
+  .calGrid .d.to { border-radius: 0 6px 6px 0; }
+  .calGrid .d.from.to { border-radius: 6px; }
+  .calGrid .d.today { box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .calFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .calFoot .hint { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .btnPrimary { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btnPrimary:hover { background: var(--accent-strong); }
+  .btnPrimary:disabled { opacity: .4; cursor: default; }
+
+  /* ---------- página ---------- */
+  .page { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px; padding-inline: 24px; display: grid; gap: 18px; }
+  .page > * { min-width: 0; }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); min-width: 0; }
+  .card-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; flex-wrap: wrap; }
+  .card-head h2 { font-size: 16px; }
+  .card-head .count { color: var(--muted); font-size: 13px; }
+  .card-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .two > * { min-width: 0; }
+
+  /* ---------- KPIs ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
+  .kpi { padding: 20px 22px; display: grid; gap: 6px; align-content: start; }
+  .kpi .lbl { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+  .kpi .lbl i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .kpi .val { font-weight: 700; font-size: 24px; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); white-space: nowrap; }
+  .kpi .sub { color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
+  .kpi .sub b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- gráfico diário ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--ink-2); padding: 12px 22px 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .legend i { width: 11px; height: 11px; border-radius: 3px; }
+  .chart-wrap { padding: 6px 14px 12px; }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .chart-empty { padding: 30px; color: var(--muted); text-align: center; }
+  .tip { position: fixed; pointer-events: none; z-index: 40; display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; box-shadow: var(--pop-shadow); font-size: 12px; min-width: 170px; }
+  .tip b { display: block; margin-bottom: 4px; }
+  .tip div { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+  .tip div span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .tip div span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .tip hr { border: 0; border-top: 1px solid var(--line); margin: 5px 0; }
+
+  /* ---------- temperatura ---------- */
+  .tempBody { padding: 16px 22px 20px; display: grid; gap: 18px; }
+  .stack { display: flex; height: 34px; gap: 2px; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+  .stack i { display: block; height: 100%; min-width: 2px; }
+  .stack i:hover { filter: brightness(1.08); }
+  .tempRows { display: grid; gap: 0; }
+  .tempRow { display: grid; grid-template-columns: minmax(130px, 1.3fr) repeat(4, minmax(70px, 1fr)); gap: 10px; align-items: center; padding: 11px 0; border-top: 1px solid var(--line); }
+  .tempRow.head { border-top: 0; padding: 0 0 6px; font-size: 12px; color: var(--muted); }
+  .tempRow > :not(:first-child) { text-align: right; }
+  .tempRow .nm { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .tempRow .nm i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .tempRow .big { font-weight: 700; font-size: 18px; }
+
+  /* ---------- barras horizontais (país, origem) ---------- */
+  .hbars { padding: 14px 22px 18px; display: grid; gap: 4px; }
+  .hbar { display: grid; grid-template-columns: minmax(96px, 150px) 1fr 92px; gap: 12px; align-items: center; padding: 5px 0; border-radius: 6px; }
+  .hbar:hover { background: var(--surface-2); }
+  #origens .hbar { grid-template-columns: minmax(120px, 240px) 1fr 92px; }
+  .hbar .lab { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar .lab small { display: block; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+  .hbar .track { height: 18px; display: flex; gap: 2px; }
+  .hbar .track i { display: block; height: 100%; min-width: 2px; }
+  .hbar .track i:first-child { border-radius: 4px 0 0 4px; }
+  .hbar .track i:last-child { border-radius: 0 4px 4px 0; }
+  .hbar .track i:only-child { border-radius: 4px; }
+  .hbar .qty { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hbar .qty small { color: var(--muted); font-weight: 500; font-size: 12px; margin-left: 6px; }
+  .more { margin: 4px 0 0; background: none; border: none; color: var(--accent-strong); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 0; justify-self: start; }
+
+  /* ---------- controles ---------- */
+  .search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 10px; min-height: 36px; background: var(--surface); }
+  .search:focus-within { border-color: var(--accent); }
+  .search svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
+  .search input { border: none; outline: none; background: none; min-width: 0; width: 170px; font-size: 13px; }
+  .sel { border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 10px; min-height: 36px; background: var(--surface); font-size: 13px; cursor: pointer; }
+  .sel:hover { border-color: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; background: var(--surface); padding: 0 12px; min-height: 34px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line-strong); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+
+  /* ---------- tabela de criativos ---------- */
+  .tbl-wrap { overflow-x: auto; padding: 8px 6px 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1320px; }
+  th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
+  th:first-child, td:first-child { text-align: left; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--ink); }
+  th[data-dir]::after { content: " ↓"; color: var(--accent); }
+  th[data-dir="asc"]::after { content: " ↑"; }
+  tbody tr:hover { background: var(--surface-2); }
+  tfoot td { font-weight: 600; background: var(--surface-2); border-bottom: 0; color: var(--ink); }
+  td:first-child { min-width: 360px; }
+  .creative { display: flex; align-items: center; gap: 12px; }
+  .creative .mini { position: relative; width: 56px; height: 56px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); flex: none; padding: 0; cursor: pointer; overflow: hidden; }
+  .creative .mini img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s ease; }
+  .creative .mini:hover img { transform: scale(1.06); }
+  .creative .mini .play { position: absolute; inset: 0; margin: auto; width: 22px; height: 22px; border-radius: 50%; background: rgba(8, 31, 45, .6); display: grid; place-items: center; }
+  .creative .mini .play svg { width: 9px; height: 9px; fill: #fff; margin-left: 2px; }
+  .creative .nm { display: grid; gap: 5px; min-width: 0; }
+  .creative .nm strong { font-weight: 500; white-space: normal; overflow-wrap: anywhere; max-width: 320px; color: var(--ink); line-height: 1.3; }
+  .links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .plink { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; text-decoration: none; border: 1px solid var(--line-strong); border-radius: 6px; padding: 2px 8px; color: var(--ink-2); background: var(--surface); white-space: nowrap; }
+  .plink:hover { border-color: var(--accent); color: var(--accent-strong); }
+  .plink svg { width: 12px; height: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-2); border-radius: 999px; padding: 1px 8px; background: var(--surface-2); }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #b9c1cb; margin-right: 7px; vertical-align: 1px; flex: none; }
+  .dot.on { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+  .note { color: var(--muted); font-size: 12.5px; padding: 4px 22px 16px; margin: 0; }
+  .empty { padding: 36px; text-align: center; color: var(--muted); }
+
+  /* ---------- prévia (modal) ---------- */
+  dialog { border: none; border-radius: 12px; padding: 0; box-shadow: var(--pop-shadow); width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: var(--surface); color: var(--ink); }
+  dialog::backdrop { background: rgba(8, 31, 45, .55); }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .dlg-head strong { font-size: 13.5px; overflow-wrap: anywhere; margin-right: auto; }
+  .dlg-close { border: none; background: none; width: 32px; height: 32px; border-radius: 6px; font-size: 20px; line-height: 1; color: var(--ink-2); cursor: pointer; flex: none; }
+  .dlg-close:hover { background: var(--hover); color: var(--ink); }
+  .dlg-body { overflow: auto; max-height: calc(100dvh - 100px); }
+  .dlg-body iframe { display: block; width: 100%; height: 640px; border: 0; }
+  .dlg-body img { display: block; width: 100%; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 16px 28px; }
+
+  @media (max-width: 1280px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 1000px) { .two { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .top-inner { padding: 10px 16px; gap: 10px; }
+    .brand h1 { font-size: 15px; }
+    .periodWrap, .periodBtn { width: 100%; min-width: 0; }
+    .periodPop { left: 0; right: auto; flex-direction: column; max-width: 100%; }
+    .periodPresets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+    .periodCal { width: 100%; max-width: 300px; }
+    .page { padding-inline: 16px; gap: 14px; }
+    .two { gap: 14px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .kpi { padding: 14px 16px; }
+    .kpi .val { font-size: 20px; }
+    .card-head { padding: 16px 16px 0; }
+    .card-head .right { margin-left: 0; width: 100%; }
+    .search { flex: 1; }
+    .search input { width: 100%; }
+    .legend { padding-inline: 16px; }
+    .tempBody, .hbars { padding-inline: 16px; }
+    .tempRow { grid-template-columns: minmax(96px, 1.2fr) repeat(4, minmax(52px, 1fr)); font-size: 12.5px; gap: 6px; }
+    .tempRow .big { font-size: 15px; }
+    .hbar { grid-template-columns: 96px 1fr 80px; gap: 8px; }
+    .note { padding-inline: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <svg viewBox="0 0 690.38 285.96" role="img" aria-label="ATO">
+        <path class="lg" d="M232.59,65.19v174.46h-19.32V85.12L68.9,229.48l-13.66-13.66L196.74,74.31H43.64v-19.32h178.75c5.63,0,10.2,4.57,10.2,10.2Z"/>
+        <path class="lg" d="M417.96,60.42v13.89h-65.13v165.33h-19.32V74.31h-63.7v-13.89c0-3,2.43-5.43,5.43-5.43h137.29c3,0,5.43,2.43,5.43,5.43Z"/>
+        <path class="lg" d="M584.86,74.31c-14.11-11.01-31.47-18.01-50.41-19.32-2.16-.16-4.34-.23-6.54-.23s-4.38.07-6.54.23c-18.94,1.32-36.31,8.32-50.41,19.32-21.76,16.96-35.75,43.42-35.75,73.15,0,47.92,36.35,87.33,82.99,92.19h19.44c46.63-4.86,82.98-44.27,82.98-92.19,0-29.72-13.99-56.19-35.74-73.15ZM527.9,222.71c-41.56,0-75.25-33.69-75.25-75.25,0-35.46,24.52-65.18,57.52-73.15,5.68-1.37,11.62-2.1,17.73-2.1s12.04.73,17.72,2.1c33,7.96,57.52,37.68,57.52,73.15,0,41.55-33.69,75.25-75.24,75.25Z"/>
+        <circle class="dt" cx="641.65" cy="222.3" r="17.35"/>
+      </svg>
+      <h1>Captação de leads <span>-</span> {{NOME}}<span id="launchName"></span></h1>
+    </div>
+    <div class="periodWrap">
+      <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <span id="periodLabel">Período completo</span>
+        <span class="periodRange" id="periodRange"></span>
+        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
+        <div class="periodPresets" id="periodPresets">
+          <button data-p="max">Período completo</button>
+          <button data-p="today">Hoje</button>
+          <button data-p="yesterday">Ontem</button>
+          <button data-p="7">Últimos 7 dias</button>
+          <button data-p="14">Últimos 14 dias</button>
+          <button data-p="30">Últimos 30 dias</button>
+          <button data-p="custom">Personalizado</button>
+        </div>
+        <div class="periodCal">
+          <div class="calHead">
+            <button id="calPrev" aria-label="Mês anterior">‹</button>
+            <span id="calTitle"></span>
+            <button id="calNext" aria-label="Próximo mês">›</button>
+          </div>
+          <div class="calGrid" id="calGrid"></div>
+          <div class="calFoot">
+            <span class="hint" id="calSel"></span>
+            <button class="btnPrimary" id="calApply" disabled>Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <section class="kpis" id="kpis" aria-label="Resumo"></section>
+
+  <section class="card" aria-labelledby="h-daily">
+    <div class="card-head"><h2 id="h-daily">Leads por dia</h2></div>
+    <div class="legend" id="dailyLegend"></div>
+    <div class="chart-wrap" id="daily"></div>
+  </section>
+
+  <div class="two">
+    <section class="card" aria-labelledby="h-temp">
+      <div class="card-head"><h2 id="h-temp">Temperatura do público</h2></div>
+      <div class="tempBody" id="temps"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-pais">
+      <div class="card-head"><h2 id="h-pais">Leads por país</h2><span class="count" id="paisCount"></span></div>
+      <div class="legend" id="paisLegend"></div>
+      <div class="hbars" id="paises"></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="h-org">
+    <div class="card-head"><h2 id="h-org">Orgânico: de onde veio cada lead</h2><span class="count" id="orgCount"></span></div>
+    <div class="hbars" id="origens"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-ads">
+    <div class="card-head">
+      <h2 id="h-ads">Criativos</h2>
+      <span class="count" id="adsCount"></span>
+      <div class="right">
+        <label class="search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input id="q" type="search" placeholder="Buscar criativo" aria-label="Buscar criativo">
+        </label>
+        <select class="sel" id="status" aria-label="Status do criativo">
+          <option value="all">Todos os criativos</option>
+          <option value="on">Somente ativos</option>
+          <option value="off">Somente desativados</option>
+        </select>
+        <div class="seg" id="tempSeg" role="group" aria-label="Filtrar por temperatura">
+          <button data-t="all" aria-pressed="true">Todos</button>
+          <button data-t="quente" aria-pressed="false">Quente</button>
+          <button data-t="frio" aria-pressed="false">Frio</button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap" id="tblWrap">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot id="tfoot"></tfoot>
+      </table>
+    </div>
+    <div class="empty" id="adsEmpty" hidden>Nenhum criativo no período.</div>
+    <p class="note" id="adsNote" hidden></p>
+  </section>
+</main>
+
+<footer id="foot"></footer>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <strong id="dlgTitle"></strong>
+    <a class="plink" id="dlgLink" target="_blank" rel="noopener"></a>
+    <button class="dlg-close" id="dlgClose" aria-label="Fechar">×</button>
+  </div>
+  <div class="dlg-body" id="dlgBody"></div>
+</dialog>
+
+<script>
+const D = /*__DATA__*/{};
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const S = D.summary || {};
+
+  // ---------- formatação (investimento na moeda da conta de anúncios) ----------
+  const CUR = S.currency || 'BRL';
+  const SYMBOL = { BRL: 'R$', UYU: '$U', USD: 'US$', ARS: 'AR$', CLP: 'CLP$', MXN: 'MX$', COP: 'COL$', PEN: 'S/', EUR: '€' };
+  const ok = v => v != null && isFinite(v);
+  const nf = (min, max) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: min, maximumFractionDigits: max });
+  const N2 = nf(2, 2), N0 = nf(0, 0), N1 = nf(1, 1);
+  const fmtMoney = v => ok(v) ? `${SYMBOL[CUR] || CUR} ${N2.format(v)}` : '—';
+  const fmtMoney0 = v => ok(v) ? `${SYMBOL[CUR] || CUR} ${N0.format(v)}` : '—';
+  const fmtInt = v => ok(v) ? N0.format(Math.round(v)) : '—';
+  const fmtPct = v => ok(v) ? N2.format(v * 100) + '%' : '—';
+  const fmtPct1 = v => ok(v) ? N1.format(v * 100) + '%' : '—';
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  // ---------- temperatura: cor segue a temperatura, nunca a posição ----------
+  const TEMPS = [
+    { k: 'organico', l: 'Orgânico', c: 'var(--organico)' },
+    { k: 'quente', l: 'Quente', c: 'var(--quente)' },
+    { k: 'frio', l: 'Frio', c: 'var(--frio)' },
+    { k: 'pago', l: 'Pago sem temperatura', c: 'var(--pago)' },
+  ];
+  const TEMP = Object.fromEntries(TEMPS.map(t => [t.k, t]));
+  const PAID = new Set(['quente', 'frio', 'pago']);
+
+  // ---------- dados ----------
+  // lead: [data, hora, temperatura, país, origem orgânica, criativo]
+  const LEADS = (D.leads || []).map(([date, time, temp, pais, origem, criativo]) => ({ date, time, temp, pais, origem, criativo }));
+  // insight: [data, campanha, conjunto, anúncio, gasto, impressões, cliques, cliques no link, views da página, leads do Meta, views de 3s]
+  const INS = (D.insights || []).map(r => ({ date: r[0], adId: r[3], spend: r[4], impressions: r[5], linkClicks: r[7], pageViews: r[8], metaLeads: r[9] || 0, views3s: r[10] || 0 }));
+  const ADS = D.ads || [];
+  const AD_BY_ID = new Map(ADS.map(a => [a.id, a]));
+  const SPEND_BY_AD = new Map();
+  for (const r of INS) SPEND_BY_AD.set(r.adId, (SPEND_BY_AD.get(r.adId) || 0) + r.spend);
+  const HAS_PAGO = LEADS.some(l => l.temp === 'pago');
+  const shownTemps = TEMPS.filter(t => t.k !== 'pago' || HAS_PAGO);
+  if (S.lancamento) $('launchName').textContent = ' · ' + S.lancamento;
+
+  // ---------- período ----------
+  const pad = n => String(n).padStart(2, '0');
+  const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+  const fmtDate = iso => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y.slice(2)}`; };
+  const fmtDateShort = iso => { const [, m, d] = iso.split('-'); return `${d}/${m}`; };
+  const weekday = iso => ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][new Date(iso + 'T12:00:00Z').getUTCDay()];
+  const fmtRange = (a, b) => a === b ? fmtDate(a) : `${fmtDate(a)} – ${fmtDate(b)}`;
+  const SINCE = S.since || (LEADS[0] && LEADS[0].date);
+  const UNTIL = S.until || (LEADS.length && LEADS[LEADS.length - 1].date);
+  const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', yesterday: 'Ontem', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
+  const state = { preset: 'max', from: SINCE, to: UNTIL, temp: 'all', status: 'all', q: '', sort: 'leads', dir: null, allPaises: false };
+
+  function applyPreset() {
+    const p = state.preset, U = UNTIL;
+    if (p === 'max') { state.from = SINCE; state.to = U; }
+    else if (p === 'today') { state.from = U; state.to = U; }
+    else if (p === 'yesterday') { state.from = addDays(U, -1); state.to = state.from; }
+    else if (p === '7' || p === '14' || p === '30') { state.to = U; state.from = addDays(U, -(+p - 1)); }
+    if (state.from < SINCE) state.from = SINCE;
+    if (state.to < SINCE) state.to = SINCE;
+  }
+  function updatePeriodButton() {
+    $('periodLabel').textContent = PRESET_LABEL[state.preset] || 'Período';
+    $('periodRange').textContent = state.from ? fmtRange(state.from, state.to) : '';
+  }
+  const cal = { y: 0, m: 0 };
+  const pick = { from: null, to: null };
+  function openPeriod() {
+    pick.from = null; pick.to = null;
+    const [y, m] = state.to.split('-').map(Number);
+    cal.y = y; cal.m = m - 1;
+    for (const b of $('periodPresets').children) b.classList.toggle('on', b.dataset.p === state.preset);
+    renderCal();
+    $('periodPop').hidden = false;
+    $('periodBtn').setAttribute('aria-expanded', 'true');
+  }
+  function closePeriod() { $('periodPop').hidden = true; $('periodBtn').setAttribute('aria-expanded', 'false'); }
+  function renderCal() {
+    const first = new Date(Date.UTC(cal.y, cal.m, 1));
+    const title = first.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    $('calTitle').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+    const shown = `${cal.y}-${pad(cal.m + 1)}`;
+    $('calPrev').disabled = shown <= SINCE.slice(0, 7);
+    $('calNext').disabled = shown >= UNTIL.slice(0, 7);
+    const a = pick.from || state.from, b = pick.to || (pick.from ? pick.from : state.to);
+    const lo = a < b ? a : b, hi = a < b ? b : a;
+    let html = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(w => `<span class="wd">${w}</span>`).join('');
+    const startDow = first.getUTCDay();
+    const daysIn = new Date(Date.UTC(cal.y, cal.m + 1, 0)).getUTCDate();
+    const prevDays = new Date(Date.UTC(cal.y, cal.m, 0)).getUTCDate();
+    const cells = [];
+    for (let i = startDow - 1; i >= 0; i--) cells.push({ d: prevDays - i, off: -1 });
+    for (let d = 1; d <= daysIn; d++) cells.push({ d, off: 0 });
+    while (cells.length % 7) cells.push({ d: cells.length - startDow - daysIn + 1, off: 1 });
+    for (const c of cells) {
+      const dt = new Date(Date.UTC(cal.y, cal.m + c.off, c.d));
+      const key = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+      const cls = ['d'];
+      if (c.off) cls.push('out');
+      if (key === UNTIL) cls.push('today');
+      if (key === lo) cls.push('from');
+      if (key === hi) cls.push('to');
+      if (key > lo && key < hi) cls.push('in');
+      html += `<button type="button" class="${cls.join(' ')}" data-d="${key}"${key > UNTIL || key < SINCE ? ' disabled' : ''}>${c.d}</button>`;
+    }
+    $('calGrid').innerHTML = html;
+    const ready = pick.from !== null;
+    $('calSel').textContent = ready ? fmtRange(lo, hi) : 'Clique no início e no fim';
+    $('calApply').disabled = !ready;
+  }
+  function initPeriodPicker() {
+    $('periodBtn').addEventListener('click', () => { $('periodPop').hidden ? openPeriod() : closePeriod(); });
+    $('periodPresets').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.p === 'custom') { for (const x of $('periodPresets').children) x.classList.toggle('on', x === b); return; }
+      state.preset = b.dataset.p;
+      applyPreset(); updatePeriodButton(); render(); closePeriod();
+    });
+    $('calPrev').addEventListener('click', () => { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
+    $('calNext').addEventListener('click', () => { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
+    $('calGrid').addEventListener('click', e => {
+      const b = e.target.closest('button.d'); if (!b || b.disabled) return;
+      const d = b.dataset.d;
+      if (!pick.from || pick.to) { pick.from = d; pick.to = null; }
+      else if (d < pick.from) { pick.to = pick.from; pick.from = d; }
+      else pick.to = d;
+      for (const x of $('periodPresets').children) x.classList.toggle('on', x.dataset.p === 'custom');
+      renderCal();
+    });
+    $('calApply').addEventListener('click', () => {
+      if (!pick.from) return;
+      state.preset = 'custom'; state.from = pick.from; state.to = pick.to || pick.from;
+      updatePeriodButton(); render(); closePeriod();
+    });
+    const wrap = document.querySelector('.periodWrap');
+    document.addEventListener('click', e => { if (!$('periodPop').hidden && !e.composedPath().includes(wrap)) closePeriod(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('periodPop').hidden) closePeriod(); });
+  }
+
+  const inPeriod = r => r.date >= state.from && r.date <= state.to;
+  const days = () => { const out = []; for (let d = state.from; d <= state.to; d = addDays(d, 1)) out.push(d); return out; };
+  const countBy = (list, key) => { const m = new Map(); for (const x of list) { const k = key(x); m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const sumIns = list => list.reduce((t, r) => { t.spend += r.spend; t.impressions += r.impressions; t.linkClicks += r.linkClicks; t.pageViews += r.pageViews; t.metaLeads += r.metaLeads; t.views3s += r.views3s; return t; },
+    { spend: 0, impressions: 0, linkClicks: 0, pageViews: 0, metaLeads: 0, views3s: 0 });
+
+  // ---------- tooltip compartilhado ----------
+  const tip = $('tip');
+  function showTip(html, ev) {
+    tip.innerHTML = html; tip.style.display = 'block';
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = ev.clientX + 14, y = ev.clientY + 14;
+    if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+  const tipRow = (label, val, color) => `<div><span>${color ? `<i style="background:${color}"></i>` : ''}${label}</span><span>${val}</span></div>`;
+  const legendHtml = () => shownTemps.map(t => `<span><i style="background:${t.c}"></i>${t.l}</span>`).join('');
+
+  // ---------- KPIs ----------
+  function renderKpis(leads, ins) {
+    const t = sumIns(ins);
+    const paid = leads.filter(l => PAID.has(l.temp)).length;
+    const org = leads.filter(l => l.temp === 'organico').length;
+    const n = Math.max(1, days().length);
+    const share = v => leads.length ? fmtPct1(v / leads.length) : '—';
+    const k = (lbl, val, sub, color) => `<div class="card kpi"><div class="lbl">${color ? `<i style="background:${color}"></i>` : ''}${lbl}</div><div class="val num">${val}</div><div class="sub">${sub}</div></div>`;
+    $('kpis').innerHTML = [
+      k('Leads', fmtInt(leads.length), `<span>média de <b>${N1.format(leads.length / n)}</b> por dia</span>`),
+      k('Investimento', fmtMoney0(t.spend), `<span>média diária <b>${fmtMoney0(t.spend / n)}</b></span>`),
+      k('CPL do tráfego', fmtMoney(paid ? t.spend / paid : null), `<span>CPL geral <b>${fmtMoney(leads.length ? t.spend / leads.length : null)}</b></span>`),
+      k('Leads do tráfego', fmtInt(paid), `<span><b>${share(paid)}</b> do total · Meta: <b>${fmtInt(t.metaLeads)}</b></span>`, 'var(--quente)'),
+      k('Leads orgânicos', fmtInt(org), `<span><b>${share(org)}</b> do total</span>`, 'var(--organico)'),
+      k('Conversão da página', fmtPct(t.pageViews ? paid / t.pageViews : null), `<span>connect rate <b>${fmtPct(t.linkClicks ? t.pageViews / t.linkClicks : null)}</b></span>`),
+    ].join('');
+  }
+
+  // ---------- leads por dia (barras empilhadas por temperatura) ----------
+  function renderDaily(leads, ins) {
+    const ds = days();
+    const box = $('daily');
+    $('dailyLegend').innerHTML = legendHtml();
+    if (!ds.length) { box.innerHTML = '<div class="chart-empty">Sem dados no período.</div>'; return; }
+    const byDay = new Map(ds.map(d => [d, { date: d, total: 0, spend: 0, ...Object.fromEntries(TEMPS.map(t => [t.k, 0])) }]));
+    for (const l of leads) { const x = byDay.get(l.date); if (x) { x[l.temp]++; x.total++; } }
+    for (const r of ins) { const x = byDay.get(r.date); if (x) x.spend += r.spend; }
+    const rows = [...byDay.values()];
+    const W = Math.max(320, box.clientWidth - 28 || 800);
+    const padL = 40, padR = 12, padT = 22, H0 = 240, axisH = 26, H = padT + H0 + axisH;
+    const n = rows.length, innerW = W - padL - padR, step = innerW / n;
+    const max = Math.max(1, ...rows.map(r => r.total));
+    const ticks = (() => { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; const s = Math.max(1, (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p); const o = []; for (let v = 0; v <= max + s * .999; v += s) o.push(v); return o; })();
+    const top = ticks[ticks.length - 1] || max;
+    const y = v => padT + H0 - (v / top) * H0;
+    const x = i => padL + step * i + step / 2;
+    const bw = Math.max(4, Math.min(44, step * .62));
+    let g = '';
+    for (const tv of ticks) g += `<line x1="${padL}" x2="${W - padR}" y1="${y(tv)}" y2="${y(tv)}" stroke="var(--grid)"/><text x="${padL - 8}" y="${y(tv) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmtInt(tv)}</text>`;
+    rows.forEach((r, i) => {
+      let acc = 0;
+      const segs = shownTemps.filter(t => r[t.k] > 0);
+      segs.forEach((t, j) => {
+        const y0 = y(acc), y1 = y(acc + r[t.k]);
+        const last = j === segs.length - 1;
+        const h = Math.max(1, y0 - y1 - (last ? 0 : 2));       // 2px de respiro entre as camadas
+        g += last
+          ? `<path d="M${x(i) - bw / 2} ${y0} V${y0 - h + 4} q0 -4 4 -4 H${x(i) + bw / 2 - 4} q4 0 4 4 V${y0} Z" fill="${t.c}"/>`
+          : `<rect x="${x(i) - bw / 2}" y="${y0 - h}" width="${bw}" height="${h}" fill="${t.c}"/>`;
+        acc += r[t.k];
+      });
+      if (r.total > 0 && (step >= 26 || n <= 16)) g += `<text x="${x(i)}" y="${y(r.total) - 6}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-2)">${fmtInt(r.total)}</text>`;
+    });
+    g += `<line x1="${padL}" x2="${W - padR}" y1="${padT + H0}" y2="${padT + H0}" stroke="var(--line-strong)"/>`;
+    const every = Math.ceil(n / Math.max(1, Math.floor(innerW / 52)));
+    rows.forEach((r, i) => { if (i === n - 1 || (i % every === 0 && n - 1 - i >= every)) g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${fmtDateShort(r.date)}</text>`; });
+    g += `<rect id="dailyHit" x="${padL}" y="${padT}" width="${innerW}" height="${H0}" fill="transparent"/>`;
+    g += `<rect id="dailyHi" x="0" y="${padT}" width="${step}" height="${H0}" fill="var(--ink)" opacity="0" pointer-events="none"/>`;
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" font-family="var(--font)" role="img" aria-label="Leads por dia, por temperatura do público">${g}</svg>`;
+    const svg = box.querySelector('svg'), hi = box.querySelector('#dailyHi');
+    box.querySelector('#dailyHit').addEventListener('mousemove', ev => {
+      const rect = svg.getBoundingClientRect();
+      const i = Math.max(0, Math.min(n - 1, Math.floor(((ev.clientX - rect.left) * (W / rect.width) - padL) / step)));
+      const r = rows[i];
+      hi.setAttribute('x', padL + step * i); hi.setAttribute('opacity', '.04');
+      const paid = r.quente + r.frio + r.pago;
+      showTip(`<b>${weekday(r.date)} ${fmtDate(r.date)}</b>` + shownTemps.map(t => tipRow(t.l, fmtInt(r[t.k]), t.c)).join('')
+        + `<hr>${tipRow('Total', fmtInt(r.total))}${tipRow('Investimento', fmtMoney(r.spend))}${tipRow('CPL do tráfego', fmtMoney(paid ? r.spend / paid : null))}`, ev);
+    });
+    box.querySelector('#dailyHit').addEventListener('mouseleave', () => { hi.setAttribute('opacity', '0'); hideTip(); });
+  }
+
+  // ---------- temperatura ----------
+  function renderTemps(leads, ins) {
+    const total = leads.length;
+    const c = countBy(leads, l => l.temp);
+    const spend = { quente: 0, frio: 0 };
+    for (const r of ins) { const a = AD_BY_ID.get(r.adId); if (a && spend[a.temp] != null) spend[a.temp] += r.spend; }
+    const bar = shownTemps.filter(t => c.get(t.k)).map(t => `<i style="width:${(c.get(t.k) / total * 100).toFixed(2)}%;background:${t.c}" data-tt="${t.k}"></i>`).join('');
+    const row = t => {
+      const n = c.get(t.k) || 0, s = spend[t.k];
+      return `<div class="tempRow num"><span class="nm"><i style="background:${t.c}"></i>${t.l}</span><span class="big">${fmtInt(n)}</span><span>${total ? fmtPct1(n / total) : '—'}</span><span>${s != null ? fmtMoney0(s) : '—'}</span><span>${s != null && n ? fmtMoney(s / n) : '—'}</span></div>`;
+    };
+    $('temps').innerHTML = (total ? `<div class="stack" role="img" aria-label="Divisão dos leads por temperatura">${bar}</div>` : '<div class="chart-empty">Sem leads no período.</div>')
+      + `<div class="tempRows"><div class="tempRow head"><span>Público</span><span>Leads</span><span>% dos leads</span><span>Investimento</span><span>CPL</span></div>${shownTemps.map(row).join('')}</div>`;
+    $('temps').querySelectorAll('[data-tt]').forEach(el => {
+      el.addEventListener('mousemove', ev => { const t = TEMP[el.dataset.tt], n = c.get(t.k); showTip(`<b>${t.l}</b>${tipRow('Leads', fmtInt(n), t.c)}${tipRow('% dos leads', fmtPct1(n / total))}`, ev); });
+      el.addEventListener('mouseleave', hideTip);
+    });
+  }
+
+  // ---------- país (barras horizontais empilhadas por temperatura) ----------
+  function renderPaises(leads) {
+    const byPais = new Map();
+    for (const l of leads) {
+      const k = l.pais || 'Não informado';
+      const x = byPais.get(k) || byPais.set(k, { k, total: 0, ...Object.fromEntries(TEMPS.map(t => [t.k, 0])) }).get(k);
+      x[l.temp]++; x.total++;
+    }
+    const list = [...byPais.values()].sort((a, b) => b.total - a.total || a.k.localeCompare(b.k));
+    const max = Math.max(1, ...list.map(p => p.total));
+    const LIMIT = 10;
+    const shown = state.allPaises ? list : list.slice(0, LIMIT);
+    $('paisCount').textContent = list.length ? `${list.length} ${list.length === 1 ? 'país' : 'países'}` : '';
+    $('paisLegend').innerHTML = legendHtml();
+    $('paises').innerHTML = !list.length ? '<div class="chart-empty">Sem leads no período.</div>'
+      : shown.map((p, i) => `<div class="hbar" data-i="${i}"><span class="lab" title="${esc(p.k)}">${esc(p.k)}</span><span class="track" style="width:${(p.total / max * 100).toFixed(2)}%">${shownTemps.filter(t => p[t.k]).map(t => `<i style="flex:${p[t.k]};background:${t.c}"></i>`).join('')}</span><span class="qty">${fmtInt(p.total)}<small>${fmtPct1(p.total / leads.length)}</small></span></div>`).join('')
+        + (list.length > LIMIT ? `<button class="more" id="paisMore">${state.allPaises ? 'Mostrar menos' : `Ver todos os ${list.length} países`}</button>` : '');
+    $('paises').querySelectorAll('.hbar').forEach(el => {
+      const p = shown[+el.dataset.i];
+      el.addEventListener('mousemove', ev => showTip(`<b>${esc(p.k)}</b>` + shownTemps.map(t => tipRow(t.l, fmtInt(p[t.k]), t.c)).join('') + `<hr>${tipRow('Total', fmtInt(p.total))}`, ev));
+      el.addEventListener('mouseleave', hideTip);
+    });
+    const more = $('paisMore');
+    if (more) more.addEventListener('click', () => { state.allPaises = !state.allPaises; renderPaises(leads); });
+  }
+
+  // ---------- orgânico: origem (utm_source · utm_medium) ----------
+  const SRC = { instagram: 'Instagram', ig: 'Instagram', whatsapp: 'WhatsApp', wpp: 'WhatsApp', email: 'E-mail', 'e-mail': 'E-mail', facebook: 'Facebook', fb: 'Facebook', youtube: 'YouTube', yt: 'YouTube', tiktok: 'TikTok', google: 'Google', telegram: 'Telegram', linkedin: 'LinkedIn' };
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  function origemLabel(o) {
+    if (!o || o === 'Sem UTM') return 'Sem UTM (link direto)';
+    return o.split(' · ').map((p, i) => i === 0 ? (SRC[norm(p)] || cap(p)) : cap(p.replace(/[-_]+/g, ' '))).join(' · ');
+  }
+  function renderOrigens(leads) {
+    const org = leads.filter(l => l.temp === 'organico');
+    const c = countBy(org, l => origemLabel(l.origem));
+    const list = [...c].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const max = Math.max(1, ...list.map(x => x[1]));
+    $('orgCount').textContent = org.length ? `${fmtInt(org.length)} leads orgânicos` : '';
+    $('origens').innerHTML = !list.length ? '<div class="chart-empty">Sem leads orgânicos no período.</div>'
+      : list.map(([k, n]) => `<div class="hbar" title="${esc(k)}"><span class="lab">${esc(k)}</span><span class="track" style="width:${(n / max * 100).toFixed(2)}%"><i style="flex:1;background:var(--organico)"></i></span><span class="qty">${fmtInt(n)}<small>${fmtPct1(n / org.length)}</small></span></div>`).join('');
+  }
+
+  // ---------- criativos (agrupados pelo nome do anúncio) ----------
+  const LINK_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5L7.5 8.5M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const COLS = [
+    { k: 'name', l: 'Criativo' },
+    { k: 'leads', l: 'Leads', f: fmtInt },
+    { k: 'spend', l: 'Investimento', f: fmtMoney },
+    { k: 'cpl', l: 'CPL', f: fmtMoney },
+    { k: 'metaLeads', l: 'Leads (Meta)', f: fmtInt },
+    { k: 'cpm', l: 'CPM', f: fmtMoney },
+    { k: 'ctr', l: 'CTR', f: fmtPct },
+    { k: 'cpc', l: 'CPC', f: fmtMoney },
+    { k: 'connect', l: 'Connect rate', f: fmtPct },
+    { k: 'conv', l: 'Conv. página', f: fmtPct },
+    { k: 'hook', l: 'Hook rate', f: fmtPct },
+  ];
+  const ASC_DEFAULT = new Set(['cpl', 'cpm', 'cpc']);
+  const derive = t => ({
+    ...t,
+    cpl: t.leads > 0 ? t.spend / t.leads : null,
+    cpm: t.impressions > 0 ? t.spend / t.impressions * 1000 : null,
+    ctr: t.impressions > 0 ? t.linkClicks / t.impressions : null,
+    cpc: t.linkClicks > 0 ? t.spend / t.linkClicks : null,
+    connect: t.linkClicks > 0 ? t.pageViews / t.linkClicks : null,     // views da página ÷ cliques no link
+    conv: t.pageViews > 0 ? t.leads / t.pageViews : null,              // leads da planilha ÷ views da página
+    hook: t.impressions > 0 && t.views3s > 0 ? t.views3s / t.impressions : null,
+  });
+  const zero = () => ({ leads: 0, spend: 0, impressions: 0, linkClicks: 0, pageViews: 0, metaLeads: 0, views3s: 0 });
+  const SUMS = Object.keys(zero());
+
+  function aggregateAds(leads, ins) {
+    const tf = state.temp;
+    const okTemp = t => tf === 'all' || t === tf;
+    const byName = new Map();
+    const get = name => byName.get(norm(name)) || byName.set(norm(name), { name, ...zero(), ads: [] }).get(norm(name));
+    for (const a of ADS) if (okTemp(a.temp)) get(a.name).ads.push(a);
+    for (const r of ins) {
+      const a = AD_BY_ID.get(r.adId);
+      if (!a || !okTemp(a.temp)) continue;
+      const x = get(a.name);
+      for (const k of SUMS) if (k !== 'leads') x[k] += r[k];
+    }
+    let semCriativo = 0;
+    for (const l of leads) {
+      if (!PAID.has(l.temp) || !(tf === 'all' || l.temp === tf)) continue;
+      if (!l.criativo) { semCriativo++; continue; }
+      get(l.criativo).leads++;
+    }
+    const list = [...byName.values()].filter(x => x.spend > 0 || x.leads > 0).map(x => {
+      // prévia e link: o anúncio com esse nome que mais gastou (o mesmo criativo roda em conjuntos quentes e frios)
+      const best = x.ads.slice().sort((a, b) => (b.igUrl ? 1 : 0) - (a.igUrl ? 1 : 0) || (SPEND_BY_AD.get(b.id) || 0) - (SPEND_BY_AD.get(a.id) || 0))[0] || null;
+      return { ...derive(x), meta: best, active: x.ads.some(a => a.active), temps: TEMPS.map(t => t.k).filter(k => x.ads.some(a => a.temp === k)) };
+    });
+    return { list, semCriativo };
+  }
+
+  function sortedAds(list) {
+    const k = state.sort;
+    const asc = state.dir ? state.dir === 'asc' : ASC_DEFAULT.has(k);
+    const val = a => k === 'name' ? a.name.toLowerCase() : a[k];
+    return list.slice().sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (typeof x !== 'string' && !ok(x) && !ok(y)) return b.leads - a.leads;
+      if (typeof x !== 'string' && !ok(x)) return 1;
+      if (typeof y !== 'string' && !ok(y)) return -1;
+      if (x === y) return b.leads - a.leads || b.spend - a.spend;
+      return (x < y ? -1 : 1) * (asc ? 1 : -1);
+    });
+  }
+
+  const ADS_BY_KEY = new Map();
+  function rowHtml(a) {
+    const m = a.meta || {};
+    const key = norm(a.name);
+    ADS_BY_KEY.set(key, a);
+    const play = m.type === 'VIDEO' && m.thumb ? '<span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z"/></svg></span>' : '';
+    const mini = `<button class="mini" data-open="${esc(key)}" aria-label="Ver prévia de ${esc(a.name)}">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" loading="lazy">${play}` : ''}</button>`;
+    const ig = m.igUrl ? `<a class="plink" href="${esc(m.igUrl)}" target="_blank" rel="noopener">Ver no Instagram${LINK_ICON}</a>` : m.previewUrl ? `<a class="plink" href="${esc(m.previewUrl)}" target="_blank" rel="noopener">Ver prévia${LINK_ICON}</a>` : '';
+    const chips = a.temps.map(t => `<span class="chip"><i style="background:${TEMP[t].c}"></i>${TEMP[t].l}</span>`).join('');
+    const dot = a.ads.length ? `<span class="dot${a.active ? ' on' : ''}" title="${a.active ? 'Ativo' : 'Pausado'}" aria-label="${a.active ? 'Ativo' : 'Pausado'}"></span>` : '';
+    return '<tr>' + COLS.map(c => c.k === 'name'
+      ? `<td><div class="creative">${mini}<div class="nm"><strong>${dot}${esc(a.name)}</strong><span class="links">${ig}${chips}</span></div></div></td>`
+      : `<td class="num">${c.f(a[c.k])}</td>`).join('') + '</tr>';
+  }
+
+  function renderAds(leads, ins) {
+    const { list, semCriativo } = aggregateAds(leads, ins);
+    const q = norm(state.q);
+    const rows = sortedAds(list.filter(a => (!q || norm(a.name).includes(q)) && (state.status === 'all' || (state.status === 'on') === a.active)));
+    $('adsCount').textContent = `${rows.length} ${rows.length === 1 ? 'criativo' : 'criativos'}`;
+    $('adsEmpty').hidden = rows.length > 0;
+    $('tblWrap').hidden = !rows.length;
+    ADS_BY_KEY.clear();
+    const dirAttr = c => c.k === state.sort ? ` data-dir="${(state.dir ? state.dir === 'asc' : ASC_DEFAULT.has(c.k)) ? 'asc' : 'desc'}"` : '';
+    $('thead').innerHTML = COLS.map(c => `<th class="sortable" data-k="${c.k}"${dirAttr(c)}>${c.l}</th>`).join('');
+    $('tbody').innerHTML = rows.map(rowHtml).join('');
+    const t = derive(rows.reduce((s, a) => { for (const k of SUMS) s[k] += a[k]; return s; }, zero()));
+    $('tfoot').innerHTML = '<tr>' + COLS.map(c => c.k === 'name' ? '<td>Total dos criativos listados</td>' : `<td class="num">${c.f(t[c.k])}</td>`).join('') + '</tr>';
+    document.querySelectorAll('#tempSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === state.temp)));
+    $('adsNote').hidden = !semCriativo;
+    $('adsNote').textContent = semCriativo ? `${fmtInt(semCriativo)} ${semCriativo === 1 ? 'lead do tráfego chegou' : 'leads do tráfego chegaram'} sem o nome do anúncio no utm_content e ${semCriativo === 1 ? 'ficou' : 'ficaram'} fora da tabela.` : '';
+  }
+
+  // ---------- prévia do Instagram ----------
+  const dlg = $('dlg');
+  const igEmbed = url => { const m = String(url || '').match(/instagram\.com\/(p|reel|tv)\/([^/?#]+)/); return m ? `https://www.instagram.com/${m[1]}/${m[2]}/embed/` : null; };
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-open]'); if (!b) return;
+    const a = ADS_BY_KEY.get(b.dataset.open); if (!a) return;
+    const m = a.meta || {};
+    $('dlgTitle').textContent = a.name;
+    const href = m.igUrl || m.previewUrl, link = $('dlgLink');
+    link.hidden = !href;
+    if (href) { link.href = href; link.innerHTML = (m.igUrl ? 'Abrir no Instagram' : 'Abrir prévia') + LINK_ICON; }
+    const embed = igEmbed(m.igUrl);
+    $('dlgBody').innerHTML = embed ? `<iframe src="${esc(embed)}" title="Prévia do criativo" loading="lazy" allowfullscreen></iframe>`
+      : m.thumb ? `<img src="${esc(m.thumb)}" alt="">` : '<div class="empty">Sem prévia disponível.</div>';
+    dlg.showModal();
+  });
+  $('dlgClose').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => { $('dlgBody').innerHTML = ''; });
+
+  // ---------- controles ----------
+  $('q').addEventListener('input', e => { state.q = e.target.value; renderAdsOnly(); });
+  $('status').addEventListener('change', e => { state.status = e.target.value; renderAdsOnly(); });
+  $('tempSeg').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (!b) return; state.temp = b.dataset.t; renderAdsOnly(); });
+  $('thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-k]'); if (!th) return;
+    const k = th.dataset.k;
+    if (state.sort === k) { const asc = state.dir ? state.dir === 'asc' : ASC_DEFAULT.has(k); state.dir = asc ? 'desc' : 'asc'; }
+    else { state.sort = k; state.dir = k === 'name' ? 'asc' : null; }
+    renderAdsOnly();
+  });
+
+  let cur = { leads: [], ins: [] };
+  function renderAdsOnly() { renderAds(cur.leads, cur.ins); }
+  function render() {
+    cur = { leads: LEADS.filter(inPeriod), ins: INS.filter(inPeriod) };
+    renderKpis(cur.leads, cur.ins);
+    renderDaily(cur.leads, cur.ins);
+    renderTemps(cur.leads, cur.ins);
+    renderPaises(cur.leads);
+    renderOrigens(cur.leads);
+    renderAds(cur.leads, cur.ins);
+  }
+  let rt;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => renderDaily(cur.leads, cur.ins), 150); });
+
+  // ---------- rodapé ----------
+  const upd = S.updatedAt ? new Date(S.updatedAt) : null;
+  const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
+  const dup = S.cadastros && S.cadastros > LEADS.length ? ` (${fmtInt(S.cadastros)} cadastros; e-mails repetidos contam uma vez)` : '';
+  $('foot').textContent = `Leads da planilha${dup}, separados pelas UTMs: com campanha do Meta = tráfego (quente/frio pela tag do conjunto ou da campanha), o resto = orgânico`
+    + ` · investimento, cliques e views da página do Meta Ads, em ${CUR === 'UYU' ? 'pesos uruguaios' : CUR}` + (updTxt ? ` · atualizado em ${updTxt}` : '') + '.';
+
+  applyPreset();
+  initPeriodPicker();
+  updatePeriodButton();
+  render();
+})();
+</script>
+</body>
+</html>

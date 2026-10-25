@@ -411,6 +411,113 @@ async function mainLancamento() {
   console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
 }
 
+// ================= CAPTAÇÃO: Meta em nível de anúncio + planilha de leads de um lançamento =================
+//
+// Cada lead da planilha vira orgânico, quente ou frio pelas UTMs: com cara de anúncio do Meta (nome de campanha/conjunto
+// com [TAGS], placement do Meta no utm_source ou macro não substituída) é pago, e a temperatura sai das tags [QUENTE]/[Q] e
+// [FRIO]/[F] do conjunto (utm_medium) e da campanha (utm_campaign); o resto é orgânico, com a origem em utm_source + utm_medium.
+// O criativo do lead é o utm_content (= nome do anúncio). Nome, e-mail e telefone não saem daqui: o e-mail só serve para
+// tirar cadastros repetidos (vale o primeiro).
+const tempTag = name => {
+  const n = decode(name || '');
+  if (/\[\s*(Q|QUENTE)\s*\]/i.test(n)) return 'quente';
+  if (/\[\s*(F|FRIO)\s*\]/i.test(n)) return 'frio';
+  return null;
+};
+// tags explícitas primeiro: "[FRIO][ENVOL-30D]" é frio, mesmo com "envol" na lista de palavras de público quente
+const tempCaptacao = (adsetName, campaignName) => tempTag(adsetName) || tempTag(campaignName) || tempOf(adsetName, campaignName);
+const PAID_SOURCE = /^(fb|ig|meta|facebook|instagram|messenger|audience)[_ -]?(ads|stories|feed|reels|mobile|explore|network|instream|search|marketplace|video|profile)/i;
+const looksPaid = (src, med, camp) => /\[[^\]]+\]/.test(camp + med) || /\{\{/.test(src + med + camp) || PAID_SOURCE.test(src);
+
+async function mainCaptacao() {
+  const until = todaySP();
+  const { campaigns, since: metaSince } = await fetchCampaigns();
+  const campIds = campaigns.map(c => c.id);
+  const campName = new Map(campaigns.map(c => [c.id, c.name]));
+
+  // [data, campanha, conjunto, anúncio, gasto, impressões, cliques, cliques no link, views da página, leads do Meta, views de 3s]
+  const insights = await fetchInsights(campIds, metaSince, until, [['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_web_lead'], ['video_view']]);
+
+  // ---- Meta: anúncios com miniatura e post do Instagram; a miniatura é baixada uma vez (a URL do Meta expira) ----
+  const adsRaw = await graphGetAll(`${ACCOUNT}/ads`, {
+    fields: 'id,name,effective_status,adset{id,name},campaign{id},preview_shareable_link,creative.thumbnail_width(480).thumbnail_height(480){thumbnail_url,instagram_permalink_url,object_type}',
+    filtering: JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campIds }]),
+    limit: '100' // com a miniatura, páginas de 500 estouram o limite do Graph
+  });
+  const THUMBS = path.join(OUT, 'cache', 'thumbs');
+  fs.mkdirSync(THUMBS, { recursive: true });
+  const ads = [];
+  for (const a of adsRaw) {
+    const cr = a.creative || {};
+    const file = path.join(THUMBS, a.id + '.jpg');
+    if (!fs.existsSync(file) && cr.thumbnail_url) {
+      try {
+        const res = await fetch(cr.thumbnail_url);
+        if (res.ok) fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+      } catch (e) { console.warn(`[${slug}] miniatura de ${a.name} não baixou: ${e.message}`); }
+    }
+    const campaignId = a.campaign ? a.campaign.id : null, adsetName = a.adset ? a.adset.name : '';
+    ads.push({
+      id: a.id, name: a.name, active: a.effective_status === 'ACTIVE', campaignId, adsetName,
+      temp: tempCaptacao(adsetName, campName.get(campaignId) || ''), type: cr.object_type || null,
+      igUrl: cr.instagram_permalink_url || null, previewUrl: a.preview_shareable_link || null,
+      thumb: fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null
+    });
+  }
+  // temperatura de um criativo pelo nome (o mesmo nome roda em conjuntos quentes e frios: só vale se for um só)
+  const tempsByName = new Map();
+  for (const a of ads) if (a.temp) (tempsByName.get(normKey(a.name)) || tempsByName.set(normKey(a.name), new Set()).get(normKey(a.name))).add(a.temp);
+
+  // ---- Planilha de leads ----
+  const csvText = await (await fetch(SHEET_CSV, { redirect: 'follow' })).text();
+  const rows = parseCSV(csvText);
+  if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
+  const header = rows[0].map(h => h.trim());
+  const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
+  const col = {
+    ts: idx('Date', 'Data', 'Data/Hora'), email: idx('Email', 'E-mail'), pais: idx('pais', 'país', 'country'),
+    src: idx('utm_source'), med: idx('utm_medium'), camp: idx('utm_campaign'), cont: idx('utm_content')
+  };
+  if (col.ts < 0) throw new Error('planilha sem a coluna de data (Date)');
+  const g = (r, i) => (i >= 0 && r[i] != null ? decode(String(r[i])).trim() : '');
+  const seen = new Set();
+  let cadastros = 0;
+  const leads = [];   // [data, hora, temperatura, país, origem orgânica, criativo]
+  const parsed = rows.slice(1).map(r => ({ r, ts: parseTS(g(r, col.ts)) })).filter(x => x.ts && x.ts.date >= SINCE)
+    .sort((a, b) => (a.ts.date + (a.ts.time || '')).localeCompare(b.ts.date + (b.ts.time || '')));
+  for (const { r, ts } of parsed) {
+    cadastros++;
+    const email = g(r, col.email).toLowerCase();
+    if (email) { if (seen.has(email)) continue; seen.add(email); }
+    const src = g(r, col.src), med = g(r, col.med), camp = g(r, col.camp);
+    const adName = g(r, col.cont).split('|')[0].trim();
+    let temp = 'organico', origem = null, criativo = null;
+    if (looksPaid(src, med, camp)) {
+      const byName = tempsByName.get(normKey(adName));
+      temp = tempCaptacao(med, camp) || (byName && byName.size === 1 ? [...byName][0] : 'pago');
+      criativo = adName && !/\{\{/.test(adName) ? adName : null;
+    } else {
+      origem = [src || 'sem utm_source', med && normKey(med) !== normKey(src) ? med : ''].filter(Boolean).join(' · ');
+      if (!src && !med) origem = 'Sem UTM';
+    }
+    leads.push([ts.date, ts.time, temp, g(r, col.pais) || null, origem, criativo]);
+  }
+
+  // o painel começa no primeiro lead ou no primeiro dia de anúncio, o que vier antes (orgânico costuma vir antes do pago)
+  const since = leads.length && leads[0][0] < metaSince ? leads[0][0] : metaSince;
+  const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
+  write('campaigns.json', { rows: campaigns });
+  write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'metaLeads', 'views3s'], rows: insights });
+  write('ads.json', { rows: ads });
+  write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo'], rows: leads });
+  write('summary.json', {
+    updatedAt: new Date().toISOString(), account: ACCOUNT, currency: await accountCurrency(ACCOUNT, TOKEN),
+    since, until, cadastros, lancamento: CFG.lancamento || null
+  });
+  const n = t => leads.filter(l => l[2] === t).length;
+  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: ads.length, comMiniatura: ads.filter(a => a.thumb).length, cadastros, leads: leads.length, organico: n('organico'), quente: n('quente'), frio: n('frio'), pagoSemTemperatura: n('pago') }));
+}
+
 // ---- Criativos: Meta por anúncio e por dia + vendas da Hotmart (API, ver hotmart.js; plano B: clientes/<cliente>/vendas/
 //      hotmart.json do importar-hotmart.js) ou da Payt (postback → Worker, ver payt.js). Venda e anúncio se ligam pelo ID
 //      do anúncio que vem no SCK (Hotmart) ou no utm_content (Payt) — nunca pelas conversões do Meta. Gasto, impressões e
@@ -701,5 +808,5 @@ function rateOn(sorted, d) {
   return r;
 }
 
-const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : mainLeads;
+const main = CFG.tipo === 'lancamento' ? mainLancamento : CFG.tipo === 'criativos' ? mainCriativos : CFG.tipo === 'captacao' ? mainCaptacao : mainLeads;
 main().catch(e => { console.error(`[${slug}] ERRO:`, e.message); process.exit(1); });

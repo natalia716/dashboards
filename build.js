@@ -22,6 +22,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 const template = read('shared/template.html');                       // Meta + leads (planilha)
 const templateLancamento = read('shared/template-lancamento.html');  // Meta + vendas (Hubla)
 const templateCriativos = read('shared/template-criativos.html');    // Meta por anúncio + vendas da Hotmart + prévias
+const templateCaptacao = read('shared/template-captacao.html');      // Meta por anúncio + planilha de leads de lançamento
 // a logo vive em shared/logo.svg — trocar o arquivo troca em todas as páginas
 const logoSvg = read('shared/logo.svg').replace(/<\?xml[^>]*\?>\s*/, '').replace('<svg ', '<svg class="logo" ').trim();
 const mapSvg = read('shared/brazil.svg').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
@@ -42,6 +43,27 @@ function buildClient(slug) {
     fs.rmSync(path.join(outDir, 'thumbs'), { recursive: true, force: true });
     fs.mkdirSync(path.join(outDir, 'thumbs'), { recursive: true });
     // só as miniaturas em uso (o cache do refresh guarda também as de anúncios que saíram do painel)
+    for (const a of data.ads) if (a.thumb) fs.copyFileSync(path.join(dir, 'out', 'cache', a.thumb), path.join(outDir, a.thumb));
+    fs.writeFileSync(path.join(outDir, 'index.html'), html);
+    console.log(`[${slug}] ${path.relative(here, path.join(outDir, 'index.html'))} ${fs.statSync(path.join(outDir, 'index.html')).size} bytes`);
+    return;
+  }
+
+  if (cfg.tipo === 'captacao') {
+    // leads só com data, temperatura, país, origem e criativo (o refresh já deixa nome/e-mail/telefone de fora)
+    const data = {
+      summary: json('summary.json'),
+      campaigns: json('campaigns.json').rows,
+      insights: json('insights.json').rows,
+      ads: json('ads.json').rows,
+      leads: json('leads.json').rows,
+    };
+    const html = templateCaptacao
+      .split('{{NOME}}').join(esc(cfg.nome))
+      .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'));
+    const outDir = path.join(PUBLIC, slug);
+    fs.rmSync(path.join(outDir, 'thumbs'), { recursive: true, force: true });
+    fs.mkdirSync(path.join(outDir, 'thumbs'), { recursive: true });
     for (const a of data.ads) if (a.thumb) fs.copyFileSync(path.join(dir, 'out', 'cache', a.thumb), path.join(outDir, a.thumb));
     fs.writeFileSync(path.join(outDir, 'index.html'), html);
     console.log(`[${slug}] ${path.relative(here, path.join(outDir, 'index.html'))} ${fs.statSync(path.join(outDir, 'index.html')).size} bytes`);

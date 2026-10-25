@@ -2,7 +2,8 @@
 
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
-Três tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla)
+Quatro tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla),
+**captação** (Meta em nível de anúncio + planilha de leads de um lançamento: orgânico/quente/frio, país, origem e criativos)
 e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 
 | Cliente | Tipo | Endereço |
@@ -11,6 +12,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 | Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
 | Chef Bernadete | criativos (Payt) | https://dash.atodigital.com.br/chefbernadete |
+| Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia |
 
 ## Como funciona
 
@@ -126,6 +128,23 @@ rodar o refresh localmente e commitar quando chegarem exports novos.
 
 Funil, taxas e temperatura vêm de `shared/template-lancamento.html`; o build injeta os JSONs de `clientes/<slug>/out/`.
 Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não atribuído" (contam no total, não na temperatura).
+
+## Adicionar um cliente de captação (leads de lançamento)
+
+`clientes/<slug>/config.json` com `"tipo": "captacao"`, `nome`, `lancamento` (aparece no título), `conta`,
+`filtroCampanha` (regex sobre o nome; ex.: `"\\[BLACK\\]\\[OUT-26\\]"`), `desde` e `planilha` (`id`, `gid`) — veja o de `emilia`.
+A planilha precisa estar como "qualquer pessoa com o link pode ver" e ter `Date`, `Email`, `pais`, `utm_source`,
+`utm_medium`, `utm_campaign` e `utm_content`.
+
+- **Tráfego × orgânico**: é do tráfego o lead com cara de anúncio do Meta — campanha/conjunto com `[TAGS]` no
+  `utm_campaign`/`utm_medium`, placement do Meta no `utm_source` (`Instagram_Stories`…) ou macro não substituída.
+  O resto é orgânico, com a origem em `utm_source · utm_medium` (ex.: Instagram · Stories, WhatsApp · Grupos antigos).
+- **Quente/frio**: tags `[QUENTE]`/`[Q]` e `[FRIO]`/`[F]` do conjunto (`utm_medium`) e, sem elas, da campanha.
+  Tag explícita ganha das palavras de `temperatura` (`[FRIO][ENVOL-30D]` é frio).
+- **Criativo** = `utm_content` com o nome do anúncio; a tabela agrupa anúncios de mesmo nome, com miniatura (baixada
+  uma vez para `out/cache/thumbs`) e link para o post no Instagram — do anúncio que mais gastou no filtro escolhido.
+- E-mail repetido conta uma vez (vale o primeiro cadastro). Nome, e-mail e telefone não saem do `refresh.js`.
+- Investimento na moeda da conta (ex.: pesos uruguaios), sem conversão.
 
 ## Adicionar um cliente de leads
 
