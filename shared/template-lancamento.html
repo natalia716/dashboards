@@ -226,7 +226,28 @@
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .chip:hover { border-color: var(--accent); }
 
-  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  /* ---------- sem order bump (vendas da Hotmart): some tudo que é de OB ---------- */
+  body.sem-ob .ob { display: none !important; }
+  body.sem-ob .kpis { grid-template-columns: repeat(5, 1fr); }
+
+  /* ---------- meta de vendas do lançamento ---------- */
+  .goal { padding: 18px 22px 20px; display: grid; gap: 14px; }
+  .goal-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .goal-top .big { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+  .goal-top .of { color: var(--ink-2); font-size: 15px; }
+  .goal-top .pct { margin-left: auto; font-size: 20px; font-weight: 700; color: var(--accent-strong); }
+  .goal-bar { position: relative; margin-top: 14px; height: 14px; background: var(--surface-2); border-radius: 7px; overflow: visible; }
+  .goal-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 7px; min-width: 4px; max-width: 100%; }
+  .goal-bar .pace { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); border-radius: 1px; }
+  .goal-bar .pace span { position: absolute; top: -18px; transform: translateX(-50%); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  .goal-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px 14px; }
+  .goal-grid .lbl { font-size: 12px; color: var(--ink-2); }
+  .goal-grid .val { font-weight: 600; font-size: 18px; color: var(--ink); }
+  .goal-grid .val.good { color: var(--good); }
+  .goal-grid .val.bad { color: var(--bad); }
+  .goal-note { color: var(--muted); font-size: 12px; }
+
+  @media (max-width: 1100px) { .kpis, body.sem-ob .kpis { grid-template-columns: repeat(3, 1fr); } .goal-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) {
     .temps { grid-template-columns: 1fr; }
     .stage, .rate { grid-template-columns: 130px 1fr 110px; }
@@ -234,7 +255,10 @@
   @media (max-width: 640px) {
     .top-inner { padding: 10px 16px; gap: 10px; }
     .page { padding-inline: 16px; }
-    .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .kpis, body.sem-ob .kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .goal { padding: 16px; }
+    .goal-grid { grid-template-columns: repeat(2, 1fr); }
+    .goal-top .big { font-size: 24px; }
     .kpi { padding: 14px 16px; }
     .kpi .val { font-size: 20px; }
     .top-right, .periodWrap, .periodBtn { width: 100%; min-width: 0; }
@@ -323,7 +347,7 @@
         <div class="lbl">CPA ingressos</div>
         <div class="val num" id="k-cpa">—</div>
       </div>
-      <div class="card kpi">
+      <div class="card kpi ob">
         <div class="lbl">Vendas order bump</div>
         <div class="val num" id="k-bumps">—</div>
         <div class="sub"><span>Tx. conversão OB <b class="num" id="k-ob-rate">—</b></span></div>
@@ -340,6 +364,22 @@
     </div>
   </section>
 
+  <section class="card" id="sec-meta" aria-labelledby="h-meta" hidden>
+    <div class="card-head"><h2 id="h-meta">Meta de ingressos</h2><div class="right goal-note" id="meta-janela"></div></div>
+    <div class="goal" id="goal"></div>
+  </section>
+
+  <section class="card" id="sec-tickets" aria-labelledby="h-tickets" hidden>
+    <div class="card-head"><h2 id="h-tickets">Vendas por ticket</h2><div class="right goal-note">Investimento pelo ticket no nome da campanha (ex.: TICKET-19,90)</div></div>
+    <div class="tbl-wrap">
+      <table id="tickets">
+        <thead><tr><th>Ticket</th><th>Vendas</th><th>% das vendas</th><th>Faturamento</th><th>Investimento</th><th>CPA</th><th>ROAS</th><th>Vendas com anúncio</th></tr></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+
   <section class="card" aria-labelledby="h-funnel">
     <div class="card-head"><h2 id="h-funnel">Funil de vendas</h2></div>
     <div class="funnel" id="funnel"></div>
@@ -348,7 +388,7 @@
   <section class="card" aria-labelledby="h-chart">
     <div class="card-head"><h2 id="h-chart">Vendas e CPA de ingressos por dia</h2></div>
     <div class="chart-wrap" id="chart">
-      <div class="legend"><span><i style="background:var(--accent)"></i>Vendas ingressos</span><span><i class="line" style="background:var(--ink)"></i>Vendas order bump</span><span><i class="line" style="background:var(--frio)"></i>CPA ingressos (R$)</span></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Vendas ingressos</span><span class="ob"><i class="line" style="background:var(--ink)"></i>Vendas order bump</span><span><i class="line" style="background:var(--frio)"></i>CPA ingressos (R$)</span></div>
       <div id="chart-svg"></div>
       <div class="tip" id="tip"></div>
     </div>
@@ -363,7 +403,7 @@
     <div class="tbl-wrap">
       <table id="daily">
         <thead><tr>
-          <th>Data</th><th>Gasto</th><th>Vendas ingressos</th><th>CPA ingressos</th><th>Tx. conv. OB</th><th>ROAS</th><th>CPM</th><th>CTR</th><th>Conv. página</th><th>Connect rate</th>
+          <th>Data</th><th>Gasto</th><th>Vendas ingressos</th><th>CPA ingressos</th><th class="ob">Tx. conv. OB</th><th>ROAS</th><th>CPM</th><th>CTR</th><th>Conv. página</th><th>Connect rate</th>
         </tr></thead>
         <tbody></tbody>
         <tfoot></tfoot>
@@ -387,7 +427,7 @@
           <th class="sortable" data-key="spend" data-dir="desc">Gasto</th>
           <th class="sortable" data-key="sales">Vendas ingressos</th>
           <th class="sortable" data-key="cpa">CPA ingressos</th>
-          <th class="sortable" data-key="ob_rate">Tx. conv. OB</th>
+          <th class="sortable ob" data-key="ob_rate">Tx. conv. OB</th>
           <th class="sortable" data-key="roas">ROAS</th>
           <th class="sortable" data-key="cpm">CPM</th>
           <th class="sortable" data-key="ctr">CTR</th>
@@ -479,7 +519,10 @@ const D = /*__DATA__*/{};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const $ = id => document.getElementById(id);
 
-  const NAO_ATRIBUIDO = 'nao-atribuido'; // vendas da Hubla sem UTM de anúncio
+  const NAO_ATRIBUIDO = 'nao-atribuido'; // vendas sem UTM/SCK de anúncio
+  const PLAT = (D && D.summary && D.summary.plataforma) || 'Hubla';  // de onde vêm as vendas
+  const OB = !(D && D.summary && D.summary.orderBump === false);     // Hotmart: sem order bump no painel
+  if (!OB) document.body.classList.add('sem-ob');
 
   /* ---------- temperatura pelo nome do conjunto ---------- */
   const QUENTE = /quente|remarketing|rmkt|retarget|envolv|engaj|lista|lead|visitantes|seguidores|inscritos|warm|hot/i;
@@ -565,7 +608,7 @@ const D = /*__DATA__*/{};
         const ad = adId ? adById.get(adId) : null;
         map.set(k, {
           campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || NAO_ATRIBUIDO,
-          ad_name: ad ? ad.name : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
+          ad_name: ad ? ad.name : PLAT === 'Hotmart' ? 'Não atribuído (sem rastreio do anúncio)' : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
           preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
           spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0,
         });
@@ -580,7 +623,7 @@ const D = /*__DATA__*/{};
 
   /* ---------- estado ---------- */
   const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
-  const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), dbCampanhas: $('db-campanhas'), dbJornada: $('db-jornada'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives') };
+  const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), dbCampanhas: $('db-campanhas'), dbJornada: $('db-jornada'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives'), tickets: $('tickets') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
   function maxRange() {
@@ -643,7 +686,7 @@ const D = /*__DATA__*/{};
       { name: 'Cliques no link', small: 'Meta Ads', v: t.link_clicks, rate: t.ctr, tag: 'CTR' },
       { name: 'Visualizações da página', small: 'Meta Ads (pixel)', v: t.lp_views, rate: t.connect, tag: 'Connect rate' },
       { name: 'Checkout iniciado', small: 'Meta Ads (pixel)', v: t.checkouts, rate: t.checkout_rate, tag: 'Página → checkout' },
-      { name: 'Compra', small: 'Hubla · só vendas vindas do tráfego', v: t.sales, rate: t.close_rate, tag: 'Checkout → compra' },
+      { name: 'Compra', small: `${PLAT} · só vendas vindas do tráfego`, v: t.sales, rate: t.close_rate, tag: 'Checkout → compra' },
     ];
     const max = Math.max(1, ...stages.map(s => s.v));
     const width = v => v > 0 ? Math.max(2, (Math.log10(v + 1) / Math.log10(max + 1)) * 100) : 0;
@@ -687,10 +730,12 @@ const D = /*__DATA__*/{};
     });
     g += `<line x1="${padL}" x2="${W - padR}" y1="${padT + hBar}" y2="${padT + hBar}" stroke="var(--line-strong)"/>`;
     // order bump: linha sobre as barras, na mesma escala (também é contagem de vendas)
-    let obPath = '';
-    days.forEach((d, i) => { obPath += (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + ySales(d.bumps).toFixed(1) + ' '; });
-    g += `<path d="${obPath}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    days.forEach((d, i) => { if (d.bumps > 0) g += `<circle cx="${x(i)}" cy="${ySales(d.bumps)}" r="3" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`; });
+    if (OB) {
+      let obPath = '';
+      days.forEach((d, i) => { obPath += (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + ySales(d.bumps).toFixed(1) + ' '; });
+      g += `<path d="${obPath}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      days.forEach((d, i) => { if (d.bumps > 0) g += `<circle cx="${x(i)}" cy="${ySales(d.bumps)}" r="3" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`; });
+    }
     let path = '', pen = false;
     days.forEach((d, i) => { if (d.cpa == null || !isFinite(d.cpa)) { pen = false; return; } path += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + yCpa(d.cpa).toFixed(1) + ' '; pen = true; });
     g += `<path d="${path}" fill="none" stroke="var(--frio)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
@@ -708,7 +753,7 @@ const D = /*__DATA__*/{};
       const i = Math.max(0, Math.min(n - 1, Math.floor((px - padL) / step)));
       const d = days[i];
       xhair.style.display = ''; xhair.querySelector('line').setAttribute('x1', x(i)); xhair.querySelector('line').setAttribute('x2', x(i));
-      el.tip.innerHTML = `<b>${weekday(d.date)} ${fmtDateLong(d.date)}</b><div><span>Ingressos</span><span>${fmtInt(d.sales)}</span></div><div><span>Order bump</span><span>${fmtInt(d.bumps)}</span></div><div><span>CPA ingressos</span><span>${fmtMoney(d.cpa)}</span></div><div><span>Gasto</span><span>${fmtMoney(d.spend)}</span></div>`;
+      el.tip.innerHTML = `<b>${weekday(d.date)} ${fmtDateLong(d.date)}</b><div><span>Ingressos</span><span>${fmtInt(d.sales)}</span></div>${OB ? `<div><span>Order bump</span><span>${fmtInt(d.bumps)}</span></div>` : ''}<div><span>CPA ingressos</span><span>${fmtMoney(d.cpa)}</span></div><div><span>Gasto</span><span>${fmtMoney(d.spend)}</span></div>`;
       el.tip.style.display = 'block';
       const cw = el.chart.clientWidth, tw = el.tip.offsetWidth, cr = el.chart.getBoundingClientRect();
       el.tip.style.left = Math.min(cw - tw - 8, Math.max(8, ev.clientX - cr.left + 14)) + 'px';
@@ -728,7 +773,7 @@ const D = /*__DATA__*/{};
         <div class="th"><h3><i></i>Público ${tp === 'frio' ? 'frio' : 'quente'}</h3><span class="share"><b class="num">${fmtPct(share, 0)}</b> do gasto · <b class="num">${fmtPct(sshare, 0)}</b> dos ingressos</span></div>
         <div class="sharebar"><i style="width:${(share * 100).toFixed(1)}%"></i></div>
         <div class="grid">
-          ${m('CPA ingressos', fmtMoney(t.cpa), true)}${m('Gasto', fmtMoney0(t.spend))}${m('Vendas ingressos', fmtInt(t.sales))}${m('Tx. conv. OB', fmtPct(t.ob_rate, 1))}
+          ${m('CPA ingressos', fmtMoney(t.cpa), true)}${m('Gasto', fmtMoney0(t.spend))}${m('Vendas ingressos', fmtInt(t.sales))}${OB ? m('Tx. conv. OB', fmtPct(t.ob_rate, 1)) : m('Ticket médio', fmtMoney(t.ticket))}
           ${m('ROAS', fmtX(t.roas))}${m('CPM', fmtMoney(t.cpm))}${m('CTR', fmtPct(t.ctr))}${m('Conv. página', fmtPct(t.conv))}
         </div>
       </div>`;
@@ -749,7 +794,7 @@ const D = /*__DATA__*/{};
         <td class="num"><span class="bar-cell"><i style="width:${(t.spend / maxSpend * 56).toFixed(0)}px"></i>${fmtMoney(t.spend)}</span></td>
         <td class="num">${fmtInt(t.sales)}</td>
         <td class="num">${fmtMoney(t.cpa)}</td>
-        <td class="num">${fmtPct(t.ob_rate, 1)}</td>
+        <td class="num ob">${fmtPct(t.ob_rate, 1)}</td>
         <td class="num">${fmtX(t.roas)}</td>
         <td class="num">${fmtMoney(t.cpm)}</td>
         <td class="num">${fmtPct(t.ctr)}</td>
@@ -758,7 +803,7 @@ const D = /*__DATA__*/{};
       </tr>`;
     }).join('');
     const t = sum(rows);
-    tf.innerHTML = `<tr><td>Total · ${dates.length} dia${dates.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtPct(t.connect, 1)}</td></tr>`;
+    tf.innerHTML = `<tr><td>Total · ${dates.length} dia${dates.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num ob">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtPct(t.connect, 1)}</td></tr>`;
   }
 
   const EXT_ICON = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 2H2v8h8V7M7 2h3v3M10 2 5.5 6.5"/></svg>';
@@ -790,19 +835,76 @@ const D = /*__DATA__*/{};
       <td class="num"><span class="bar-cell"><i style="width:${(c.spend / maxSpend * 56).toFixed(0)}px"></i>${fmtMoney(c.spend)}</span></td>
       <td class="num">${fmtInt(c.sales)}</td>
       <td class="num">${fmtMoney(c.cpa)}</td>
-      <td class="num">${fmtPct(c.ob_rate, 1)}</td>
+      <td class="num ob">${fmtPct(c.ob_rate, 1)}</td>
       <td class="num">${fmtX(c.roas)}</td>
       <td class="num">${fmtMoney(c.cpm)}</td>
       <td class="num">${fmtPct(c.ctr)}</td>
     </tr>`).join('');
     const t = sum(filtered);
-    tf.innerHTML = `<tr><td>${list.length} criativo${list.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td></tr>`;
+    tf.innerHTML = `<tr><td>${list.length} criativo${list.length === 1 ? '' : 's'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtMoney(t.cpa)}</td><td class="num ob">${fmtPct(t.ob_rate, 1)}</td><td class="num">${fmtX(t.roas)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td></tr>`;
+  }
+
+  /* ---------- meta de ingressos: sempre o lançamento inteiro (não segue o seletor de período) ---------- */
+  function renderGoal() {
+    const meta = state.live && D.summary.metaVendas;
+    $('sec-meta').hidden = !meta;
+    if (!meta) return;
+    const p = state.periodo || {};
+    const ini = p.inicio || maxRange()[0], fim = p.fim || state.until;
+    const nDias = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
+    const total = nDias(ini, fim);
+    const hoje = state.until < ini ? ini : state.until > fim ? fim : state.until;
+    const decorridos = state.until < ini ? 0 : nDias(ini, hoje);
+    const restantes = state.until > fim ? 0 : nDias(state.until < ini ? ini : state.until, fim); // contando hoje
+    const vendidos = state.rows.filter(r => r.date >= ini && r.date <= fim).reduce((s, r) => s + r.sales, 0);
+    const falta = Math.max(0, meta - vendidos);
+    const ritmo = decorridos ? vendidos / decorridos : null;
+    const necessario = restantes ? falta / restantes : null;
+    const projecao = ritmo != null ? Math.round(ritmo * total) : null;
+    const esperado = meta * decorridos / total; // onde a meta estaria hoje num ritmo constante
+    $('meta-janela').textContent = `${fmtDateLong(ini)} – ${fmtDateLong(fim)} · dia ${Math.min(decorridos, total)} de ${total}`;
+    const st = (lbl, val, cls) => `<div><div class="lbl">${lbl}</div><div class="val num${cls ? ' ' + cls : ''}">${val}</div></div>`;
+    const pace = Math.min(100, esperado / meta * 100);
+    $('goal').innerHTML = `
+      <div class="goal-top"><span class="big num">${fmtInt(vendidos)}</span><span class="of">de ${fmtInt(meta)} ingressos</span><span class="pct num">${fmtPct(vendidos / meta, 1)}</span></div>
+      <div class="goal-bar" role="img" aria-label="${fmtInt(vendidos)} de ${fmtInt(meta)} ingressos vendidos"><i style="width:${Math.min(100, vendidos / meta * 100).toFixed(1)}%"></i>${decorridos ? `<div class="pace" style="left:${pace.toFixed(1)}%"><span>ritmo da meta: ${fmtInt(esperado)}</span></div>` : ''}</div>
+      <div class="goal-grid">
+        ${st('Faltam', fmtInt(falta))}
+        ${st('Dias restantes', fmtInt(restantes))}
+        ${st('Ritmo atual', ritmo == null ? '—' : fmtInt(ritmo) + '/dia')}
+        ${st('Ritmo necessário', necessario == null ? '—' : fmtInt(Math.ceil(necessario)) + '/dia', ritmo != null && necessario != null ? (ritmo >= necessario ? 'good' : 'bad') : '')}
+        ${st('Projeção no ritmo atual', projecao == null ? '—' : fmtInt(projecao), projecao == null ? '' : projecao >= meta ? 'good' : 'bad')}
+      </div>
+      <div class="goal-note">Todas as vendas de ingresso da ${esc(PLAT)} (com e sem anúncio). O dia de hoje conta como dia decorrido e como dia restante.</div>`;
+  }
+
+  /* ---------- vendas por ticket: cada oferta da Hotmart é um ticket em teste ---------- */
+  const ticketOfCampaign = name => { const m = String(name || '').match(/TICKET[-_ ]?(\d+(?:[.,]\d{1,2})?)/i); return m ? Math.round(parseFloat(m[1].replace(',', '.')) * 100) : null; };
+  function renderTickets(rows) {
+    const sales = state.live ? (D.sales || []).filter(s => s.main !== false && s.ticketCents != null) : [];
+    $('sec-tickets').hidden = !sales.length;
+    if (!sales.length) return;
+    const inP = sales.filter(s => s.date >= state.from && s.date <= state.to);
+    const campTicket = new Map(state.campaigns.map(c => [c.id, ticketOfCampaign(c.name)]));
+    const by = new Map();
+    const get = k => by.get(k) || by.set(k, { ticket: k, sales: 0, revenue: 0, spend: 0, comAnuncio: 0 }).get(k);
+    for (const s of sales) get(s.ticketCents); // ticket que já vendeu aparece mesmo com zero no período
+    for (const s of inP) { const t = get(s.ticketCents); t.sales++; t.revenue += s.valueCents / 100; if (s.adId) t.comAnuncio++; }
+    let semTicket = 0;
+    for (const r of rows) { const k = campTicket.get(r.campaign_id); if (k == null) semTicket += r.spend; else get(k).spend += r.spend; }
+    const list = [...by.values()].sort((a, b) => a.ticket - b.ticket);
+    const tot = list.reduce((t, x) => ({ sales: t.sales + x.sales, revenue: t.revenue + x.revenue, spend: t.spend + x.spend, comAnuncio: t.comAnuncio + x.comAnuncio }), { sales: 0, revenue: 0, spend: semTicket, comAnuncio: 0 });
+    const maxS = Math.max(1, ...list.map(x => x.sales));
+    const line = x => `<td class="num">${fmtInt(x.sales)}</td><td class="num"><span class="bar-cell"><i style="width:${(x.sales / maxS * 56).toFixed(0)}px"></i>${fmtPct(div(x.sales, tot.sales), 1)}</span></td><td class="num">${fmtMoney(x.revenue)}</td><td class="num">${x.spend ? fmtMoney(x.spend) : '—'}</td><td class="num">${x.spend ? fmtMoney(div(x.spend, x.sales)) : "—"}</td><td class="num">${fmtX(div(x.revenue, x.spend))}</td><td class="num">${fmtInt(x.comAnuncio)}</td>`;
+    el.tickets.querySelector('tbody').innerHTML = list.map(x => `<tr><td><b>${fmtMoney(x.ticket / 100)}</b></td>${line(x)}</tr>`).join('')
+      + (semTicket > 0 ? `<tr><td class="dim">Campanhas sem ticket no nome</td><td class="num dim">—</td><td></td><td></td><td class="num">${fmtMoney(semTicket)}</td><td></td><td></td><td></td></tr>` : '');
+    el.tickets.querySelector('tfoot').innerHTML = `<tr><td>Total</td>${line(tot).replace(/<span class="bar-cell">.*?<\/i>/, '<span class="bar-cell">')}</tr>`;
   }
 
   function renderAll() {
     updatePeriodButton();
     const rows = filteredRows();
-    renderKpis(rows); renderFunnel(rows); renderChart(rows); renderTemps(rows); renderDaily(rows); renderCreatives(rows);
+    renderKpis(rows); renderGoal(); renderTickets(rows); renderFunnel(rows); renderChart(rows); renderTemps(rows); renderDaily(rows); renderCreatives(rows);
   }
 
   /* ---------- seletor de período (menu suspenso com presets + calendário) ---------- */
@@ -1040,6 +1142,14 @@ const D = /*__DATA__*/{};
       const up = new Date(D.summary.updatedAt);
       $('updatedAt').textContent = 'Atualizado ' + up.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       $('liveline').hidden = false;
+      // Hotmart: sem debriefing (ele cruza os exports da Hubla) — some a barra de abas
+      if (PLAT === 'Hotmart' && !D.debrief) document.querySelector('.tabs').hidden = true;
+      const vendas = (D.sales || []).filter(s => s.main !== false), semAnuncio = vendas.filter(s => !s.adId).length;
+      if (PLAT === 'Hotmart' && vendas.length && semAnuncio / vendas.length > .5) {
+        $('status-pill').textContent = 'Rastreio';
+        $('status-text').textContent = `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Hotmart sem o código do anúncio (SCK/xcod). Elas contam nos totais, na meta e nos tickets, mas ficam em "Não atribuído" nos criativos e fora do funil.`;
+        $('status').hidden = false;
+      }
       if (!D.summary.hubla) {
         $('status-pill').textContent = 'Hubla pendente';
         $('status-text').textContent = 'Gasto, impressões e cliques já vêm do Meta Ads. As vendas aparecem quando o webhook da Hubla estiver ligado.';

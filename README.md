@@ -2,7 +2,7 @@
 
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
-Quatro tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla),
+Quatro tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla ou da Hotmart),
 **captação** (Meta em nível de anúncio + planilha de leads de um lançamento: orgânico/quente/frio, país, origem e criativos)
 e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 
@@ -13,6 +13,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 | Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
 | Chef Bernadete | criativos (Payt) | https://dash.atodigital.com.br/chefbernadete |
 | Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia |
+| Ghenady Tec (Semana Diagnóstico Android, OUT-26) | lançamento (Hotmart) | https://dash.atodigital.com.br/ghenady |
 
 ## Como funciona
 
@@ -128,6 +129,19 @@ rodar o refresh localmente e commitar quando chegarem exports novos.
 
 Funil, taxas e temperatura vêm de `shared/template-lancamento.html`; o build injeta os JSONs de `clientes/<slug>/out/`.
 Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não atribuído" (contam no total, não na temperatura).
+
+### Lançamento com vendas da Hotmart (ex.: ghenady)
+
+- `config.json`: `"vendas": "hotmart"`, `"hotmart": { "produtos": ["<id do produto>"] }` (vazio = todos os produtos),
+  `"metaVendas": 1000` (opcional: card de meta com ritmo atual, ritmo necessário e projeção, sempre do lançamento inteiro,
+  de `desde` a `ate`). Credenciais `HOTMART_*_<SLUG>` como no tipo criativos.
+- Venda = status Aprovado ou Completo (reembolso some), na data do pedido; faturamento = preço pago (bruto).
+- **Ticket** = oferta da Hotmart: cada oferta vale o preço mais comum dela (cupom não cria ticket novo). O card "Vendas por
+  ticket" soma o investimento das campanhas com `TICKET-<valor>` no nome (ex.: `[TICKET-19,90]`).
+- Anúncio pelo SCK (o `xcod` dos parâmetros de URL do Meta). **A página precisa repassar o `xcod` ao link do checkout** —
+  sem isso a venda conta nos totais, mas fica "Não atribuído" nos criativos e o painel mostra um aviso.
+- Conta de anúncio em outra moeda (ex.: USD): o gasto é convertido para reais pela PTAX de venda do dia.
+- Sem order bump e sem a aba Debriefing (que cruza os exports da Hubla).
 
 ## Adicionar um cliente de captação (leads de lançamento)
 

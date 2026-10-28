@@ -1,0 +1,13 @@
+{
+  "nome": "Ghenady Tec · Semana Diagnóstico Android",
+  "tipo": "lancamento",
+  "conta": "act_983223520934514",
+  "filtroCampanha": "OUT-26",
+  "desde": "2026-10-27",
+  "ate": "2026-11-09",
+  "metaVendas": 1000,
+  "vendas": "hotmart",
+  "hotmart": {
+    "produtos": ["8811121"]
+  }
+}

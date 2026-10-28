@@ -374,8 +374,21 @@ async function mainLancamento() {
     igUrl: a.creative && a.creative.instagram_permalink_url || null
   }));
 
-  // ---- Hubla ----
-  const sales = await fetchHublaSales(ads);
+  // ---- vendas: Hubla (planilha do webhook) ou Hotmart (API) ----
+  const HOTMART = CFG.vendas === 'hotmart';
+  const sales = HOTMART ? await fetchHotmartLaunchSales(ads, until) : await fetchHublaSales(ads);
+
+  // ---- câmbio: conta fora do real (ex.: USD) tem o gasto convertido pela PTAX de venda do dia ----
+  const CACHE = path.join(OUT, 'cache');
+  fs.mkdirSync(CACHE, { recursive: true });
+  const readCache = name => { try { return JSON.parse(fs.readFileSync(path.join(CACHE, name), 'utf8')); } catch (e) { return null; } };
+  const writeCache = (name, obj) => fs.writeFileSync(path.join(CACHE, name), JSON.stringify(obj));
+  const warnings = [];
+  const contaMoeda = await accountCurrency(ACCOUNT, TOKEN);
+  if (contaMoeda !== 'BRL') {
+    const rates = await ptax(contaMoeda, since, until, readCache, writeCache, warnings);
+    for (const r of insights) r[4] = Math.round(r[4] * rateOn(rates, r[0]) * 100) / 100;
+  }
 
   const deliveredAdIds = new Set(insights.map(r => r[3]));
   const soldAdIds = new Set((sales || []).map(s => s.adId).filter(Boolean));
@@ -388,7 +401,7 @@ async function mainLancamento() {
   const gastoPorAdId = {}; let gastoTotal = 0;
   for (const r of insights) { gastoPorAdId[r[3]] = (gastoPorAdId[r[3]] || 0) + r[4]; gastoTotal += r[4]; }
   let debrief = null;
-  try {
+  if (!HOTMART) try {
     debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [], campaigns });
   } catch (e) {
     console.error(`[${slug}] debriefing ignorado: ${e.message}`);
@@ -405,10 +418,36 @@ async function mainLancamento() {
   write('sales.json', { rows: sales || [] });
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
+    plataforma: HOTMART ? 'Hotmart' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
+    metaVendas: CFG.metaVendas || null,
     periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
   });
-  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada' }));
+  for (const w of warnings) console.error(`[${slug}] aviso: ${w}`);
+  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada', comAnuncio: sales ? sales.filter(s => s.adId).length : null, contaMoeda }));
+}
+
+// Vendas da Hotmart do lançamento (config: "vendas": "hotmart", "hotmart": { "produtos": [ids] }), desde o início
+// do lançamento. Cada oferta é um ticket em teste: o ticket é o preço mais comum da oferta (cupom não cria ticket novo).
+// Faturamento = preço pago; compra em outra moeda entra pelo ticket da oferta.
+async function fetchHotmartLaunchSales(ads, until) {
+  const cred = hotmart.credentials(slug);
+  if (!cred) throw new Error('sem credenciais HOTMART_*_' + slug.toUpperCase().replace(/-/g, '_'));
+  const rows = await hotmart.fetchLaunchSales(cred, SINCE, until, (CFG.hotmart && CFG.hotmart.produtos) || []);
+  const freq = new Map();
+  for (const [, , , , price, cur, offer] of rows) if (cur === 'BRL') {
+    const m = freq.get(offer) || freq.set(offer, new Map()).get(offer);
+    m.set(price, (m.get(price) || 0) + 1);
+  }
+  const ticketOf = new Map([...freq].map(([offer, m]) => [offer, [...m].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0]]));
+  const adIds = new Set(ads.map(a => a.id));
+  return rows.map(([invoiceId, date, adId, , price, cur, offer, productId, origem]) => {
+    const ticket = ticketOf.has(offer) ? ticketOf.get(offer) : (cur === 'BRL' ? price : null);
+    return {
+      date, invoiceId, adId: adId && adIds.has(adId) ? adId : null, main: true, bump: false, origem, offer, productId,
+      valueCents: Math.round((cur === 'BRL' ? price : ticket || 0) * 100), ticketCents: ticket == null ? null : Math.round(ticket * 100)
+    };
+  });
 }
 
 // ================= CAPTAÇÃO: Meta em nível de anúncio + planilha de leads de um lançamento =================

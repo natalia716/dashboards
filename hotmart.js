@@ -1,4 +1,4 @@
-// Vendas da Hotmart para os painéis de criativos: API (automático) e o parser do SCK, que o importar-hotmart.js também usa.
+// Vendas da Hotmart para os painéis de criativos e de lançamento: API (automático) e o parser do SCK, que o importar-hotmart.js também usa.
 //
 // Credenciais (Hotmart → Ferramentas → Credenciais Developers), por cliente, no .env ou nos Secrets do GitHub:
 //   HOTMART_CLIENT_ID_<CLIENTE>, HOTMART_CLIENT_SECRET_<CLIENTE>, HOTMART_BASIC_<CLIENTE>
@@ -29,9 +29,8 @@ const credentials = slug => {
 
 const daySP = ms => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(ms));
 
-// Vendas aprovadas/completas com data do pedido entre `since` e `until` (AAAA-MM-DD, fuso de São Paulo).
-// Sem filtro de status a API devolve só APPROVED e COMPLETE — reembolso e chargeback somem do resultado.
-async function fetchSales(cred, since, until) {
+// Token OAuth + leitor paginado da API de vendas (history, commissions, price/details…)
+async function session(cred) {
   const tok = await (await fetch(`https://api-sec-vlc.hotmart.com/security/oauth/token?grant_type=client_credentials&client_id=${encodeURIComponent(cred.id)}&client_secret=${encodeURIComponent(cred.secret)}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + cred.basic } })).json();
   if (!tok.access_token) throw new Error(`Hotmart: autenticação falhou (${tok.error_description || tok.error || 'sem access_token'})`);
@@ -49,7 +48,16 @@ async function fetchSales(cred, since, until) {
     } while (page);
     return items;
   };
-  const range = { start_date: String(Date.parse(since + 'T00:00:00-03:00')), end_date: String(Date.parse(until + 'T23:59:59.999-03:00')) };
+  return api;
+}
+
+const rangeSP = (since, until) => ({ start_date: String(Date.parse(since + 'T00:00:00-03:00')), end_date: String(Date.parse(until + 'T23:59:59.999-03:00')) });
+
+// Vendas aprovadas/completas com data do pedido entre `since` e `until` (AAAA-MM-DD, fuso de São Paulo).
+// Sem filtro de status a API devolve só APPROVED e COMPLETE — reembolso e chargeback somem do resultado.
+async function fetchSales(cred, since, until) {
+  const api = await session(cred);
+  const range = rangeSP(since, until);
   const [history, commissions] = await Promise.all([api('history', range), api('commissions', range)]);
 
   // valor = comissão do produtor (o "faturamento líquido" do export)
@@ -72,4 +80,20 @@ async function fetchSales(cred, since, until) {
   return out;
 }
 
-module.exports = { origin, credentials, fetchSales, SEP };
+// Painel de lançamento: vendas dos produtos do lançamento com o preço pago e a oferta (cada oferta = um ticket em teste).
+// Cada venda vira [codigo, data, adId, adName, preco, moeda, oferta, produto, origem] — preço bruto, na moeda da compra.
+// O anúncio vem do SCK (o xcod dos parâmetros de URL do Meta, repassado pela página ao checkout). Sem produtos, entram todos.
+async function fetchLaunchSales(cred, since, until, productIds = []) {
+  const api = await session(cred);
+  const range = rangeSP(since, until);
+  const history = productIds.length
+    ? (await Promise.all(productIds.map(id => api('history', { ...range, product_id: String(id) })))).flat()
+    : await api('history', range);
+  return history.map(h => {
+    const p = h.purchase, t = p.tracking || {};
+    const o = origin(t.source_sck || t.external_code);
+    return [p.transaction, daySP(p.order_date), o.adId, o.adName, p.price.value, p.price.currency_code, p.offer ? p.offer.code : null, String(h.product.id), o.origem];
+  });
+}
+
+module.exports = { origin, credentials, fetchSales, fetchLaunchSales, SEP };
