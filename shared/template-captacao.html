@@ -107,7 +107,16 @@
   .view > * { min-width: 0; }
 
   /* ---------- pesquisa: qualificação (alta · média · baixa, escala de um só azul) ---------- */
-  :root { --q-alta: #0f3a5e; --q-media: #3b88c4; --q-baixa: #bfd8ee; }
+  /* alta → baixa na escala de azul; nula em cinza neutro (fora da escala: é "não investir") */
+  :root { --q-alta: #0f3a5e; --q-media: #3b88c4; --q-baixa: #b3d2ec; --q-nula: #c3c9d1; }
+  .levels { grid-column: 1 / -1; display: grid; border-top: 1px solid var(--line); padding-top: 6px; }
+  .levels .lv { display: grid; grid-template-columns: 110px minmax(0, 1.2fr) minmax(0, 1fr); gap: 4px 18px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+  .levels .lv:last-child { border-bottom: 0; }
+  .levels .lv.head { font-size: 12px; color: var(--muted); padding: 4px 0 6px; }
+  .levels .nm { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); }
+  .levels .nm i { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .levels .do { color: var(--ink); }
+  .rules .qnote { margin: -2px 0 8px; font-size: 12px; font-style: italic; color: var(--muted); }
   .qbar { display: flex; gap: 2px; height: 14px; min-width: 140px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
   .qbar i { display: block; height: 100%; min-width: 2px; }
   .qrows { padding: 10px 22px 18px; display: grid; }
@@ -367,6 +376,10 @@
     .seg { display: flex; }
     .seg button { flex: 1; }
     .qgrid, .rules { padding-inline: 16px; }
+    /* níveis no celular: nome em cima, regra e o que fazer embaixo */
+    .levels .lv { grid-template-columns: 1fr; gap: 3px; }
+    .levels .lv.head { display: none; }
+    .levels .do { color: var(--ink-2); }
   }
 </style>
 </head>
@@ -1076,7 +1089,9 @@ const D = /*__DATA__*/{};
   const PQ = D.pesquisa;
   // resposta: [data, temperatura do lead, criativo, conjunto, país da campanha, origem orgânica, nota, faixa, respostas…]
   const PQROWS = PQ ? PQ.rows.map(r => ({ date: r[0], temp: r[1], criativo: r[2], conjunto: r[3], pc: r[4], origem: r[5], nota: r[6], faixa: r[7], ans: r.slice(8) })) : [];
-  const FAIXAS = [{ k: 'alta', l: 'Alta', c: 'var(--q-alta)' }, { k: 'media', l: 'Média', c: 'var(--q-media)' }, { k: 'baixa', l: 'Baixa', c: 'var(--q-baixa)' }];
+  // "nula" só existe quando o config define a faixa "baixa" (abaixo dela, ou pela combinação de respostas)
+  const FAIXAS = [{ k: 'alta', l: 'Alta', c: 'var(--q-alta)' }, { k: 'media', l: 'Média', c: 'var(--q-media)' }, { k: 'baixa', l: 'Baixa', c: 'var(--q-baixa)' }]
+    .concat(PQ && PQ.faixas && PQ.faixas.baixa != null ? [{ k: 'nula', l: 'Nula', c: 'var(--q-nula)' }] : []);
   const PQ_TEMPS = TEMPS.concat([{ k: 'sem_lead', l: 'Sem vínculo com a captação', c: '#c9d0d8' }]);
   const PQ_TEMP = Object.fromEntries(PQ_TEMPS.map(t => [t.k, t]));
   const PAISES_CAMP = { UY: 'Uruguai', URU: 'Uruguai', ARG: 'Argentina', AR: 'Argentina', CHILE: 'Chile', CL: 'Chile', MX: 'México', MEX: 'México', CO: 'Colômbia', PE: 'Peru', BR: 'Brasil' };
@@ -1090,13 +1105,13 @@ const D = /*__DATA__*/{};
   // fatura US$ 1.000 ou mais: qualquer faixa que não seja "Menos de USD 500" nem "USD 500 a 1.000"
   const fat1k = r => { if (FAT < 0 || r.ans[FAT] == null) return null; return !/^(menos de|usd 500 a)/i.test(PQ.perguntas[FAT].options[r.ans[FAT]]); };
   const qAgg = list => {
-    const a = { n: list.length, alta: 0, media: 0, baixa: 0, nota: 0, fatN: 0, fatOk: 0 };
+    const a = { n: list.length, alta: 0, media: 0, baixa: 0, nula: 0, nota: 0, fatN: 0, fatOk: 0 };
     for (const r of list) { a[r.faixa]++; a.nota += r.nota; const f = fat1k(r); if (f != null) { a.fatN++; if (f) a.fatOk++; } }
     a.pAlta = a.n ? a.alta / a.n : null; a.notaMed = a.n ? a.nota / a.n : null; a.pFat = a.fatN ? a.fatOk / a.fatN : null;
     return a;
   };
-  const qbarHtml = a => `<span class="qbar" title="Alta ${a.alta} · Média ${a.media} · Baixa ${a.baixa}">${a.n ? FAIXAS.filter(f => a[f.k]).map(f => `<i style="flex:${a[f.k]};background:${f.c}"></i>`).join('') : ''}</span>`;
-  const faixaLegend = () => FAIXAS.map(f => `<span><i style="background:${f.c}"></i>${f.l} qualificação</span>`).join('');
+  const qbarHtml = a => `<span class="qbar" title="${FAIXAS.map(f => `${f.l} ${a[f.k]}`).join(' · ')}">${a.n ? FAIXAS.filter(f => a[f.k]).map(f => `<i style="flex:${a[f.k]};background:${f.c}"></i>`).join('') : ''}</span>`;
+  const faixaLegend = () => FAIXAS.map(f => `<span><i style="background:${f.c}"></i>${f.k === 'nula' ? 'Nula' : f.l + ' qualificação'}</span>`).join('');
   const fmtNota = v => ok(v) ? N1.format(v) : '—';
   const tempChip = k => PQ_TEMP[k] ? `<span class="chip"><i style="background:${PQ_TEMP[k].c}"></i>${PQ_TEMP[k].l}</span>` : '';
   const thumbOf = name => {
@@ -1121,7 +1136,9 @@ const D = /*__DATA__*/{};
       k('Alta qualificação', fmtInt(all.alta), `<span><b>${pct(all.alta, all.n)}</b> das respostas</span>`, 'var(--q-alta)'),
       k('Média qualificação', fmtInt(all.media), `<span><b>${pct(all.media, all.n)}</b> das respostas</span>`, 'var(--q-media)'),
       k('Baixa qualificação', fmtInt(all.baixa), `<span><b>${pct(all.baixa, all.n)}</b> das respostas</span>`, 'var(--q-baixa)'),
-      k('Nota média', fmtNota(all.notaMed), `<span>de 0 a <b>${PQ.max}</b> pontos</span>`),
+      FAIXAS.some(f => f.k === 'nula')
+        ? k('Nula', fmtInt(all.nula), `<span><b>${pct(all.nula, all.n)}</b> das respostas</span>`, 'var(--q-nula)')
+        : k('Nota média', fmtNota(all.notaMed), `<span>de 0 a <b>${PQ.max}</b> pontos</span>`),
       k('Custo por lead qualificado', fmtMoney(cplPaid && paidQ.pAlta ? cplPaid / paidQ.pAlta : null), `<span>tráfego · estimado (${fmtInt(paidQ.n)} respostas)</span>`),
     ].join('');
 
@@ -1193,15 +1210,24 @@ const D = /*__DATA__*/{};
     renderQuestions(rows);
 
     // ---- regras da nota ----
-    const F = PQ.faixas;
-    $('pqRules').innerHTML = (PQ.regras || []).map(g => `<div><h3>${esc(g.q)}</h3><ul>${g.opcoes.map(([o, p]) => `<li><span>${esc(o)}</span><b>${p} ${p === 1 ? 'ponto' : 'pontos'}</b></li>`).join('')}</ul></div>`).join('')
-      + (F.alta && typeof F.alta === 'object'
-        // alta por requisitos mínimos: cita, em cada pergunta, a primeira opção que já atende ("USD 1.000 a 2.500 ou mais")
-        ? `<div class="bands"><span><i style="background:var(--q-alta)"></i>Alta: ${Object.entries(F.alta.minimos || {}).map(([q, min]) => {
-            const g = (PQ.regras || []).find(x => norm(x.q) === norm(q)); const o = g && g.opcoes.find(x => x[1] >= min);
-            return `${esc(q)} a partir de <b>${esc(o ? o[0] : min + ' pontos')}</b>`; }).join(' · ')} (todos juntos)</span>`
-          + `<span><i style="background:var(--q-media)"></i>Média: não é alta, mas soma ${F.media} pontos ou mais (de ${PQ.max})</span><span><i style="background:var(--q-baixa)"></i>Baixa: até ${F.media - 1} pontos</span></div>`
-        : `<div class="bands"><span>Nota = soma dos pontos (0 a ${PQ.max}):</span><span><i style="background:var(--q-alta)"></i>Alta: ${F.alta} ou mais</span><span><i style="background:var(--q-media)"></i>Média: ${F.media} a ${F.alta - 1}</span><span><i style="background:var(--q-baixa)"></i>Baixa: até ${F.media - 1}</span></div>`);
+    const F = PQ.faixas, notas = PQ.notas || {}, acoes = PQ.acoes || {};
+    const pts = p => `${p} ${p === 1 ? 'ponto' : 'pontos'}`;
+    const range = (a, b) => a === b ? pts(a) : `${a} a ${b} pontos`;
+    // alta por requisitos mínimos: cita, em cada pergunta, a primeira opção que já atende ("USD 1.000 a 2.500 ou mais")
+    const altaRegra = F.alta && typeof F.alta === 'object'
+      ? Object.entries(F.alta.minimos || {}).map(([q, min]) => { const g = (PQ.regras || []).find(x => norm(x.q) === norm(q)); const o = g && g.opcoes.find(x => x[1] >= min); return `${esc(q)} a partir de ${esc(o ? o[0] : pts(min))}`; }).join(' + ')
+      : range(F.alta, PQ.max);
+    const altaMin = typeof F.alta === 'number' ? F.alta : PQ.max + 1;
+    const comb = F.nula && F.nula.combinacao ? Object.entries(F.nula.combinacao).map(([q, o]) => `${esc(q)}: ${esc(o)}`).join(' + ') : '';
+    const regra = {
+      alta: altaRegra,
+      media: range(F.media, altaMin - 1),
+      baixa: F.baixa != null ? range(F.baixa, F.media - 1) : `até ${pts(F.media - 1)}`,
+      nula: F.baixa != null ? `${range(0, F.baixa - 1)}${comb ? `, ou: ${comb}` : ''}` : '',
+    };
+    $('pqRules').innerHTML = (PQ.regras || []).map(g => `<div><h3>${esc(g.q)}</h3>${notas[g.q] ? `<p class="qnote">${esc(notas[g.q])}</p>` : ''}<ul>${g.opcoes.map(([o, p]) => `<li><span>${esc(o)}</span><b>${pts(p)}</b></li>`).join('')}</ul></div>`).join('')
+      + `<div class="levels"><div class="lv head"><span>Nível</span><span>Regra (nota de 0 a ${PQ.max})</span><span>${Object.keys(acoes).length ? 'O que fazer' : ''}</span></div>`
+      + FAIXAS.map(f => `<div class="lv"><span class="nm"><i style="background:${f.c}"></i>${f.l}</span><span>${regra[f.k]}</span><span class="do">${esc(acoes[f.k] || '')}</span></div>`).join('') + '</div>';
   }
 
   function renderQuestions(rows) {

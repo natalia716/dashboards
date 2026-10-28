@@ -157,7 +157,9 @@ A planilha precisa estar como "qualquer pessoa com o link pode ver" e ter `Date`
 
 `planilha` (precisa estar "qualquer pessoa com o link pode ver", com `Date` e `email`), `perguntas` (colunas fechadas
 que viram gráfico), `multipla` (respostas separadas por `;`), `pontos` (pergunta → começo da opção → pontos) e `faixas`
-(`media`: nota mínima; `alta`: nota mínima ou `{ "minimos": { pergunta: pontos } }` — alta só quem cumpre todos os mínimos). Cada resposta é ligada ao lead **pelo e-mail** (o primeiro cadastro dele) e herda
+(`media`: nota mínima; `alta`: nota mínima ou `{ "minimos": { pergunta: pontos } }` — alta só quem cumpre todos os mínimos;
+`baixa` opcional: abaixo dela vira **nula**, assim como quem bate todas as respostas de `nula.combinacao`). `acoes` (o que
+fazer em cada nível) e `notas` (observação por pergunta) aparecem na explicação da régua. Cada resposta é ligada ao lead **pelo e-mail** (o primeiro cadastro dele) e herda
 temperatura, criativo, conjunto e país da campanha; a nota é a soma dos pontos. A aba mostra a qualificação por origem,
 por criativo e por público (conjunto + país da campanha no tráfego, `utm_source · utm_medium` no orgânico), com taxa de
 resposta, % de alta qualificação, % com faturamento ≥ US$ 500 e custo por lead qualificado estimado

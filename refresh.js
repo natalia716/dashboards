@@ -487,9 +487,12 @@ async function fetchPesquisa(leads, leadByEmail) {
   const code = (q, v) => { let k = q.options.indexOf(v); if (k < 0) { k = q.options.length; q.options.push(v); } return k; };
   const pontos = Object.entries(P.pontos || {}).map(([q, m]) => ({ q: normKey(q), i: idx(q), m: Object.entries(m).map(([o, p]) => [normKey(o), p]) }));
   // faixas: "alta" é uma nota mínima ou { "minimos": { pergunta: pontos } } — aí é alta quem cumpre TODOS os mínimos
-  // (a soma sozinha deixaria passar, por exemplo, quem fatura pouco mas tem negócio antigo); "media" é sempre nota mínima
+  // (a soma sozinha deixaria passar, por exemplo, quem fatura pouco mas tem negócio antigo); "media" e "baixa" são notas
+  // mínimas. Com "baixa" no config, abaixo dela é "nula" — e também é nula quem bate TODAS as respostas de
+  // nula.combinacao (pergunta → começo da opção), mesmo com nota maior.
   const faixas = P.faixas || { alta: 6, media: 3 };
   const minimos = faixas.alta && typeof faixas.alta === 'object' ? Object.entries(faixas.alta.minimos || {}).map(([q, p]) => [normKey(q), p]) : null;
+  const combNula = faixas.nula && faixas.nula.combinacao ? Object.entries(faixas.nula.combinacao).map(([q, o]) => [idx(q), normKey(o)]) : null;
   const byEmail = new Map();   // a última resposta de cada e-mail vale
   for (const r of rows.slice(1)) {
     const ts = parseTS(g(r, cTs)); const email = g(r, cEmail).toLowerCase();
@@ -503,7 +506,8 @@ async function fetchPesquisa(leads, leadByEmail) {
     const pts = new Map(pontos.map(p => { const v = normKey(g(r, p.i)); const h = p.m.find(([o]) => v.startsWith(o)); return [p.q, h ? h[1] : 0]; }));
     const nota = [...pts.values()].reduce((s, x) => s + x, 0);
     const alta = minimos ? minimos.every(([q, min]) => (pts.get(q) || 0) >= min) : nota >= faixas.alta;
-    const faixa = alta ? 'alta' : nota >= faixas.media ? 'media' : 'baixa';
+    const nula = faixas.baixa != null && (nota < faixas.baixa || (combNula && combNula.every(([i, o]) => normKey(g(r, i)).startsWith(o))));
+    const faixa = nula ? 'nula' : alta ? 'alta' : nota >= faixas.media ? 'media' : 'baixa';
     const ans = qs.map(q => {
       const v = g(r, q.i);
       if (!v) return null;
@@ -513,7 +517,7 @@ async function fetchPesquisa(leads, leadByEmail) {
   }
   // pontuação para o painel explicar a nota
   const regras = Object.entries(P.pontos || {}).map(([q, m]) => ({ q, opcoes: Object.entries(m) }));
-  return { cols: ['date', 'temp', 'criativo', 'conjunto', 'paisCampanha', 'origem', 'nota', 'faixa'], perguntas: qs.map(q => ({ q: q.q, multi: q.multi, options: q.options })), rows: out, regras, faixas, max: regras.reduce((s, x) => s + Math.max(...x.opcoes.map(o => o[1])), 0), semLead: out.filter(x => x[1] === 'sem_lead').length };
+  return { cols: ['date', 'temp', 'criativo', 'conjunto', 'paisCampanha', 'origem', 'nota', 'faixa'], perguntas: qs.map(q => ({ q: q.q, multi: q.multi, options: q.options })), rows: out, regras, faixas, acoes: P.acoes || null, notas: P.notas || null, max: regras.reduce((s, x) => s + Math.max(...x.opcoes.map(o => o[1])), 0), semLead: out.filter(x => x[1] === 'sem_lead').length };
 }
 
 async function mainCaptacao() {
