@@ -7,6 +7,7 @@
   "ate": "2026-11-09",
   "metaVendas": 1000,
   "vendas": "hotmart",
+  "vendasSemRastreio": "trafego",
   "hotmart": {
     "produtos": ["8811121"]
   }

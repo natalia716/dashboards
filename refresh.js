@@ -419,7 +419,7 @@ async function mainLancamento() {
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
     plataforma: HOTMART ? 'Hotmart' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
-    metaVendas: CFG.metaVendas || null,
+    metaVendas: CFG.metaVendas || null, semRastreio: CFG.vendasSemRastreio === 'trafego' ? 'trafego' : null,
     periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
   });

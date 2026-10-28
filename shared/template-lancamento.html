@@ -534,6 +534,8 @@ const D = /*__DATA__*/{};
   const PLAT = (D && D.summary && D.summary.plataforma) || 'Hubla';  // de onde vêm as vendas
   const OB = !(D && D.summary && D.summary.orderBump === false);     // Hotmart: sem order bump no painel
   if (!OB) document.body.classList.add('sem-ob');
+  // config "vendasSemRastreio": "trafego" — só havia tráfego pago, então venda sem anúncio identificado também é do tráfego
+  const SEM_RASTREIO_TRAFEGO = !!(D && D.summary && D.summary.semRastreio === 'trafego');
 
   /* ---------- temperatura pelo nome do conjunto ---------- */
   const QUENTE = /quente|remarketing|rmkt|retarget|envolv|engaj|lista|lead|visitantes|seguidores|inscritos|warm|hot/i;
@@ -619,7 +621,7 @@ const D = /*__DATA__*/{};
         const ad = adId ? adById.get(adId) : null;
         map.set(k, {
           campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || NAO_ATRIBUIDO,
-          ad_name: ad ? ad.name : PLAT === 'Hotmart' ? 'Não atribuído (sem rastreio do anúncio)' : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
+          ad_name: ad ? ad.name : SEM_RASTREIO_TRAFEGO ? 'Tráfego · anúncio não identificado' : PLAT === 'Hotmart' ?'Não atribuído (sem rastreio do anúncio)' : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
           preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
           spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0,
         });
@@ -689,15 +691,15 @@ const D = /*__DATA__*/{};
 
   /* ---------- funil ---------- */
   function renderFunnel(rows) {
-    // o funil é a jornada do anúncio: entram só as vendas atribuídas a um criativo (com UTM).
-    // As linhas "não atribuído" não têm impressão nem gasto, então tirá-las não muda o topo do funil.
-    const t = sum(rows.filter(r => r.ad_id !== NAO_ATRIBUIDO));
+    // o funil é a jornada do anúncio: entram só as vendas atribuídas a um criativo (com UTM) — ou todas, quando a
+    // venda sem rastreio também é do tráfego. As linhas "não atribuído" não têm impressão nem gasto: o topo não muda.
+    const t = sum(SEM_RASTREIO_TRAFEGO ? rows : rows.filter(r => r.ad_id !== NAO_ATRIBUIDO));
     const st = [
       { l: 'Impressões', v: t.impressions, cl: 'CPM', c: t.cpm, ct: 'Meta Ads' },
       { l: 'Cliques', v: t.link_clicks, cl: 'CPC', c: div(t.spend, t.link_clicks), ct: 'Cliques no link (Meta Ads)' },
-      { l: 'Page View', v: t.lp_views },
+      { l: 'Page View', v: t.lp_views, cl: 'Custo por page view', c: div(t.spend, t.lp_views), ct: 'Visualizações da página de destino (pixel do Meta)' },
       { l: 'Checkout', v: t.checkouts, cl: 'Custo por checkout', c: div(t.spend, t.checkouts), ct: 'Checkouts iniciados (pixel do Meta)' },
-      { l: 'Compra', v: t.sales, cl: 'CPA', c: t.cpa, ct: `Vendas da ${PLAT} vindas do tráfego (com anúncio identificado)` },
+      { l: 'Compra', v: t.sales, cl: 'CPA', c: t.cpa, ct: SEM_RASTREIO_TRAFEGO ? `Vendas da ${PLAT} (todas contam como tráfego)` : `Vendas da ${PLAT} vindas do tráfego (com anúncio identificado)` },
     ];
     const rates = [
       { l: 'CTR', v: t.ctr, t: 'Cliques no link ÷ impressões' },
@@ -1166,7 +1168,7 @@ const D = /*__DATA__*/{};
       // Hotmart: sem debriefing (ele cruza os exports da Hubla) — some a barra de abas
       if (PLAT === 'Hotmart' && !D.debrief) document.querySelector('.tabs').hidden = true;
       const vendas = (D.sales || []).filter(s => s.main !== false), semAnuncio = vendas.filter(s => !s.adId).length;
-      if (PLAT === 'Hotmart' && vendas.length && semAnuncio / vendas.length > .5) {
+      if (PLAT === 'Hotmart' && !SEM_RASTREIO_TRAFEGO && vendas.length && semAnuncio / vendas.length > .5) {
         $('status-pill').textContent = 'Rastreio';
         $('status-text').textContent = `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Hotmart sem o código do anúncio (SCK/xcod). Elas contam nos totais, na meta e nos tickets, mas ficam em "Não atribuído" nos criativos e fora do funil.`;
         $('status').hidden = false;
