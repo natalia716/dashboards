@@ -1125,9 +1125,9 @@ const D = /*__DATA__*/{};
     if (!PQ) return;
     const rows = PQROWS.filter(inPeriod);
     const all = qAgg(rows);
-    // % de alta qualificação entre quem veio dos anúncios, com o orgânico para comparar
+    // alta + média (os dois níveis com contato humano) entre quem veio dos anúncios; "só alta" embaixo
     const paidQ = qAgg(rows.filter(r => PAID.has(r.temp)));
-    const orgQ = qAgg(rows.filter(r => r.temp === 'organico'));
+    const paidAM = paidQ.n ? (paidQ.alta + paidQ.media) / paidQ.n : null;
     const k = (lbl, val, sub, color) => `<div class="card kpi"><div class="lbl">${color ? `<i style="background:${color}"></i>` : ''}${lbl}</div><div class="val num">${val}</div><div class="sub">${sub}</div></div>`;
     const pct = (n, d) => d ? fmtPct1(n / d) : '—';
     $('pqKpis').innerHTML = [
@@ -1138,7 +1138,7 @@ const D = /*__DATA__*/{};
       FAIXAS.some(f => f.k === 'nula')
         ? k('Nula', fmtInt(all.nula), `<span><b>${pct(all.nula, all.n)}</b> das respostas</span>`, 'var(--q-nula)')
         : k('Nota média', fmtNota(all.notaMed), `<span>de 0 a <b>${PQ.max}</b> pontos</span>`),
-      k('Alta no tráfego', fmtPct1(paidQ.pAlta), `<span title="${fmtInt(paidQ.n)} respostas do tráfego">no orgânico: <b>${fmtPct1(orgQ.pAlta)}</b></span>`, 'var(--quente)'),
+      k('Alta + Média no tráfego', fmtPct1(paidAM), `<span title="${fmtInt(paidQ.alta + paidQ.media)} de ${fmtInt(paidQ.n)} respostas do tráfego">só alta: <b>${fmtPct1(paidQ.pAlta)}</b></span>`, 'var(--quente)'),
     ].join('');
 
     // ---- por origem do lead (temperatura) ----
