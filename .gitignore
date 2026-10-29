@@ -21,3 +21,6 @@ clientes/*/vendas/*.csv
 # cache local do wrangler (Cloudflare)
 .wrangler/
 payt/.wrangler/
+
+# arquivos de trabalho locais
+transcricao-aula.md
