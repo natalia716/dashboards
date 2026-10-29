@@ -96,6 +96,7 @@
   .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
   .card-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; }
   .card-head h2 { font-size: 16px; }
+  .card-head .right { color: var(--muted); font-size: 12.5px; font-weight: 500; }
   .card-head .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 
@@ -458,7 +459,7 @@
   </section>
 
   <section class="card" aria-labelledby="h-origem">
-    <div class="card-head"><h2 id="h-origem">De onde vieram os compradores</h2></div>
+    <div class="card-head"><h2 id="h-origem">De onde vieram os compradores</h2><span class="right" id="db-rotulo"></span></div>
     <div class="origem" id="db-origem"></div>
     <div class="aviso" id="db-aviso" hidden></div>
   </section>
@@ -640,8 +641,10 @@ const D = /*__DATA__*/{};
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
   function maxRange() {
-    if (state.periodo && state.periodo.inicio) { // janela fixa do lançamento (config: desde/ate), limitada a hoje
-      const fim = state.periodo.fim && state.periodo.fim < state.until ? state.periodo.fim : state.until;
+    if (state.periodo && state.periodo.inicio) { // janela do lançamento (config: desde/ate)
+      // o fim pode ser uma data futura: o rótulo mostra o lançamento inteiro e os gráficos
+      // param no último dia com dado (ver renderChart)
+      const fim = state.periodo.fim || state.until;
       return [state.periodo.inicio, fim < state.periodo.inicio ? state.periodo.inicio : fim];
     }
     const dates = state.rows.map(r => r.date).sort();
@@ -727,7 +730,11 @@ const D = /*__DATA__*/{};
   function renderChart(rows) {
     const byDay = groupBy(rows, r => r.date);
     const days = [];
-    if (state.from && state.to) for (let d = state.from; d <= state.to; d = addDays(d, 1)) { const t = sum(byDay.get(d) || []); days.push({ date: d, sales: t.sales, bumps: t.bumps, cpa: t.cpa, spend: t.spend }); }
+    // dias futuros do lançamento não entram no eixo: ele termina no último dia com dado (ou hoje)
+    const comDado = [...byDay.keys()].sort().pop();
+    const limite = comDado && comDado > state.until ? comDado : state.until;
+    const fimEixo = state.to < limite ? state.to : limite;
+    if (state.from && state.to) for (let d = state.from; d <= fimEixo; d = addDays(d, 1)) { const t = sum(byDay.get(d) || []); days.push({ date: d, sales: t.sales, bumps: t.bumps, cpa: t.cpa, spend: t.spend }); }
     if (!days.length) { el.chartSvg.innerHTML = '<div class="chart-empty">Sem dados no período.</div>'; return; }
 
     const W = Math.max(320, el.chartSvg.clientWidth || 800);
@@ -1061,6 +1068,7 @@ const D = /*__DATA__*/{};
       card('Período de vendas', d.mba.primeira ? (d.mba.primeira === d.mba.ultima ? fmtDateLong(d.mba.primeira) : fmtDateShort(d.mba.primeira) + ' – ' + fmtDateShort(d.mba.ultima)) : '—', ''),
     ].join('');
 
+    $('db-rotulo').textContent = d.rotulo || '';
     const cruza = d.temWorkshop; // dá para ligar comprador do produto ao comprador do ingresso?
     const c = d.cruzamento, n = Math.max(1, d.mba.vendas);
     const fatias = [

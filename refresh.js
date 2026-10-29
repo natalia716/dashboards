@@ -400,8 +400,11 @@ async function mainLancamento() {
   // versionado em clientes/<cliente>/debrief.json, para o Actions republicar sem os arquivos.
   const gastoPorAdId = {}; let gastoTotal = 0;
   for (const r of insights) { gastoPorAdId[r[3]] = (gastoPorAdId[r[3]] || 0) + r[4]; gastoTotal += r[4]; }
+  // debriefing de um lançamento já encerrado fica congelado: o snapshot não é recalculado
+  // com o gasto do lançamento seguinte (config: "debrief": { "congelado": true })
+  const debriefCongelado = !!(CFG.debrief && CFG.debrief.congelado);
   let debrief = null;
-  if (!HOTMART) try {
+  if (!HOTMART && !debriefCongelado) try {
     debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [], campaigns });
   } catch (e) {
     console.error(`[${slug}] debriefing ignorado: ${e.message}`);
@@ -409,6 +412,7 @@ async function mainLancamento() {
   const snapshot = path.join(DIR, 'debrief.json');
   if (debrief) fs.writeFileSync(snapshot, JSON.stringify(debrief, null, 2) + '\n');
   else if (fs.existsSync(snapshot)) debrief = JSON.parse(fs.readFileSync(snapshot, 'utf8'));
+  if (debrief && CFG.debrief && CFG.debrief.rotulo) debrief.rotulo = CFG.debrief.rotulo;
 
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
   write('debrief.json', debrief);

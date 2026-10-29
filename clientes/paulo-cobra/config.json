@@ -2,9 +2,9 @@
   "nome": "Paulo Cobra",
   "tipo": "lancamento",
   "conta": "act_1268340694877846",
-  "filtroCampanha": "DML|IVML",
-  "desde": "2026-09-19",
-  "ate": null,
+  "filtroCampanha": "WORKSHOP|WORKSOP",
+  "desde": "2026-10-22",
+  "ate": "2026-11-11",
   "temperatura": {
     "quente": "quente|remarketing|rmkt|retarget|envolv|engaj|lista|lead|visitantes|seguidores|inscritos|warm|hot",
     "frio": "frio|cold|interesse|lookalike|lal|aberto|amplo|advantage"
@@ -21,5 +21,9 @@
     "orderBump": [
       "g8j1uhS2CbXfSYIXQHwN"
     ]
+  },
+  "debrief": {
+    "congelado": true,
+    "rotulo": "Lançamento de setembro/outubro (IVML)"
   }
 }
