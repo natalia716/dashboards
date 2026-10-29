@@ -159,7 +159,7 @@ function normKey(v) {
 }
 
 // ---- Meta: campanhas do projeto (as que batem com filtroCampanha) e a data inicial da coleta ----
-async function fetchCampaigns() {
+async function fetchCampaigns(filtro = CAMP_FILTER, desde = SINCE) {
   const allCampaigns = (await graphGetAll(`${ACCOUNT}/campaigns`, {
     fields: 'id,name,status,objective,start_time,stop_time,daily_budget'
   })).map(c => ({
@@ -169,11 +169,11 @@ async function fetchCampaigns() {
     dailyBudget: c.daily_budget ? Number(c.daily_budget) / 100 : null
   }));
   // só campanhas do projeto: batem com filtroCampanha E começaram a partir de `desde` (descarta testes antigos com o mesmo nome)
-  const campaigns = allCampaigns.filter(c => CAMP_FILTER.test(c.name) && (!c.start || c.start >= SINCE));
-  if (!campaigns.length) throw new Error(`nenhuma campanha bate com o filtro "${CFG.filtroCampanha}" (início a partir de ${SINCE}) na conta ${ACCOUNT}`);
+  const campaigns = allCampaigns.filter(c => filtro.test(c.name) && (!c.start || c.start >= desde));
+  if (!campaigns.length) throw new Error(`nenhuma campanha bate com o filtro "${filtro.source}" (início a partir de ${desde}) na conta ${ACCOUNT}`);
   // busca só desde a primeira campanha do projeto (mantém a coleta leve — roda a cada 15 min)
-  const firstStart = campaigns.map(c => c.start).filter(Boolean).sort()[0] || SINCE;
-  const since = firstStart < SINCE ? SINCE : firstStart;
+  const firstStart = campaigns.map(c => c.start).filter(Boolean).sort()[0] || desde;
+  const since = firstStart < desde ? desde : firstStart;
   return { campaigns, since };
 }
 
@@ -352,7 +352,18 @@ async function fetchHublaSales(ads) {
 
 async function mainLancamento() {
   const until = todaySP();
-  const { campaigns, since } = await fetchCampaigns();
+  // `eventos` no config = várias edições do lançamento no mesmo painel; sem ele, um evento só
+  const EVENTOS = (CFG.eventos && CFG.eventos.length ? CFG.eventos : [{
+    id: 'unico', nome: CFG.nome, filtroCampanha: CFG.filtroCampanha,
+    campanhaDesde: SINCE, desde: SINCE, ate: CFG.ate || null,
+  }]);
+  const campaigns = [];
+  let since = null;
+  for (const ev of EVENTOS) {
+    const r = await fetchCampaigns(new RegExp(ev.filtroCampanha, 'i'), ev.campanhaDesde || ev.desde || SINCE);
+    for (const c of r.campaigns) campaigns.push({ ...c, evento: ev.id });
+    if (!since || r.since < since) since = r.since;
+  }
   const campIds = campaigns.map(c => c.id);
 
   // checkout iniciado (pixel) entra como coluna extra; o nome do action_type varia entre contas
@@ -412,7 +423,10 @@ async function mainLancamento() {
   const snapshot = path.join(DIR, 'debrief.json');
   if (debrief) fs.writeFileSync(snapshot, JSON.stringify(debrief, null, 2) + '\n');
   else if (fs.existsSync(snapshot)) debrief = JSON.parse(fs.readFileSync(snapshot, 'utf8'));
-  if (debrief && CFG.debrief && CFG.debrief.rotulo) debrief.rotulo = CFG.debrief.rotulo;
+  if (debrief && CFG.debrief) {
+    if (CFG.debrief.rotulo) debrief.rotulo = CFG.debrief.rotulo;
+    if (CFG.debrief.evento) debrief.evento = CFG.debrief.evento; // a que edição do lançamento ele se refere
+  }
 
   const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
   write('debrief.json', debrief);
@@ -424,7 +438,10 @@ async function mainLancamento() {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
     plataforma: HOTMART ? 'Hotmart' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
     metaVendas: CFG.metaVendas || null, semRastreio: CFG.vendasSemRastreio === 'trafego' ? 'trafego' : null,
-    periodo: { inicio: SINCE, fim: CFG.ate || null }, // janela do lançamento = "Período completo" do painel
+    // uma janela por evento: é o que o painel usa no seletor e no "Período completo"
+    eventos: EVENTOS.map(ev => ({ id: ev.id, nome: ev.nome, inicio: ev.desde, fim: ev.ate || null })),
+    eventoPadrao: CFG.eventoPadrao || EVENTOS[EVENTOS.length - 1].id,
+    periodo: { inicio: EVENTOS[0].desde || SINCE, fim: EVENTOS[EVENTOS.length - 1].ate || null },
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
   });
   for (const w of warnings) console.error(`[${slug}] aviso: ${w}`);

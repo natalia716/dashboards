@@ -101,6 +101,12 @@
 
 
   /* ---- período (menu suspenso: presets + calendário) ---- */
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { background: none; border: 0; border-right: 1px solid var(--line); color: var(--ink-2); padding: 0 14px; min-height: 38px; font-size: 13.5px; cursor: pointer; }
+  .seg button:last-child { border-right: 0; }
+  .seg button:hover { background: var(--surface-2); color: var(--ink); }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+
   .periodWrap { position: relative; }
   .periodBtn {
     display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--ink);
@@ -301,6 +307,7 @@
     </div>
     <div class="top-right">
       <div class="liveline" id="liveline" hidden><span class="pulse" aria-hidden="true"></span><span id="updatedAt">—</span></div>
+    <span class="seg" id="segEvento" role="group" aria-label="Evento" hidden></span>
     <div class="periodWrap">
       <button class="periodBtn" id="periodBtn" aria-haspopup="dialog" aria-expanded="false">
         <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -602,12 +609,17 @@ const D = /*__DATA__*/{};
   function liveData() {
     const cols = D.insights.cols; const ix = {}; cols.forEach((c, i) => ix[c] = i);
     const adById = new Map((D.ads || []).map(a => [a.id, a]));
+    const eventoDaCampanha = new Map((D.campaigns || []).map(c => [c.id, c.evento || null]));
+    const janelas = (D.summary && D.summary.eventos) || [];
+    // venda sem anúncio não tem campanha: cai no evento cuja janela contém a data
+    const eventoDaData = d => (janelas.find(ev => d >= ev.inicio && (!ev.fim || d <= ev.fim)) || {}).id || null;
     const key = (d, a) => d + '|' + a;
     const map = new Map();
     for (const r of D.insights.rows) {
       const ad = adById.get(r[ix.adId]) || {};
       map.set(key(r[ix.date], r[ix.adId]), {
-        campaign_id: r[ix.campaignId], date: r[ix.date], ad_id: r[ix.adId],
+        campaign_id: r[ix.campaignId], evento: eventoDaCampanha.get(r[ix.campaignId]) || eventoDaData(r[ix.date]),
+        date: r[ix.date], ad_id: r[ix.adId],
         ad_name: ad.name || r[ix.adId], adset_name: ad.adsetName || '', temp: ad.temp || undefined,
         preview_url: ad.igUrl || ad.previewUrl || '', thumb: ad.thumb || '',
         spend: r[ix.spend], impressions: r[ix.impressions], link_clicks: r[ix.linkClicks], lp_views: r[ix.pageViews], checkouts: r[ix.checkouts] || 0,
@@ -621,7 +633,9 @@ const D = /*__DATA__*/{};
       if (!map.has(k)) {
         const ad = adId ? adById.get(adId) : null;
         map.set(k, {
-          campaign_id: ad ? ad.campaignId : null, date: s.date, ad_id: adId || NAO_ATRIBUIDO,
+          campaign_id: ad ? ad.campaignId : null,
+          evento: eventoDaData(s.date) || (ad && eventoDaCampanha.get(ad.campaignId)) || null,
+          date: s.date, ad_id: adId || NAO_ATRIBUIDO,
           ad_name: ad ? ad.name : SEM_RASTREIO_TRAFEGO ? 'Tráfego · anúncio não identificado' : PLAT === 'Hotmart' ?'Não atribuído (sem rastreio do anúncio)' : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
           preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '',
           spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0,
@@ -636,11 +650,17 @@ const D = /*__DATA__*/{};
   }
 
   /* ---------- estado ---------- */
-  const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
+  const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, eventos: [], evento: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
   const el = { dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), dbCampanhas: $('db-campanhas'), dbJornada: $('db-jornada'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives'), tickets: $('tickets') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
+  // janela do evento selecionado (cai para o período geral quando o painel tem um evento só)
+  function janelaEvento() {
+    const ev = state.eventos.find(e => e.id === state.evento);
+    return ev ? { inicio: ev.inicio, fim: ev.fim } : state.periodo;
+  }
   function maxRange() {
+    state.periodo = janelaEvento() || state.periodo;
     if (state.periodo && state.periodo.inicio) { // janela do lançamento (config: desde/ate)
       // o fim pode ser uma data futura: o rótulo mostra o lançamento inteiro e os gráficos
       // param no último dia com dado (ver renderChart)
@@ -657,7 +677,8 @@ const D = /*__DATA__*/{};
     if (to < from) to = from;
     return [from, to];
   }
-  function applyPreset() {
+  function applyPreset(forcar) {
+    if (forcar) state.preset = forcar;
     const p = state.preset, U = state.until;
     if (p === 'max') [state.from, state.to] = maxRange();
     else if (p === 'today') { state.from = U; state.to = U; }
@@ -666,7 +687,9 @@ const D = /*__DATA__*/{};
   }
 
   /* ---------- agregação ---------- */
-  const filteredRows = () => state.rows.filter(r => r.date >= state.from && r.date <= state.to);
+  const filteredRows = () => state.rows.filter(r =>
+    r.date >= state.from && r.date <= state.to &&
+    (!state.evento || !r.evento || r.evento === state.evento));
   function sum(rows) {
     const t = { spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0 };
     for (const r of rows) for (const k in t) t[k] += Number(r[k]) || 0;
@@ -1055,8 +1078,8 @@ const D = /*__DATA__*/{};
       $('db-status').hidden = false;
       return;
     }
-    // ROAS geral: faturamento do workshop (todo o período) + do produto final, sobre o gasto total
-    const tudo = sum(state.rows);
+    // ROAS geral: faturamento do workshop + do produto final sobre o gasto, só do evento do debriefing
+    const tudo = sum(d.evento ? state.rows.filter(r => r.evento === d.evento) : state.rows);
     const receitaTotal = tudo.revenue + d.mba.receita;
     const card = (lbl, val, sub) => `<div class="card kpi"><div class="lbl">${lbl}</div><div class="val num">${val}</div>${sub ? `<div class="sub"><span>${sub}</span></div>` : ''}</div>`;
     kpis.innerHTML = [
@@ -1144,6 +1167,24 @@ const D = /*__DATA__*/{};
     }
   }
 
+  // Um botão por edição do lançamento. Trocar de evento troca o conjunto de campanhas
+  // e leva o período de volta para a janela daquele evento.
+  function initEventos() {
+    const seg = $('segEvento');
+    if (state.eventos.length < 2) { seg.hidden = true; return; }
+    seg.hidden = false;
+    seg.innerHTML = state.eventos.map(ev =>
+      `<button data-ev="${esc(ev.id)}" class="${ev.id === state.evento ? 'on' : ''}" title="${fmtDate(ev.inicio)} – ${ev.fim ? fmtDate(ev.fim) : 'hoje'}">${esc(ev.nome)}</button>`).join('');
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      state.evento = b.dataset.ev;
+      for (const x of seg.children) x.classList.toggle('on', x === b);
+      try { localStorage.setItem('ato-evento', state.evento); } catch (err) {}
+      applyPreset('max');
+      renderAll();
+    });
+  }
+
   function initTabs() {
     const abas = [['tab-trafego', 'painel-trafego'], ['tab-debrief', 'painel-debrief']];
     const mostrar = alvo => {
@@ -1168,6 +1209,14 @@ const D = /*__DATA__*/{};
     const data = hasData ? liveData() : exampleData();
     state.live = data.live; state.campaigns = data.campaigns; state.until = data.until;
     state.periodo = hasData ? (D.summary.periodo || null) : null;
+    state.eventos = hasData ? (D.summary.eventos || []) : [];
+    state.evento = state.eventos.length > 1
+      ? ((() => { try { return localStorage.getItem('ato-evento'); } catch (e) { return null; } })() || null)
+      : null;
+    if (!state.eventos.some(e => e.id === state.evento)) {
+      state.evento = state.eventos.length > 1 ? (hasData && D.summary.eventoPadrao) || state.eventos[state.eventos.length - 1].id : null;
+    }
+    initEventos();
     state.rows = data.rows.sort((a, b) => a.date.localeCompare(b.date));
     if (hasData) {
       const up = new Date(D.summary.updatedAt);
