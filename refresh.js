@@ -302,7 +302,7 @@ function saleDateSP(iso) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
 }
 
-async function fetchHublaSales(ads) {
+async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   if (!CFG.hubla || !CFG.hubla.planilha || !CFG.hubla.planilha.id) return null;
   const csvText = await (await fetch(sheetCsvUrl(CFG.hubla.planilha), { redirect: 'follow' })).text();
   const rows = parseCSV(csvText);
@@ -323,7 +323,12 @@ async function fetchHublaSales(ads) {
   const byInvoice = new Map();
   for (const r of rows.slice(1)) { const id = g(r, col.invoice); if (id) byInvoice.set(id, r); }
 
-  const adByName = new Map(ads.map(a => [normKey(a.name), a.id]));
+  const adsPorNome = new Map();
+  for (const a of ads) {
+    const k = normKey(a.name);
+    if (!adsPorNome.has(k)) adsPorNome.set(k, []);
+    adsPorNome.get(k).push(a);
+  }
   const adIds = new Set(ads.map(a => a.id));
   const sales = [];
   for (const [invoiceId, r] of byInvoice) {
@@ -344,7 +349,20 @@ async function fetchHublaSales(ads) {
     // utm_content chega como "NOME-DO-ANUNCIO|<ad id>::<rastreio do Facebook>" (ou só o nome, ou só o id)
     const uct = decode(g(r, col.uct)).split('::')[0].trim();
     const partes = uct.split('|').map(x => x.trim()).filter(Boolean);
-    const adId = partes.map(x => adIds.has(x) ? x : adByName.get(normKey(x))).find(Boolean) || null;
+    // O ID vem primeiro: o mesmo criativo roda em campanhas de temperaturas diferentes com o
+    // mesmo NOME, então casar pelo nome creditava a venda ao anúncio errado (ex.: venda de
+    // público quente marcada como fria). O nome só entra quando nenhuma parte é um id conhecido.
+    let adId = partes.find(x => adIds.has(x)) || null;
+    if (!adId) {
+      const candidatos = partes.flatMap(x => adsPorNome.get(normKey(x)) || []);
+      if (candidatos.length === 1) adId = candidatos[0].id;
+      else if (candidatos.length > 1) {
+        // nome ambíguo: fica com quem entregou no dia da venda; sem isso, com o anúncio mais novo
+        const noDia = candidatos.filter(a => entregaNoDia.has(a.id + '|' + date));
+        const escolha = (noDia.length ? noDia : candidatos).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
+        adId = escolha.id;
+      }
+    }
     sales.push({ date, invoiceId, adId, main, bump, customerId: g(r, col.customer) || null, emailHash: (g(r, col.emailHash) || '').toLowerCase() || null, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
   }
   return sales;
@@ -387,7 +405,9 @@ async function mainLancamento() {
 
   // ---- vendas: Hubla (planilha do webhook) ou Hotmart (API) ----
   const HOTMART = CFG.vendas === 'hotmart';
-  const sales = HOTMART ? await fetchHotmartLaunchSales(ads, until) : await fetchHublaSales(ads);
+  // quem entregou em cada dia: desempata venda cujo utm_content só traz o nome do criativo
+  const entregaNoDia = new Set(insights.filter(r => r[5] > 0 || r[4] > 0).map(r => r[3] + '|' + r[0]));
+  const sales = HOTMART ? await fetchHotmartLaunchSales(ads, until) : await fetchHublaSales(ads, entregaNoDia);
 
   // ---- câmbio: conta fora do real (ex.: USD) tem o gasto convertido pela PTAX de venda do dia ----
   const CACHE = path.join(OUT, 'cache');
