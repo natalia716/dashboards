@@ -8,7 +8,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 
 | Cliente | Tipo | Endereço |
 |---|---|---|
-| O Mundo Clínico | leads | https://dash.atodigital.com.br/omundoclinico |
+| O Mundo Clínico | leads | **suspenso** desde 07/11/2026 (saiu da operação) |
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 | Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
 | Chef Bernadete | criativos (Payt) | **suspenso** desde 07/11/2026 (saiu da operação) |
