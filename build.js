@@ -139,6 +139,9 @@ function buildRoot() {
   fs.writeFileSync(path.join(PUBLIC, '.nojekyll'), '');
 }
 
-const clients = only ? [only] : fs.readdirSync(path.join(here, 'clientes')).filter(d => fs.existsSync(path.join(here, 'clientes', d, 'config.json')));
+const cfgOf = d => JSON.parse(fs.readFileSync(path.join(here, 'clientes', d, 'config.json'), 'utf8'));
+// "suspenso" no config: a página sai do site (o Actions publica public/ do zero a cada execução)
+const clients = (only ? [only] : fs.readdirSync(path.join(here, 'clientes')).filter(d => fs.existsSync(path.join(here, 'clientes', d, 'config.json'))))
+  .filter(d => { const s = cfgOf(d).suspenso; if (s) console.log(`[${d}] suspenso desde ${s} — página não publicada`); return !s; });
 for (const c of clients) buildClient(c);
 if (!FULL && !only) buildRoot();

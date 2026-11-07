@@ -11,7 +11,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 | O Mundo Clínico | leads | https://dash.atodigital.com.br/omundoclinico |
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 | Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
-| Chef Bernadete | criativos (Payt) | https://dash.atodigital.com.br/chefbernadete |
+| Chef Bernadete | criativos (Payt) | **suspenso** desde 07/11/2026 (saiu da operação) |
 | Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia |
 | Ghenady Tec (Semana Diagnóstico Android, OUT-26) | lançamento (Hotmart) | https://dash.atodigital.com.br/ghenady |
 
@@ -206,6 +206,12 @@ pode levar horas para a primeira. Para garantir os 15 minutos, um cron externo c
    *Request body*: `{"ref":"main"}`. Salve e use *Run now* — a resposta esperada é **HTTP 204**.
 
 Os dois gatilhos podem coexistir: o `concurrency` do workflow impede execuções sobrepostas.
+
+## Suspender um cliente
+
+Cliente que saiu da operação: acrescente `"suspenso": "AAAA-MM-DD"` no `config.json`. O refresh não coleta mais nada
+dele e o build não gera a página — como o Actions publica `public/` do zero, o endereço sai do ar na execução seguinte.
+Config, histórico de vendas e cache ficam guardados: para reativar, basta apagar a linha.
 
 ## Rodar localmente
 

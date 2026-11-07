@@ -19,6 +19,8 @@ const DIR = path.join(__dirname, 'clientes', slug);
 const CFG_PATH = path.join(DIR, 'config.json');
 if (!fs.existsSync(CFG_PATH)) { console.error(`ERRO: não existe ${CFG_PATH}`); process.exit(1); }
 const CFG = JSON.parse(fs.readFileSync(CFG_PATH, 'utf8'));
+// cliente que saiu da operação: "suspenso": "AAAA-MM-DD" no config — não coleta nada (e o build não publica a página)
+if (CFG.suspenso) { console.log(`[${slug}] suspenso desde ${CFG.suspenso} — sem coleta`); process.exit(0); }
 
 loadDotEnv();
 const TOKEN = process.env['META_TOKEN_' + slug.toUpperCase().replace(/-/g, '_')] || process.env.META_TOKEN;
