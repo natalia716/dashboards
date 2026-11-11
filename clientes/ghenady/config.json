@@ -2,13 +2,32 @@
   "nome": "Ghenady Tec · Semana Diagnóstico Android",
   "tipo": "lancamento",
   "conta": "act_983223520934514",
-  "filtroCampanha": "OUT-26",
   "desde": "2026-10-27",
-  "ate": "2026-11-09",
-  "metaVendas": 1000,
   "vendas": "hotmart",
   "vendasSemRastreio": "trafego",
   "hotmart": {
     "produtos": ["8811121"]
-  }
+  },
+  "eventosPorData": true,
+  "eventos": [
+    {
+      "id": "l1",
+      "nome": "1º Lançamento",
+      "filtroCampanha": "OUT-26",
+      "campanhaDesde": "2026-10-27",
+      "desde": "2026-10-27",
+      "ate": "2026-11-09",
+      "metaVendas": 1000
+    },
+    {
+      "id": "l2",
+      "nome": "2º Lançamento",
+      "filtroCampanha": "SMDA",
+      "campanhaDesde": "2026-10-27",
+      "desde": "2026-11-10",
+      "ate": null,
+      "metaVendas": null
+    }
+  ],
+  "eventoPadrao": "l2"
 }

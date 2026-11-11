@@ -618,7 +618,8 @@ const D = /*__DATA__*/{};
     for (const r of D.insights.rows) {
       const ad = adById.get(r[ix.adId]) || {};
       map.set(key(r[ix.date], r[ix.adId]), {
-        campaign_id: r[ix.campaignId], evento: eventoDaCampanha.get(r[ix.campaignId]) || eventoDaData(r[ix.date]),
+        campaign_id: r[ix.campaignId],
+        evento: D.summary.eventosPorData ? eventoDaData(r[ix.date]) : eventoDaCampanha.get(r[ix.campaignId]) || eventoDaData(r[ix.date]),
         date: r[ix.date], ad_id: r[ix.adId],
         ad_name: ad.name || r[ix.adId], adset_name: ad.adsetName || '', temp: ad.temp || undefined,
         preview_url: ad.igUrl || ad.previewUrl || '', thumb: ad.thumb || '',
@@ -899,7 +900,8 @@ const D = /*__DATA__*/{};
 
   /* ---------- meta de ingressos: sempre o lançamento inteiro (não segue o seletor de período) ---------- */
   function renderGoal() {
-    const meta = state.live && D.summary.metaVendas;
+    const ev = state.eventos.find(e => e.id === state.evento);
+    const meta = state.live && (ev ? ev.metaVendas : D.summary.metaVendas);
     $('sec-meta').hidden = !meta;
     if (!meta) return;
     const p = state.periodo || {};

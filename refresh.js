@@ -381,7 +381,8 @@ async function mainLancamento() {
   let since = null;
   for (const ev of EVENTOS) {
     const r = await fetchCampaigns(new RegExp(ev.filtroCampanha, 'i'), ev.campanhaDesde || ev.desde || SINCE);
-    for (const c of r.campaigns) campaigns.push({ ...c, evento: ev.id });
+    // a mesma campanha pode servir a dois eventos (ver "eventosPorData"): fica com o primeiro
+    for (const c of r.campaigns) if (!campaigns.some(x => x.id === c.id)) campaigns.push({ ...c, evento: ev.id });
     if (!since || r.since < since) since = r.since;
   }
   const campIds = campaigns.map(c => c.id);
@@ -461,7 +462,9 @@ async function mainLancamento() {
     plataforma: HOTMART ? 'Hotmart' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
     metaVendas: CFG.metaVendas || null, semRastreio: CFG.vendasSemRastreio === 'trafego' ? 'trafego' : null,
     // uma janela por evento: é o que o painel usa no seletor e no "Período completo"
-    eventos: EVENTOS.map(ev => ({ id: ev.id, nome: ev.nome, inicio: ev.desde, fim: ev.ate || null })),
+    eventos: EVENTOS.map(ev => ({ id: ev.id, nome: ev.nome, inicio: ev.desde, fim: ev.ate || null, metaVendas: ev.metaVendas !== undefined ? ev.metaVendas : CFG.metaVendas || null })),
+    // "eventosPorData": true = as mesmas campanhas seguem de um evento para o outro; o gasto vai para o evento pela data
+    eventosPorData: !!CFG.eventosPorData,
     eventoPadrao: CFG.eventoPadrao || EVENTOS[EVENTOS.length - 1].id,
     periodo: { inicio: EVENTOS[0].desde || SINCE, fim: EVENTOS[EVENTOS.length - 1].ate || null },
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
