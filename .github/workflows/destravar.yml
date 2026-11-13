@@ -40,9 +40,13 @@ jobs:
             while read -r id inicio; do
               if [ "$(date -u -d "$inicio" +%s)" -lt "$limite" ]; then
                 echo "::warning::execução $id presa em $status desde $inicio — cancelando"
-                # cancelamento normal; se o GitHub não conseguir (job que nunca começou), força
+                # cancelamento normal; se o GitHub não conseguir (job que nunca começou), força.
+                # Se ele recusar os dois (ex.: 43096018376, "queued" sem nenhum job desde 11/11/2026, com HTTP 409
+                # no cancel/force-cancel e 403 no delete), é registro fantasma que não segura a fila: só avisa,
+                # sem falhar o workflow — senão chega e-mail de falha a cada 30 min.
                 gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null 2>&1 ||
-                  gh api -X POST "repos/$REPO/actions/runs/$id/force-cancel" >/dev/null
+                  gh api -X POST "repos/$REPO/actions/runs/$id/force-cancel" >/dev/null 2>&1 ||
+                  echo "::notice::GitHub recusou cancelar $id (registro fantasma) — ignorado"
               fi
             done
           done
