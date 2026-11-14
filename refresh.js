@@ -232,8 +232,7 @@ async function mainLeads() {
   }));
 
   // ---- Planilha de leads ----
-  const csvText = await (await fetch(SHEET_CSV, { redirect: 'follow' })).text();
-  const rows = parseCSV(csvText);
+  const rows = await fetchSheetRows(SHEET_CSV);
   if (!rows.length) throw new Error('planilha vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
   const header = rows[0].map(h => h.trim());
   const idx = name => header.findIndex(h => normKey(h) === normKey(name));
@@ -550,6 +549,23 @@ async function fxRates(de, para, dates) {
   return d => { let k = known[0]; for (const x of known) if (x <= d) k = x; return cache[k]; };
 }
 
+// CSV de uma planilha do Google com até 3 tentativas: o export às vezes devolve erro ou a página de login por instantes
+// (aconteceu em 14/11/2026 com a pesquisa da Emilia) e uma falha momentânea não pode derrubar a rodada de todos os clientes
+async function fetchSheetRows(url) {
+  let last = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { redirect: 'follow' });
+      if (res.ok) {
+        last = parseCSV(await res.text());
+        if (last.length && !/<html/i.test(last[0].join(''))) return last;
+      }
+    } catch (e) { /* tenta de novo */ }
+    await sleep(2000 * (attempt + 1));
+  }
+  return last;
+}
+
 // país-alvo da campanha: a última tag do nome ("…[PAG-A][UY]" → "UY")
 const campTag = name => { const t = (decode(name || '').match(/\[([^\]]+)\]/g) || []).pop(); return t ? t.slice(1, -1).trim().toUpperCase() : null; };
 
@@ -558,7 +574,7 @@ const campTag = name => { const t = (decode(name || '').match(/\[([^\]]+)\]/g) |
 //      Nota = soma dos pontos das respostas (config "pontos", casando pelo começo da opção); faixa alta/média/baixa pela nota.
 async function fetchPesquisa(leads, leadByEmail) {
   const P = CFG.pesquisa;
-  const rows = parseCSV(await (await fetch(sheetCsvUrl(P.planilha), { redirect: 'follow' })).text());
+  const rows = await fetchSheetRows(sheetCsvUrl(P.planilha));
   if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha da pesquisa vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
   const header = rows[0].map(h => h.trim());
   const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
@@ -653,8 +669,7 @@ async function mainCaptacao() {
   for (const a of ads) if (a.temp) (tempsByName.get(normKey(a.name)) || tempsByName.set(normKey(a.name), new Set()).get(normKey(a.name))).add(a.temp);
 
   // ---- Planilha de leads ----
-  const csvText = await (await fetch(SHEET_CSV, { redirect: 'follow' })).text();
-  const rows = parseCSV(csvText);
+  const rows = await fetchSheetRows(SHEET_CSV);
   if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
   const header = rows[0].map(h => h.trim());
   const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
@@ -698,7 +713,20 @@ async function mainCaptacao() {
   write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'metaLeads', 'views3s'], rows: insights });
   write('ads.json', { rows: ads });
   write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo', 'pagina', 'conjunto', 'paisCampanha'], rows: leads });
-  const pesquisa = CFG.pesquisa ? await fetchPesquisa(leads, leadByEmail) : null;
+  // pesquisa fora do ar: o painel sai com a da última coleta (out/cache, só respostas fechadas, sem e-mail) em vez de
+  // derrubar a rodada; sem cache, sai sem a aba de pesquisa nesta rodada
+  let pesquisa = null;
+  if (CFG.pesquisa) {
+    const cacheFile = path.join(OUT, 'cache', 'pesquisa.json');
+    try {
+      pesquisa = await fetchPesquisa(leads, leadByEmail);
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify(pesquisa));
+    } catch (e) {
+      pesquisa = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
+      console.log(`::warning::[${slug}] pesquisa não atualizou (${e.message})${pesquisa ? ' — mantida a da última coleta' : ' — painel sem pesquisa nesta rodada'}`);
+    }
+  }
   write('pesquisa.json', pesquisa);
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, currency: moeda, contaMoeda,
