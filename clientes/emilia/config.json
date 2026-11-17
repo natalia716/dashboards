@@ -14,6 +14,12 @@
     "id": "1dymPgBYsR8GZ7w-Ibhd7vI7_3wKRi5Aodt0537Irn98",
     "gid": "0"
   },
+  "vendas": {
+    "planilha": {
+      "id": "1RTUvrykLWOzGbQziUqCfgaO5LRCm_xh5yfSxgCe4LAw",
+      "gid": null
+    }
+  },
   "pesquisa": {
     "planilha": {
       "id": "1wfmVLdJZDbHo9kJLtWjhszVOeQfFT_iB3n32s2VK6I8",
@@ -29,21 +35,64 @@
       "Qué frena su crecimiento",
       "Hace cuánto tiene la traba"
     ],
-    "multipla": ["Qué frena su crecimiento"],
+    "multipla": [
+      "Qué frena su crecimiento"
+    ],
     "pontos": {
-      "Hace cuánto me sigue": { "Recién te conocí": 0, "Hace más de 3 meses": 3, "Hace más de 6 meses": 4, "Hace más de 1 año": 5 },
-      "Facturación mensual": { "Menos de USD 500": 0, "USD 500 a 1.000": 1, "USD 1.000 a 2.500": 2, "USD 2.500 a 5.000": 3, "USD 5.000 a 10.000": 3, "Más de USD 10.000": 3 },
-      "Etapa del negocio": { "Estoy empezando": 0, "Ya tengo clientes": 1, "Vendo todos los meses": 2, "Mi negocio funciona": 2 },
-      "Antigüedad del negocio": { "Todavía estoy empezando": 0, "3 a 6 meses": 0, "6 a 12 meses": 1, "1 a 2 años": 1, "Más de 2 años": 1 },
-      "País": { "Uruguay": 1, "Cualquier otro país": 0 },
-      "Ante un problema": { "Compro cursos": 1, "Busco mentoría": 1, "Contrato a alguien": 1, "Pregunto a otras": 0, "Voy probando": 0, "Busco contenido gratuito": 0 }
+      "Hace cuánto me sigue": {
+        "Recién te conocí": 0,
+        "Hace más de 3 meses": 3,
+        "Hace más de 6 meses": 4,
+        "Hace más de 1 año": 5
+      },
+      "Facturación mensual": {
+        "Menos de USD 500": 0,
+        "USD 500 a 1.000": 1,
+        "USD 1.000 a 2.500": 2,
+        "USD 2.500 a 5.000": 3,
+        "USD 5.000 a 10.000": 3,
+        "Más de USD 10.000": 3
+      },
+      "Etapa del negocio": {
+        "Estoy empezando": 0,
+        "Ya tengo clientes": 1,
+        "Vendo todos los meses": 2,
+        "Mi negocio funciona": 2
+      },
+      "Antigüedad del negocio": {
+        "Todavía estoy empezando": 0,
+        "3 a 6 meses": 0,
+        "6 a 12 meses": 1,
+        "1 a 2 años": 1,
+        "Más de 2 años": 1
+      },
+      "País": {
+        "Uruguay": 1,
+        "Cualquier otro país": 0
+      },
+      "Ante un problema": {
+        "Compro cursos": 1,
+        "Busco mentoría": 1,
+        "Contrato a alguien": 1,
+        "Pregunto a otras": 0,
+        "Voy probando": 0,
+        "Busco contenido gratuito": 0
+      }
     },
-    "notas": { "Hace cuánto me sigue": "A que mais pesa: foi o que mais previu a compra em 2025." },
+    "notas": {
+      "Hace cuánto me sigue": "A que mais pesa: foi o que mais previu a compra em 2025."
+    },
     "faixas": {
       "alta": 8,
       "media": 5,
       "baixa": 3,
-      "nula": { "combinacao": { "Hace cuánto me sigue": "Recién te conocí", "Facturación mensual": "Menos de USD 500", "Etapa del negocio": "Estoy empezando" } }
+      "nula": {
+        "combinacao": {
+          "Hace cuánto me sigue": "Recién te conocí",
+          "Facturación mensual": "Menos de USD 500",
+          "Etapa del negocio": "Estoy empezando"
+        }
+      }
     },
     "acoes": {
       "alta": "Contato de uma closer antes de 12/11.",

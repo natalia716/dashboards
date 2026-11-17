@@ -566,13 +566,46 @@ async function fetchSheetRows(url) {
   return last;
 }
 
-// país-alvo da campanha: a última tag do nome ("…[PAG-A][UY]" → "UY")
-const campTag = name => { const t = (decode(name || '').match(/\[([^\]]+)\]/g) || []).pop(); return t ? t.slice(1, -1).trim().toUpperCase() : null; };
+// país-alvo da campanha: a última tag que é um país ("…[PAG-A][UY]" → "UY", "…[PAG-B][CHILE][ESCALA]" → "CHILE");
+// sem tag de país, a última tag do nome
+const PAIS_TAGS = new Set(['UY', 'URU', 'ARG', 'AR', 'CHILE', 'CL', 'MEX', 'MX', 'ESP', 'ES', 'EUA', 'USA', 'CO', 'COL', 'PE', 'PERU', 'EC', 'BR', 'PY', 'BO', 'VE', 'PA', 'CR']);
+const campTag = name => {
+  const t = (decode(name || '').match(/\[([^\]]+)\]/g) || []).map(x => x.slice(1, -1).trim().toUpperCase());
+  return t.filter(x => PAIS_TAGS.has(x)).pop() || t.pop() || null;
+};
 
 // ---- Pesquisa de qualificação: cada resposta é ligada ao lead pelo e-mail (o primeiro cadastro dele) e herda temperatura,
 //      criativo, conjunto e país da campanha. Só as perguntas fechadas do config saem daqui (nada de texto livre nem e-mail).
 //      Nota = soma dos pontos das respostas (config "pontos", casando pelo começo da opção); faixa alta/média/baixa pela nota.
-async function fetchPesquisa(leads, leadByEmail) {
+// ---- Vendas do lançamento (debriefing): planilha das closers, uma linha por venda. Cada compradora é ligada ao lead pelo
+//      e-mail (o primeiro cadastro dela, como no resto do painel) e à faixa da pesquisa. Sai uma linha por compradora SEM
+//      nome, e-mail, telefone, links ou closer: [valor US$, temperatura, criativo, conjunto, país da campanha, origem orgânica,
+//      faixa da pesquisa, país do lead, aluna 0/1]. E-mail repetido = a mesma compradora (conta uma vez).
+async function fetchVendas(leads, leadByEmail, faixaByEmail) {
+  const rows = await fetchSheetRows(sheetCsvUrl(CFG.vendas.planilha));
+  if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha de vendas vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
+  const header = rows[0].map(h => normKey(h));
+  const col = re => header.findIndex(h => re.test(h));
+  const cEmail = col(/e-?mail/), cValor = col(/precio|preco|valor|price/), cAluna = col(/alumna|aluna/);
+  if (cEmail < 0 || cValor < 0) throw new Error('planilha de vendas sem as colunas de e-mail e preço');
+  const seen = new Set();
+  const out = [];
+  let repetidas = 0;
+  for (const r of rows.slice(1)) {
+    const email = String(r[cEmail] || '').trim().toLowerCase();
+    if (!email) continue;
+    if (seen.has(email)) { repetidas++; continue; }
+    seen.add(email);
+    const usd = parseFloat(String(r[cValor] || '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '')) || 0;
+    const li = leadByEmail.get(email);
+    const l = li != null ? leads[li] : null;
+    out.push([usd, l ? l[2] : 'sem_lead', l ? l[5] : null, l ? l[7] : null, l ? l[8] : null, l ? l[4] : null,
+      faixaByEmail ? (faixaByEmail.get(email) || 'sem_resposta') : null, l ? l[3] : null, cAluna >= 0 && /^si|^sim/i.test(normKey(r[cAluna])) ? 1 : 0]);
+  }
+  return { cols: ['usd', 'temp', 'criativo', 'conjunto', 'paisCampanha', 'origem', 'faixa', 'pais', 'aluna'], rows: out, repetidas };
+}
+
+async function fetchPesquisa(leads, leadByEmail, faixaByEmail) {
   const P = CFG.pesquisa;
   const rows = await fetchSheetRows(sheetCsvUrl(P.planilha));
   if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha da pesquisa vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
@@ -615,6 +648,7 @@ async function fetchPesquisa(leads, leadByEmail) {
       return q.multi ? [...new Set(v.split(';').map(s => opt(s.trim())).filter(Boolean))].map(s => code(q, s)) : code(q, opt(v));
     });
     out.push([ts.date, l ? l[2] : 'sem_lead', l ? l[5] : null, l ? l[7] : null, l ? l[8] : null, l ? l[4] : null, nota, faixa, ...ans]);
+    if (faixaByEmail && typeof email === 'string' && email) faixaByEmail.set(email, faixa);
   }
   // pontuação para o painel explicar a nota
   const regras = Object.entries(P.pontos || {}).map(([q, m]) => ({ q, opcoes: Object.entries(m) }));
@@ -716,10 +750,11 @@ async function mainCaptacao() {
   // pesquisa fora do ar: o painel sai com a da última coleta (out/cache, só respostas fechadas, sem e-mail) em vez de
   // derrubar a rodada; sem cache, sai sem a aba de pesquisa nesta rodada
   let pesquisa = null;
+  const faixaByEmail = new Map();   // só para o debriefing: e-mail → faixa da pesquisa (não sai do refresh)
   if (CFG.pesquisa) {
     const cacheFile = path.join(OUT, 'cache', 'pesquisa.json');
     try {
-      pesquisa = await fetchPesquisa(leads, leadByEmail);
+      pesquisa = await fetchPesquisa(leads, leadByEmail, faixaByEmail);
       fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
       fs.writeFileSync(cacheFile, JSON.stringify(pesquisa));
     } catch (e) {
@@ -728,6 +763,20 @@ async function mainCaptacao() {
     }
   }
   write('pesquisa.json', pesquisa);
+  // vendas (debriefing): mesma regra da pesquisa — fora do ar, fica a da última coleta
+  let vendas = null;
+  if (CFG.vendas && CFG.vendas.planilha) {
+    const cacheFile = path.join(OUT, 'cache', 'vendas.json');
+    try {
+      vendas = await fetchVendas(leads, leadByEmail, CFG.pesquisa ? faixaByEmail : null);
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify(vendas));
+    } catch (e) {
+      vendas = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
+      console.log(`::warning::[${slug}] vendas não atualizaram (${e.message})${vendas ? ' — mantidas as da última coleta' : ' — painel sem debriefing nesta rodada'}`);
+    }
+  }
+  write('vendas.json', vendas);
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, currency: moeda, contaMoeda,
     since, until, cadastros, lancamento: CFG.lancamento || null, metas: CFG.metas || null

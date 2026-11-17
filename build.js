@@ -59,6 +59,8 @@ function buildClient(slug) {
       leads: json('leads.json').rows,
       // respostas fechadas da pesquisa já ligadas ao lead (sem e-mail nem texto livre)
       pesquisa: fs.existsSync(path.join(dir, 'out', 'pesquisa.json')) ? json('pesquisa.json') : null,
+      // vendas do debriefing: uma linha por compradora, sem nome/e-mail/telefone
+      vendas: fs.existsSync(path.join(dir, 'out', 'vendas.json')) ? json('vendas.json') : null,
     };
     const html = templateCaptacao
       .split('{{NOME}}').join(esc(cfg.nome))

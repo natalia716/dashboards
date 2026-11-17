@@ -128,6 +128,11 @@
   .qrow .qbar { height: 22px; }
   table.qtbl { min-width: 1100px; }
   table.qtbl.org { min-width: 900px; }
+  table.dbt { min-width: 860px; }
+  table.dbt.org { min-width: 640px; }
+  .viewNote { margin: 0; color: var(--muted); font-size: 12.5px; }
+  .dbMore { margin: 0 22px 16px; }
+  .dbMore:empty { display: none; }
   table.qtbl td:first-child { min-width: 300px; }
   table.qtbl td.bar { min-width: 180px; }
   .qgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 36px; padding: 6px 22px 20px; }
@@ -353,7 +358,7 @@
     .tempRow > :nth-child(4) { display: none; }
     /* tabelas → cards: primeira coluna em cima, métricas em grade de 3 com o nome da coluna acima do valor */
     .tbl-wrap { padding: 4px 0 0; overflow: visible; }
-    table.resp, table.resp.pages, table.resp.qtbl { min-width: 0; }
+    table.resp, table.resp.pages, table.resp.qtbl, table.resp.qtbl.org, table.resp.dbt, table.resp.dbt.org { min-width: 0; }
     table.resp thead { display: none; }
     table.resp tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
     table.resp td { display: block; padding: 0; border: 0; text-align: left; white-space: normal; min-width: 0; font-weight: 600; font-size: 13.5px; }
@@ -433,7 +438,7 @@
       <a href="#captacao" role="tab" data-tab="captacao">Captação</a>
       <a href="#pesquisa" role="tab" data-tab="pesquisa">Pesquisa</a>
       <span role="tab" aria-disabled="true" title="Em breve">Remarketing</span>
-      <span role="tab" aria-disabled="true" title="Em breve">Debriefing</span>
+      <a href="#debriefing" role="tab" data-tab="debriefing">Debriefing</a>
     </div>
   </nav>
 </header>
@@ -565,6 +570,46 @@
     <div class="card-head"><h2 id="h-pqrule">Como a qualificação é calculada</h2></div>
     <div class="rules" id="pqRules"></div>
   </section>
+</div>
+
+<div class="view" data-view="debriefing" hidden>
+  <div class="card" id="dbOff" hidden><div class="empty">Planilha de vendas ainda não conectada.</div></div>
+  <p class="viewNote">Acumulado do lançamento: o filtro de período não vale para esta aba. Cada compradora conta pelo primeiro cadastro dela na captação; vendas com o mesmo e-mail contam uma vez.</p>
+  <section class="kpis" id="dbKpis" aria-label="Resumo das vendas"></section>
+
+  <section class="card" aria-labelledby="h-dborig">
+    <div class="card-head"><h2 id="h-dborig">Vendas por origem</h2></div>
+    <div class="tbl-wrap"><table class="resp dbt"><thead><tr id="dbOrigHead"></tr></thead><tbody id="dbOrigBody"></tbody></table></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-dbseg">
+    <div class="card-head"><h2 id="h-dbseg">Vendas por público do tráfego</h2><span class="count" id="dbSegCount"></span></div>
+    <div class="tbl-wrap"><table class="resp dbt"><thead><tr id="dbSegHead"></tr></thead><tbody id="dbSegBody"></tbody></table></div>
+    <button class="more dbMore" id="dbSegMore"></button>
+  </section>
+
+  <section class="card" aria-labelledby="h-dbads">
+    <div class="card-head"><h2 id="h-dbads">Vendas por criativo</h2><span class="count" id="dbAdsCount"></span></div>
+    <div class="tbl-wrap"><table class="resp dbt"><thead><tr id="dbAdsHead"></tr></thead><tbody id="dbAdsBody"></tbody></table></div>
+    <button class="more dbMore" id="dbAdsMore"></button>
+  </section>
+
+  <section class="card" aria-labelledby="h-dborg">
+    <div class="card-head"><h2 id="h-dborg">Vendas por origem orgânica</h2></div>
+    <div class="tbl-wrap"><table class="resp dbt org"><thead><tr id="dbOrgHead"></tr></thead><tbody id="dbOrgBody"></tbody></table></div>
+    <div class="empty" id="dbOrgEmpty" hidden>Nenhuma venda de lead orgânico ainda.</div>
+  </section>
+
+  <div class="two">
+    <section class="card" aria-labelledby="h-dbq">
+      <div class="card-head"><h2 id="h-dbq">Qualificação de quem comprou</h2></div>
+      <div class="hbars" id="dbFaixas"></div>
+    </section>
+    <section class="card" aria-labelledby="h-dbpais">
+      <div class="card-head"><h2 id="h-dbpais">País das compradoras</h2></div>
+      <div class="hbars" id="dbPaises"></div>
+    </section>
+  </div>
 </div>
 </main>
 
@@ -1094,8 +1139,9 @@ const D = /*__DATA__*/{};
     .concat(PQ && PQ.faixas && PQ.faixas.baixa != null ? [{ k: 'nula', l: 'Nula', c: 'var(--q-nula)' }] : []);
   const PQ_TEMPS = TEMPS.concat([{ k: 'sem_lead', l: 'Sem vínculo com a captação', c: '#c9d0d8' }]);
   const PQ_TEMP = Object.fromEntries(PQ_TEMPS.map(t => [t.k, t]));
-  const PAISES_CAMP = { UY: 'Uruguai', URU: 'Uruguai', ARG: 'Argentina', AR: 'Argentina', CHILE: 'Chile', CL: 'Chile', MX: 'México', MEX: 'México', CO: 'Colômbia', PE: 'Peru', BR: 'Brasil' };
-  const campTag = name => { const m = String(name || '').match(/\[([^\]]+)\]/g); return m ? m[m.length - 1].slice(1, -1).trim().toUpperCase() : null; };
+  const PAISES_CAMP = { UY: 'Uruguai', URU: 'Uruguai', ARG: 'Argentina', AR: 'Argentina', CHILE: 'Chile', CL: 'Chile', MX: 'México', MEX: 'México', ESP: 'Espanha', ES: 'Espanha', EUA: 'EUA', USA: 'EUA', CO: 'Colômbia', COL: 'Colômbia', PE: 'Peru', BR: 'Brasil' };
+  // mesma regra do refresh: a última tag que é país ("…[CHILE][ESCALA]" → "CHILE"); sem país, a última tag
+  const campTag = name => { const t = (String(name || '').match(/\[([^\]]+)\]/g) || []).map(x => x.slice(1, -1).trim().toUpperCase()); return t.filter(x => PAISES_CAMP[x]).pop() || t.pop() || null; };
   const CAMP_TAG = new Map((D.campaigns || []).map(c => [c.id, campTag(c.name)]));
   // "[Q]Envolvimento_30D" → "Envolvimento 30D" (a temperatura vai na etiqueta ao lado)
   const prettySet = s => String(s || '').replace(/^\s*\[[^\]]*\]\s*-?\s*/, '').replace(/[_]+/g, ' ').trim() || s;
@@ -1255,9 +1301,112 @@ const D = /*__DATA__*/{};
   }
   $('pqTempSeg').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (!b) return; state.pqTemp = b.dataset.t; renderQuestions(PQROWS.filter(inPeriod)); });
 
-  // ---------- abas: #captacao (padrão) e #pesquisa; remarketing e debriefing ainda desativadas ----------
+  // =================== DEBRIEFING: vendas cruzadas com a captação (acumulado, sem filtro de período) ===================
+  const VD = D.vendas;
+  // compradora: [valor US$, temperatura do lead, criativo, conjunto, país da campanha, origem orgânica, faixa da pesquisa, país, aluna]
+  const VROWS = VD ? VD.rows.map(r => ({ usd: r[0], temp: r[1], criativo: r[2], conjunto: r[3], pc: r[4], origem: r[5], faixa: r[6], pais: r[7], aluna: !!r[8] })) : [];
+  state.dbAllSeg = false; state.dbAllAds = false;
+
+  function renderDebriefing() {
+    $('dbOff').hidden = !!VD;
+    document.querySelectorAll('[data-view=debriefing] > :not(#dbOff)').forEach(el => { el.hidden = !VD; });
+    if (!VD) return;
+    const sumV = list => ({ n: list.length, usd: list.reduce((s, v) => s + v.usd, 0) });
+    const all = sumV(VROWS);
+    const spendAll = sumIns(INS).spend;
+    const paidV = sumV(VROWS.filter(v => PAID.has(v.temp)));
+    const orgV = sumV(VROWS.filter(v => v.temp === 'organico'));
+    const leadsPaid = LEADS.filter(l => PAID.has(l.temp)).length, leadsOrg = LEADS.filter(l => l.temp === 'organico').length;
+    const resp = VROWS.filter(v => v.faixa && v.faixa !== 'sem_resposta');
+    const fora = VROWS.filter(v => v.temp === 'sem_lead').length;
+    const alunas = VROWS.filter(v => v.aluna).length;
+    const roas = (usd, spend) => spend > 0 ? (usd / spend).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+    const conv = (n, leads) => leads ? fmtPct(n / leads) : '—';
+    const k = (lbl, val, sub, color) => `<div class="card kpi"><div class="lbl">${color ? `<i style="background:${color}"></i>` : ''}${lbl}</div><div class="val num">${val}</div><div class="sub">${sub}</div></div>`;
+    $('dbKpis').innerHTML = [
+      k('Vendas', fmtInt(all.n), `<span><b>${fmtInt(fora)}</b> fora da base de leads</span>`),
+      k('Faturamento', fmtMoney0(all.usd), `<span>ticket médio <b>${fmtMoney0(all.n ? all.usd / all.n : null)}</b></span>`),
+      k('ROAS do tráfego', roas(paidV.usd, spendAll), `<span><b>${fmtMoney0(paidV.usd)}</b> em vendas</span>`, 'var(--quente)'),
+      k('Conversão do tráfego', conv(paidV.n, leadsPaid), `<span>orgânico: <b>${conv(orgV.n, leadsOrg)}</b></span>`, 'var(--quente)'),
+      k('Alta qualificação', resp.length ? fmtPct1(resp.filter(v => v.faixa === 'alta').length / resp.length) : '—', `<span>das <b>${fmtInt(resp.length)}</b> que responderam</span>`, 'var(--q-alta)'),
+      k('Alunas', fmtInt(alunas), `<span><b>${all.n ? fmtPct1(alunas / all.n) : '—'}</b> das vendas</span>`),
+    ].join('');
+
+    const head = (id, first, cols) => { $(id).innerHTML = `<th>${first}</th>` + cols.map(c => `<th>${c}</th>`).join(''); };
+    const COLS_V = ['Vendas', 'Faturamento', 'Leads', 'Conversão', 'Investimento', 'ROAS'];
+    const cells = (v, leads, spend) => `<td class="num">${fmtInt(v.n)}</td><td class="num">${fmtMoney0(v.usd)}</td><td class="num">${leads != null ? fmtInt(leads) : '—'}</td><td class="num">${leads != null ? conv(v.n, leads) : '—'}</td>`
+      + `<td class="num">${spend != null ? fmtMoney0(spend) : '—'}</td><td class="num">${spend != null ? roas(v.usd, spend) : '—'}</td>`;
+
+    // ---- por origem ----
+    const spendTemp = {}; for (const r of INS) { const a = AD_BY_ID.get(r.adId); const t = (a && a.temp) || 'pago'; spendTemp[t] = (spendTemp[t] || 0) + r.spend; }
+    const leadsTemp = countBy(LEADS, l => l.temp);
+    head('dbOrigHead', 'Origem', COLS_V);
+    $('dbOrigBody').innerHTML = PQ_TEMPS.map(tp => ({ tp, v: sumV(VROWS.filter(x => x.temp === tp.k)) })).filter(x => x.v.n || (x.tp.k !== 'sem_lead' && x.tp.k !== 'pago'))
+      .map(({ tp, v }) => `<tr><td><span class="nm" style="display:inline-flex;align-items:center;gap:8px;font-weight:600"><i style="width:10px;height:10px;border-radius:50%;background:${tp.c}"></i>${tp.k === 'sem_lead' ? 'Fora da base de leads' : tp.l}</span></td>`
+        + cells(v, tp.k === 'sem_lead' ? null : (leadsTemp.get(tp.k) || 0), PAID.has(tp.k) ? (spendTemp[tp.k] || 0) : null) + '</tr>').join('');
+
+    // ---- por público do tráfego: conjunto + país da campanha (mesma chave da aba Pesquisa) ----
+    const segs = new Map();
+    const seg = (key, label) => segs.get(key) || segs.set(key, { key, label, temps: new Set(), v: [], leads: 0, spend: 0 }).get(key);
+    for (const l of LEADS) if (PAID.has(l.temp)) { const s = seg(`${norm(l.conjunto)}|${l.paisCampanha || ''}`, segLabel(l.conjunto, l.paisCampanha)); s.leads++; s.temps.add(l.temp); }
+    for (const r of INS) { const a = AD_BY_ID.get(r.adId); if (!a) continue; const pc = CAMP_TAG.get(a.campaignId) || ''; const s = seg(`${norm(a.adsetName)}|${pc}`, segLabel(a.adsetName, pc)); s.spend += r.spend; if (a.temp) s.temps.add(a.temp); }
+    for (const v of VROWS) if (PAID.has(v.temp)) seg(`${norm(v.conjunto)}|${v.pc || ''}`, segLabel(v.conjunto, v.pc)).v.push(v);
+    const segRows = [...segs.values()].map(s => ({ ...s, sv: sumV(s.v) })).filter(s => s.sv.n || s.spend > 0)
+      .sort((a, b) => b.sv.usd - a.sv.usd || (b.spend > 0 ? b.sv.usd / b.spend : 0) - (a.spend > 0 ? a.sv.usd / a.spend : 0) || b.spend - a.spend);
+    const withSale = segRows.filter(s => s.sv.n);
+    const segShown = state.dbAllSeg ? segRows : withSale;
+    $('dbSegCount').textContent = `${withSale.length} com venda · ${segRows.length} no total`;
+    head('dbSegHead', 'Público', COLS_V);
+    $('dbSegBody').innerHTML = segShown.map(s => `<tr><td><div class="nm" style="display:grid;gap:5px"><strong style="font-weight:500">${esc(s.label)}</strong><span class="links">${TEMPS.map(t => t.k).filter(t => s.temps.has(t)).map(tempChip).join('')}</span></div></td>` + cells(s.sv, s.leads, s.spend) + '</tr>').join('');
+    $('dbSegMore').textContent = segRows.length > withSale.length ? (state.dbAllSeg ? 'Mostrar só os públicos com venda' : `Ver também os ${segRows.length - withSale.length} públicos sem venda`) : '';
+
+    // ---- por criativo ----
+    const adsAgg = new Map();
+    const adA = name => adsAgg.get(norm(name)) || adsAgg.set(norm(name), { name, v: [], leads: 0, spend: 0 }).get(norm(name));
+    for (const l of LEADS) if (PAID.has(l.temp) && l.criativo) adA(l.criativo).leads++;
+    for (const r of INS) { const a = AD_BY_ID.get(r.adId); if (a) adA(a.name).spend += r.spend; }
+    for (const v of VROWS) if (PAID.has(v.temp)) adA(v.criativo || '(sem utm_content)').v.push(v);
+    const adRows = [...adsAgg.values()].map(x => ({ ...x, sv: sumV(x.v) })).filter(x => x.sv.n || x.spend > 0)
+      .sort((a, b) => b.sv.usd - a.sv.usd || b.spend - a.spend);
+    const adsWith = adRows.filter(x => x.sv.n);
+    const adsShown = state.dbAllAds ? adRows : adsWith;
+    $('dbAdsCount').textContent = `${adsWith.length} com venda · ${adRows.length} no total`;
+    head('dbAdsHead', 'Criativo', COLS_V);
+    $('dbAdsBody').innerHTML = adsShown.map(x => {
+      const m = thumbOf(x.name) || {};
+      const key = norm(x.name);
+      ADS_BY_KEY.set(key, { name: x.name, meta: m });
+      const ig = m.igUrl ? `<a class="plink" href="${esc(m.igUrl)}" target="_blank" rel="noopener">Ver no Instagram${LINK_ICON}</a>` : '';
+      return `<tr><td><div class="creative"><button class="mini" data-open="${esc(key)}" aria-label="Ver prévia de ${esc(x.name)}">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" loading="lazy">` : ''}</button><div class="nm"><strong>${esc(x.name)}</strong><span class="links">${ig}</span></div></div></td>`
+        + cells(x.sv, x.leads, x.spend) + '</tr>';
+    }).join('');
+    $('dbAdsMore').textContent = adRows.length > adsWith.length ? (state.dbAllAds ? 'Mostrar só os criativos com venda' : `Ver também os ${adRows.length - adsWith.length} criativos sem venda`) : '';
+
+    // ---- orgânico por origem ----
+    const orgLeads = countBy(LEADS.filter(l => l.temp === 'organico'), l => origemLabel(l.origem));
+    const orgBy = new Map(); for (const v of VROWS) if (v.temp === 'organico') { const kk = origemLabel(v.origem); (orgBy.get(kk) || orgBy.set(kk, []).get(kk)).push(v); }
+    const orgRows = [...orgBy].map(([kk, list]) => ({ kk, sv: sumV(list) })).sort((a, b) => b.sv.usd - a.sv.usd);
+    head('dbOrgHead', 'Origem', ['Vendas', 'Faturamento', 'Leads', 'Conversão']);
+    $('dbOrgBody').innerHTML = orgRows.map(x => `<tr><td>${esc(x.kk)}</td><td class="num">${fmtInt(x.sv.n)}</td><td class="num">${fmtMoney0(x.sv.usd)}</td><td class="num">${fmtInt(orgLeads.get(x.kk) || 0)}</td><td class="num">${conv(x.sv.n, orgLeads.get(x.kk) || 0)}</td></tr>`).join('');
+    $('dbOrgEmpty').hidden = orgRows.length > 0;
+
+    // ---- qualificação e país (barras) ----
+    const bars = (el, items) => {
+      const max = Math.max(1, ...items.map(x => x.n));
+      $(el).innerHTML = items.length ? items.map(x => `<div class="hbar"><span class="lab" title="${esc(x.l)}">${esc(x.l)}</span><span class="track" style="width:${(x.n / max * 100).toFixed(2)}%"><i style="flex:1;background:${x.c}"></i></span><span class="qty">${fmtInt(x.n)}<small>${fmtMoney0(x.usd)}</small></span></div>`).join('')
+        : '<div class="chart-empty">Sem vendas.</div>';
+    };
+    const fx = FAIXAS.concat([{ k: 'sem_resposta', l: 'Não respondeu', c: 'var(--line-strong)' }]);
+    bars('dbFaixas', fx.map(f => { const s = sumV(VROWS.filter(v => v.faixa === f.k)); return { l: f.k === 'nula' || f.k === 'sem_resposta' ? f.l : f.l + ' qualificação', n: s.n, usd: s.usd, c: f.c }; }).filter(x => x.n));
+    const byPais = new Map(); for (const v of VROWS) { const kk = v.pais || 'Fora da base de leads'; (byPais.get(kk) || byPais.set(kk, []).get(kk)).push(v); }
+    bars('dbPaises', [...byPais].map(([l, list]) => ({ l, ...sumV(list), c: l === 'Fora da base de leads' ? 'var(--line-strong)' : 'var(--ink)' })).sort((a, b) => (a.l === 'Fora da base de leads') - (b.l === 'Fora da base de leads') || b.n - a.n));
+  }
+  $('dbSegMore').addEventListener('click', () => { state.dbAllSeg = !state.dbAllSeg; renderDebriefing(); labelCells(); });
+  $('dbAdsMore').addEventListener('click', () => { state.dbAllAds = !state.dbAllAds; renderDebriefing(); labelCells(); });
+
+  // ---------- abas: #captacao (padrão), #pesquisa e #debriefing; remarketing ainda desativada ----------
   function setTab() {
-    const tab = location.hash === '#pesquisa' ? 'pesquisa' : 'captacao';
+    const tab = ['#pesquisa', '#debriefing'].includes(location.hash) ? location.hash.slice(1) : 'captacao';
     document.querySelectorAll('.view').forEach(v => { v.hidden = v.dataset.view !== tab; });
     document.querySelectorAll('.tabs a[data-tab]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.tab === tab)));
     render();   // o gráfico diário mede a largura do card: só dá para desenhar com a aba visível
@@ -1286,6 +1435,7 @@ const D = /*__DATA__*/{};
     renderOrigens(cur.leads);
     renderAds(cur.leads, cur.ins);
     renderPesquisa(cur.leads, cur.ins);   // depois dos criativos: reaproveita o mapa das prévias
+    renderDebriefing();                   // acumulado: ignora o período
     labelCells();
     $('adsSort').value = state.sort;
   }

@@ -167,6 +167,14 @@ A planilha precisa estar como "qualquer pessoa com o link pode ver" e ter `Date`
 - `"metas": { "leads": …, "investimento": … }` mostra nos KPIs o % realizado (acumulado do lançamento, não do período).
 - Abas no topo: **Captação**, **Pesquisa** e, ainda desativadas, Remarketing e Debriefing (`#captacao`, `#pesquisa`).
 
+### Debriefing (`"vendas": { "planilha": { "id": … } }` no config)
+
+Planilha das vendas (uma linha por venda, "qualquer pessoa com o link pode ver", com colunas de e-mail e preço; "alumna"
+opcional). Cada compradora é ligada ao lead pelo **e-mail** (primeiro cadastro) e à faixa da pesquisa; a aba `#debriefing`
+mostra vendas, faturamento, ROAS e conversão (vendas ÷ leads) por origem, público, criativo e origem orgânica, a
+qualificação de quem comprou e o país — **acumulado**, sem o filtro de período. Nome, e-mail, telefone, links e closer não
+saem do `refresh.js`; e-mail repetido conta uma vez. País da campanha = a última tag que é país (`[CHILE][ESCALA]` → Chile).
+
 ### Pesquisa de qualificação (`"pesquisa"` no config)
 
 `planilha` (precisa estar "qualquer pessoa com o link pode ver", com `Date` e `email`), `perguntas` (colunas fechadas
