@@ -303,6 +303,43 @@ function saleDateSP(iso) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d);
 }
 
+// Origem da venda a partir do rastreio. O checkout cola um id de sessão no utm_source
+// ("FBjLj6abe8f8…"), por isso o sufixo é removido antes de classificar. Origem que ainda não
+// tem regra entra na tabela com o próprio valor da UTM — origem nova (whatsapp, e-mail,
+// indicação…) aparece sozinha assim que a primeira venda chegar.
+const LIMPA_SESSAO = new RegExp(CFG.limpaSource || 'jlj6[a-z0-9]*$', 'i');
+const ORIGENS = CFG.origens || [
+  { label: 'Tráfego pago', match: '^(fb|facebook|meta|ig|instagram[-_]?ads|ads)$' },
+  { label: 'Orgânico', match: '^(organic|organico|orgânico|bio|perfil)$' },
+  { label: 'WhatsApp', match: '^(whats|whatsapp|wpp|zap)$' },
+  { label: 'Instagram', match: '^(instagram|insta|stories|direct)$' },
+  { label: 'YouTube', match: '^(youtube|yt)$' },
+  { label: 'E-mail', match: '^(email|e-mail|mail|newsletter|mailing)$' },
+  { label: 'Google', match: '^(google|gads|google[-_]?ads|adwords)$' },
+  { label: 'Indicação', match: '^(indicacao|indicação|afiliado|parceiro|referral)$' },
+];
+const REGRAS_ORIGEM = ORIGENS.map(o => ({ label: o.label, re: new RegExp(o.match, 'i') }));
+const titulo = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+function origemDaVenda({ adId, utmSource, utmMedium, src }) {
+  if (adId) return 'Tráfego pago';                      // casou com um anúncio: é tráfego, ponto
+  const limpo = String(utmSource || '').trim().replace(LIMPA_SESSAO, '').replace(/[._-]+$/, '').trim();
+  if (limpo) {
+    const hit = REGRAS_ORIGEM.find(r => r.re.test(limpo));
+    if (hit) return hit.label;
+    return titulo(limpo);                               // origem nova: aparece com o nome da UTM
+  }
+  // sem utm_source: o parâmetro "src" do checkout ainda pode dizer de onde veio
+  const alt = String(src || '').trim();
+  if (alt) {
+    const hit = REGRAS_ORIGEM.find(r => r.re.test(alt));
+    return hit ? hit.label : titulo(alt);
+  }
+  // sem nada: se o utm_medium traz nome de conjunto, veio de anúncio sem o utm_content casar
+  if (/\|/.test(String(utmMedium || ''))) return 'Tráfego pago (anúncio não identificado)';
+  return 'Sem rastreio';
+}
+
 async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   if (!CFG.hubla || !CFG.hubla.planilha || !CFG.hubla.planilha.id) return null;
   const csvText = await (await fetch(sheetCsvUrl(CFG.hubla.planilha), { redirect: 'follow' })).text();
@@ -313,6 +350,7 @@ async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   const col = {
     invoice: idx('invoice_id'), status: idx('status'), sale: idx('sale_date'), total: idx('total_cents'),
     product: idx('product_id'), products: idx('products_ids'), uc: idx('utm_campaign'), uct: idx('utm_content'),
+    usrc: idx('utm_source'), umed: idx('utm_medium'), uterm: idx('utm_term'), srcp: idx('src'), sck: idx('sck'),
     customer: idx('customer_id'), emailHash: idx('email_hash') // só existem a partir da v2 do webhook-planilha.gs
   };
   for (const k of ['invoice', 'status', 'sale']) if (col[k] < 0) throw new Error(`planilha da Hubla sem a coluna ${k} — use o hubla/webhook-planilha.gs deste repositório`);
@@ -364,7 +402,12 @@ async function fetchHublaSales(ads, entregaNoDia = new Set()) {
         adId = escolha.id;
       }
     }
-    sales.push({ date, invoiceId, adId, main, bump, customerId: g(r, col.customer) || null, emailHash: (g(r, col.emailHash) || '').toLowerCase() || null, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
+    const rastreio = {
+      utmSource: g(r, col.usrc) || null, utmMedium: g(r, col.umed) || null,
+      utmTerm: g(r, col.uterm) || null, src: g(r, col.srcp) || null, sck: g(r, col.sck) || null,
+    };
+    const origem = origemDaVenda({ adId, ...rastreio });
+    sales.push({ date, invoiceId, adId, main, bump, origem, ...rastreio, customerId: g(r, col.customer) || null, emailHash: (g(r, col.emailHash) || '').toLowerCase() || null, valueCents: Math.round(Number(g(r, col.total)) || 0), utmCampaign: normKey(g(r, col.uc)) || null, utmContent: uct || null });
   }
   return sales;
 }
