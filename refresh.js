@@ -740,6 +740,8 @@ async function fetchPesquisa(leads, leadByEmail, faixaByEmail) {
 }
 
 async function mainCaptacao() {
+  // encerrado e com retrato guardado: não coleta Meta/leads/pesquisa (sem retrato ainda, coleta tudo uma última vez)
+  if (CFG.encerrado && SNAP_FILES.every(f => fs.existsSync(path.join(SNAP_DIR, f)))) return mainCaptacaoEncerrada();
   const until = todaySP();
   const { campaigns, since: metaSince } = await fetchCampaigns();
   const campIds = campaigns.map(c => c.id);
@@ -782,12 +784,57 @@ async function mainCaptacao() {
       thumb: fs.existsSync(file) ? `thumbs/${a.id}.jpg` : null, page: adPage(cr)
     });
   }
-  // temperatura de um criativo pelo nome (o mesmo nome roda em conjuntos quentes e frios: só vale se for um só)
-  const tempsByName = new Map();
-  for (const a of ads) if (a.temp) (tempsByName.get(normKey(a.name)) || tempsByName.set(normKey(a.name), new Set()).get(normKey(a.name))).add(a.temp);
-
   // ---- Planilha de leads ----
-  const rows = await fetchSheetRows(SHEET_CSV);
+  const { leads, leadByEmail, cadastros } = parseLeadsCaptacao(await fetchSheetRows(SHEET_CSV), tempsByNameOf(ads));
+
+  // o painel começa no primeiro lead ou no primeiro dia de anúncio, o que vier antes (orgânico costuma vir antes do pago)
+  const since = leads.length && leads[0][0] < metaSince ? leads[0][0] : metaSince;
+  const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
+  write('campaigns.json', { rows: campaigns });
+  write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'metaLeads', 'views3s'], rows: insights });
+  write('ads.json', { rows: ads });
+  write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo', 'pagina', 'conjunto', 'paisCampanha'], rows: leads });
+  // pesquisa fora do ar: o painel sai com a da última coleta (out/cache, só respostas fechadas, sem e-mail) em vez de
+  // derrubar a rodada; sem cache, sai sem a aba de pesquisa nesta rodada
+  let pesquisa = null;
+  const faixaByEmail = new Map();   // só para o debriefing: e-mail → faixa da pesquisa (não sai do refresh)
+  if (CFG.pesquisa) {
+    const cacheFile = path.join(OUT, 'cache', 'pesquisa.json');
+    try {
+      pesquisa = await fetchPesquisa(leads, leadByEmail, faixaByEmail);
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify(pesquisa));
+    } catch (e) {
+      pesquisa = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
+      console.log(`::warning::[${slug}] pesquisa não atualizou (${e.message})${pesquisa ? ' — mantida a da última coleta' : ' — painel sem pesquisa nesta rodada'}`);
+    }
+  }
+  write('pesquisa.json', pesquisa);
+  write('vendas.json', await vendasComCache(() => fetchVendas(leads, leadByEmail, CFG.pesquisa ? faixaByEmail : null)));
+  write('summary.json', {
+    updatedAt: new Date().toISOString(), account: ACCOUNT, currency: moeda, contaMoeda,
+    since, until, cadastros, lancamento: CFG.lancamento || null, metas: CFG.metas || null, encerrado: CFG.encerrado || null
+  });
+  // captação encerrada: guarda o retrato desta última coleta completa (as próximas rodadas só republicam e leem as vendas)
+  if (CFG.encerrado) {
+    fs.mkdirSync(SNAP_DIR, { recursive: true });
+    for (const f of SNAP_FILES) fs.copyFileSync(path.join(OUT, f), path.join(SNAP_DIR, f));
+    console.log(`[${slug}] captação encerrada em ${CFG.encerrado}: retrato final guardado em out/cache/encerrado`);
+  }
+  const n = t => leads.filter(l => l[2] === t).length;
+  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: ads.length, comMiniatura: ads.filter(a => a.thumb).length, cadastros, leads: leads.length, organico: n('organico'), quente: n('quente'), frio: n('frio'), pagoSemTemperatura: n('pago') }));
+}
+
+// temperatura de um criativo pelo nome (o mesmo nome roda em conjuntos quentes e frios: só vale se for um só)
+function tempsByNameOf(ads) {
+  const m = new Map();
+  for (const a of ads) if (a.temp) (m.get(normKey(a.name)) || m.set(normKey(a.name), new Set()).get(normKey(a.name))).add(a.temp);
+  return m;
+}
+
+// Planilha de leads da captação → uma linha por e-mail (o primeiro cadastro), classificada em orgânico/quente/frio.
+// leadByEmail (e-mail → índice em leads) só serve para cruzar com pesquisa e vendas: o e-mail não sai do refresh.
+function parseLeadsCaptacao(rows, tempsByName) {
   if (!rows.length || /<html/i.test(rows[0].join(''))) throw new Error('planilha vazia ou inacessível (ela precisa estar como "qualquer pessoa com o link pode ver")');
   const header = rows[0].map(h => h.trim());
   const idx = (...names) => header.findIndex(h => names.some(n => normKey(h) === normKey(n)));
@@ -823,50 +870,57 @@ async function mainCaptacao() {
     leads.push([ts.date, ts.time, temp, g(r, col.pais) || null, origem, criativo, normPage(g(r, col.pagina)) || urlPage(String(col.url >= 0 && r[col.url] || '')),
       paid && med && !/\{\{/.test(med) ? med : null, paid ? campTag(camp) : null]);
   }
+  return { leads, leadByEmail, cadastros };
+}
 
-  // o painel começa no primeiro lead ou no primeiro dia de anúncio, o que vier antes (orgânico costuma vir antes do pago)
-  const since = leads.length && leads[0][0] < metaSince ? leads[0][0] : metaSince;
-  const write = (name, obj) => fs.writeFileSync(path.join(OUT, name), JSON.stringify(obj));
-  write('campaigns.json', { rows: campaigns });
-  write('insights.json', { cols: ['date', 'campaignId', 'adsetId', 'adId', 'spend', 'impressions', 'clicks', 'linkClicks', 'pageViews', 'metaLeads', 'views3s'], rows: insights });
-  write('ads.json', { rows: ads });
-  write('leads.json', { cols: ['date', 'time', 'temp', 'pais', 'origem', 'criativo', 'pagina', 'conjunto', 'paisCampanha'], rows: leads });
-  // pesquisa fora do ar: o painel sai com a da última coleta (out/cache, só respostas fechadas, sem e-mail) em vez de
-  // derrubar a rodada; sem cache, sai sem a aba de pesquisa nesta rodada
-  let pesquisa = null;
-  const faixaByEmail = new Map();   // só para o debriefing: e-mail → faixa da pesquisa (não sai do refresh)
-  if (CFG.pesquisa) {
-    const cacheFile = path.join(OUT, 'cache', 'pesquisa.json');
-    try {
-      pesquisa = await fetchPesquisa(leads, leadByEmail, faixaByEmail);
-      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-      fs.writeFileSync(cacheFile, JSON.stringify(pesquisa));
-    } catch (e) {
-      pesquisa = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
-      console.log(`::warning::[${slug}] pesquisa não atualizou (${e.message})${pesquisa ? ' — mantida a da última coleta' : ' — painel sem pesquisa nesta rodada'}`);
-    }
+// vendas (debriefing): fora do ar, ficam as da última coleta (out/cache/vendas.json, sem dado da compradora)
+async function vendasComCache(buscar) {
+  if (!CFG.vendas || !CFG.vendas.planilha) return null;
+  const cacheFile = path.join(OUT, 'cache', 'vendas.json');
+  try {
+    const vendas = { ...(await buscar()), fetchedAt: new Date().toISOString() };
+    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+    fs.writeFileSync(cacheFile, JSON.stringify(vendas));
+    return vendas;
+  } catch (e) {
+    const vendas = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
+    console.log(`::warning::[${slug}] vendas não atualizaram (${e.message})${vendas ? ' — mantidas as da última coleta' : ' — painel sem debriefing nesta rodada'}`);
+    return vendas;
   }
-  write('pesquisa.json', pesquisa);
-  // vendas (debriefing): mesma regra da pesquisa — fora do ar, fica a da última coleta
-  let vendas = null;
-  if (CFG.vendas && CFG.vendas.planilha) {
-    const cacheFile = path.join(OUT, 'cache', 'vendas.json');
-    try {
-      vendas = await fetchVendas(leads, leadByEmail, CFG.pesquisa ? faixaByEmail : null);
-      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-      fs.writeFileSync(cacheFile, JSON.stringify(vendas));
-    } catch (e) {
-      vendas = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
-      console.log(`::warning::[${slug}] vendas não atualizaram (${e.message})${vendas ? ' — mantidas as da última coleta' : ' — painel sem debriefing nesta rodada'}`);
-    }
+}
+
+// ---- Captação encerrada ("encerrado": "AAAA-MM-DD" no config): campanhas pausadas, só as vendas continuam ----
+// Meta, leads e pesquisa ficam no retrato da última coleta completa (out/cache/encerrado, guardado pelo actions/cache —
+// só o que a página já publica, sem e-mail) e a planilha de vendas é lida no máximo 1x por dia. Para ligar compradora →
+// lead → faixa da pesquisa, essa leitura diária relê as planilhas de leads e pesquisa (o retrato não guarda e-mail).
+// FORCAR_VENDAS=1 lê as vendas na hora. Para voltar a coletar tudo a cada 15 min, apague "encerrado" do config.
+const SNAP_DIR = path.join(OUT, 'cache', 'encerrado');
+const SNAP_FILES = ['campaigns.json', 'insights.json', 'ads.json', 'leads.json', 'pesquisa.json', 'summary.json'];
+const VENDAS_A_CADA_H = 23;   // o workflow roda a cada 15 min: na prática, uma leitura por dia
+
+async function mainCaptacaoEncerrada() {
+  for (const f of SNAP_FILES) fs.copyFileSync(path.join(SNAP_DIR, f), path.join(OUT, f));
+  const cacheFile = path.join(OUT, 'cache', 'vendas.json');
+  let vendas = fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, 'utf8')) : null;
+  const idadeH = vendas && vendas.fetchedAt ? (Date.now() - Date.parse(vendas.fetchedAt)) / 3600000 : Infinity;
+  if (idadeH >= VENDAS_A_CADA_H || process.env.FORCAR_VENDAS) {
+    vendas = await vendasComCache(async () => {
+      const ads = JSON.parse(fs.readFileSync(path.join(SNAP_DIR, 'ads.json'), 'utf8')).rows;
+      const { leads, leadByEmail } = parseLeadsCaptacao(await fetchSheetRows(SHEET_CSV), tempsByNameOf(ads));
+      const faixaByEmail = new Map();
+      if (CFG.pesquisa) {
+        try { await fetchPesquisa(leads, leadByEmail, faixaByEmail); }
+        catch (e) { console.log(`::warning::[${slug}] pesquisa não respondeu (${e.message}) — vendas sem a faixa da pesquisa nesta leitura`); }
+      }
+      return fetchVendas(leads, leadByEmail, CFG.pesquisa ? faixaByEmail : null);
+    });
+    console.log(`[${slug}] encerrado: vendas lidas da planilha (${vendas ? vendas.rows.length : 0} compradoras)`);
+  } else {
+    console.log(`[${slug}] encerrado em ${CFG.encerrado}: retrato da captação + vendas lidas há ${idadeH.toFixed(1)} h (próxima leitura em ${(VENDAS_A_CADA_H - idadeH).toFixed(1)} h)`);
   }
-  write('vendas.json', vendas);
-  write('summary.json', {
-    updatedAt: new Date().toISOString(), account: ACCOUNT, currency: moeda, contaMoeda,
-    since, until, cadastros, lancamento: CFG.lancamento || null, metas: CFG.metas || null
-  });
-  const n = t => leads.filter(l => l[2] === t).length;
-  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: ads.length, comMiniatura: ads.filter(a => a.thumb).length, cadastros, leads: leads.length, organico: n('organico'), quente: n('quente'), frio: n('frio'), pagoSemTemperatura: n('pago') }));
+  fs.writeFileSync(path.join(OUT, 'vendas.json'), JSON.stringify(vendas));
+  const summary = JSON.parse(fs.readFileSync(path.join(OUT, 'summary.json'), 'utf8'));
+  fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, encerrado: CFG.encerrado }));
 }
 
 // ---- Criativos: Meta por anúncio e por dia + vendas da Hotmart (API, ver hotmart.js; plano B: clientes/<cliente>/vendas/

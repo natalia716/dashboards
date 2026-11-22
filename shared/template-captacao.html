@@ -574,7 +574,7 @@
 
 <div class="view" data-view="debriefing" hidden>
   <div class="card" id="dbOff" hidden><div class="empty">Planilha de vendas ainda não conectada.</div></div>
-  <p class="viewNote">Acumulado do lançamento: o filtro de período não vale para esta aba. Cada compradora conta pelo primeiro cadastro dela na captação; vendas com o mesmo e-mail contam uma vez.</p>
+  <p class="viewNote">Acumulado do lançamento: o filtro de período não vale para esta aba. Cada compradora conta pelo primeiro cadastro dela na captação; vendas com o mesmo e-mail contam uma vez.<span id="dbFetched"></span></p>
   <section class="kpis" id="dbKpis" aria-label="Resumo das vendas"></section>
 
   <section class="card" aria-labelledby="h-dborig">
@@ -1445,7 +1445,13 @@ const D = /*__DATA__*/{};
   // ---------- rodapé ----------
   const upd = S.updatedAt ? new Date(S.updatedAt) : null;
   const updTxt = upd ? upd.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
-  $('foot').textContent = updTxt ? `Atualizado em ${updTxt}` : '';
+  // captação encerrada: os dados de captação ficam congelados na última coleta e só as vendas seguem (lidas 1x por dia)
+  const fmtWhen = iso => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const vendasTxt = VD && VD.fetchedAt ? `vendas lidas em ${fmtWhen(VD.fetchedAt)}` : '';
+  $('foot').textContent = S.encerrado
+    ? `Captação encerrada · dados da captação de ${updTxt || '—'}${vendasTxt ? ' · ' + vendasTxt + ' (1x por dia)' : ''}`
+    : (updTxt ? `Atualizado em ${updTxt}` : '');
+  if (vendasTxt) $('dbFetched').textContent = ` Vendas lidas da planilha em ${vendasTxt.replace('vendas lidas em ', '')}${S.encerrado ? ' (uma vez por dia)' : ''}.`;
 
   applyPreset();
   initPeriodPicker();

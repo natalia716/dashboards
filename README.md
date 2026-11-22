@@ -12,7 +12,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
 | Glau Borges | criativos (Hotmart) | **suspenso** desde 22/11/2026 |
 | Chef Bernadete | criativos (Payt) | **suspenso** desde 07/11/2026 (saiu da operação) |
-| Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia |
+| Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia — **captação encerrada** em 22/11/2026 (só as vendas, 1x por dia) |
 | Ghenady Tec (Semana Diagnóstico Android, OUT-26) | lançamento (Hotmart) | https://dash.atodigital.com.br/ghenady |
 
 ## Como funciona
@@ -220,6 +220,12 @@ Os dois gatilhos podem coexistir: o `concurrency` do workflow impede execuções
 Cliente que saiu da operação: acrescente `"suspenso": "AAAA-MM-DD"` no `config.json`. O refresh não coleta mais nada
 dele e o build não gera a página — como o Actions publica `public/` do zero, o endereço sai do ar na execução seguinte.
 Config, histórico de vendas e cache ficam guardados: para reativar, basta apagar a linha.
+
+**Captação encerrada, vendas ainda rolando** (clientes de captação): `"encerrado": "AAAA-MM-DD"` no `config.json`. A página
+continua no ar; a primeira rodada depois disso coleta tudo uma última vez e guarda um retrato (Meta, leads e pesquisa) em
+`out/cache/encerrado`. Daí em diante o refresh só republica o retrato e lê a planilha de vendas no máximo 1x por dia
+(`FORCAR_VENDAS=1 node refresh.js <cliente>` lê na hora). O rodapé avisa "Captação encerrada". Para voltar a coletar tudo,
+apague a linha.
 
 ## Rodar localmente
 
