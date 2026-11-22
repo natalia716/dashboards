@@ -10,7 +10,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 |---|---|---|
 | O Mundo Clínico | leads | **suspenso** desde 07/11/2026 (saiu da operação) |
 | Paulo Cobra | lançamento | https://dash.atodigital.com.br/paulo-cobra |
-| Glau Borges | criativos | https://dash.atodigital.com.br/glauborges |
+| Glau Borges | criativos (Hotmart) | **suspenso** desde 22/11/2026 |
 | Chef Bernadete | criativos (Payt) | **suspenso** desde 07/11/2026 (saiu da operação) |
 | Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia |
 | Ghenady Tec (Semana Diagnóstico Android, OUT-26) | lançamento (Hotmart) | https://dash.atodigital.com.br/ghenady |
