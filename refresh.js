@@ -412,6 +412,45 @@ async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   return sales;
 }
 
+// Página de destino de cada anúncio (o lançamento testa várias páginas em paralelo).
+// O link mora em lugares diferentes conforme o formato do criativo, por isso os três caminhos.
+function linkDoCriativo(creative) {
+  const c = creative || {};
+  const oss = c.object_story_spec || {};
+  const afs = c.asset_feed_spec || {};
+  return (oss.link_data && oss.link_data.link)
+    || (oss.video_data && oss.video_data.call_to_action && oss.video_data.call_to_action.value && oss.video_data.call_to_action.value.link)
+    || ((afs.link_urls || [])[0] || {}).website_url
+    || null;
+}
+
+// host + caminho, sem protocolo, www, UTMs nem barra final: é assim que a página aparece na tabela
+function normalizaPagina(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const caminho = u.pathname.replace(/\/+$/, '');
+    return (u.hostname.replace(/^www\./, '') + caminho) || null;
+  } catch (e) {
+    return String(url).replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[?#]/)[0].replace(/\/+$/, '') || null;
+  }
+}
+
+async function fetchPaginasDosAnuncios(adIds) {
+  const paginas = {};
+  for (let i = 0; i < adIds.length; i += 50) {
+    const lote = adIds.slice(i, i + 50);
+    let j;
+    try {
+      const url = `${GRAPH}/?ids=${lote.join(',')}&fields=${encodeURIComponent('id,creative{object_story_spec,asset_feed_spec}')}&access_token=${TOKEN}`;
+      j = await (await fetch(url)).json();
+    } catch (e) { continue; }
+    if (!j || j.error) continue;
+    for (const id in j) paginas[id] = normalizaPagina(linkDoCriativo(j[id] && j[id].creative));
+  }
+  return paginas;
+}
+
 async function mainLancamento() {
   const until = todaySP();
   // `eventos` no config = várias edições do lançamento no mesmo painel; sem ele, um evento só
@@ -438,11 +477,13 @@ async function mainLancamento() {
     filtering: JSON.stringify([{ field: 'campaign.id', operator: 'IN', value: campIds }])
   });
   const campName = new Map(campaigns.map(c => [c.id, c.name]));
+  const paginas = await fetchPaginasDosAnuncios(adsRaw.map(a => a.id));
   const ads = adsRaw.map(a => ({
     id: a.id, name: a.name, status: a.status,
     adsetId: a.adset ? a.adset.id : null, adsetName: a.adset ? a.adset.name : null,
     campaignId: a.campaign ? a.campaign.id : null,
     temp: tempOf(a.adset ? a.adset.name : '', a.campaign ? campName.get(a.campaign.id) : ''),
+    pagina: paginas[a.id] || null,
     previewUrl: a.preview_shareable_link || null,
     thumb: a.creative && a.creative.thumbnail_url || null,
     igUrl: a.creative && a.creative.instagram_permalink_url || null
