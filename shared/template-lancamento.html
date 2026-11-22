@@ -426,7 +426,7 @@
     <div class="card-head"><h2 id="h-paginas">Conversão por página</h2></div>
     <div class="tbl-wrap">
       <table id="paginas">
-        <thead><tr><th>Página de destino</th><th>Gasto</th><th>Visualizações</th><th>Checkout</th><th>Vendas</th><th>Conv. página</th><th>CPA</th></tr></thead>
+        <thead><tr><th>Página de destino</th><th>Gasto</th><th>Visualizações</th><th>Checkout</th><th>Tx. checkout</th><th>Vendas</th><th>Conv. página</th><th>CPA</th></tr></thead>
         <tbody></tbody><tfoot></tfoot>
       </table>
     </div>
@@ -1041,7 +1041,7 @@ const D = /*__DATA__*/{};
       .filter(o => o.lp_views > 0 || o.sales > 0 || o.spend > 0)
       .sort((a, b) => b.sales - a.sales || b.lp_views - a.lp_views);
     if (!lista.length) {
-      tb.innerHTML = '<tr><td colspan="7" class="empty">Sem dados de página no período.</td></tr>'; tf.innerHTML = ''; return;
+      tb.innerHTML = '<tr><td colspan="8" class="empty">Sem dados de página no período.</td></tr>'; tf.innerHTML = ''; return;
     }
     const maxGasto = Math.max(1, ...lista.map(o => o.spend));
     tb.innerHTML = lista.map(o => `<tr>
@@ -1049,12 +1049,13 @@ const D = /*__DATA__*/{};
       <td class="num"><span class="bar-cell"><i style="width:${(o.spend / maxGasto * 56).toFixed(0)}px"></i>${fmtMoney(o.spend)}</span></td>
       <td class="num">${fmtInt(o.lp_views)}</td>
       <td class="num">${fmtInt(o.checkouts)}</td>
+      <td class="num"><span class="pill-rate" data-on="${o.checkouts ? 1 : 0}">${fmtPct(o.checkout_rate, 1)}</span></td>
       <td class="num">${fmtInt(o.sales)}</td>
       <td class="num"><span class="pill-rate" data-on="${o.sales ? 1 : 0}">${fmtPct(o.conv)}</span></td>
       <td class="num">${o.spend ? fmtMoney(o.cpa) : '—'}</td>
     </tr>`).join('');
     const t = sum(rows);
-    tf.innerHTML = `<tr><td>${lista.length} ${lista.length === 1 ? 'página' : 'páginas'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.lp_views)}</td><td class="num">${fmtInt(t.checkouts)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtMoney(t.cpa)}</td></tr>`;
+    tf.innerHTML = `<tr><td>${lista.length} ${lista.length === 1 ? 'página' : 'páginas'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.lp_views)}</td><td class="num">${fmtInt(t.checkouts)}</td><td class="num">${fmtPct(t.checkout_rate, 1)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtMoney(t.cpa)}</td></tr>`;
   }
 
   function renderAll() {
