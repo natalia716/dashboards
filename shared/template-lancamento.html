@@ -245,6 +245,12 @@
   .plink:hover { border-color: var(--accent); color: var(--accent-strong); }
   .plink svg { width: 12px; height: 12px; }
   .empty { padding: 26px; text-align: center; color: var(--muted); }
+  .sel-label { color: var(--ink-2); font-size: 13px; }
+  .sel {
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 0 10px; min-height: 34px; font-size: 13px; cursor: pointer; max-width: 320px;
+  }
+  .sel:hover { border-color: var(--accent); }
   .chip { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); min-height: 30px; }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .chip:hover { border-color: var(--accent); }
@@ -413,7 +419,7 @@
     <div class="card-head"><h2 id="h-paginas">Conversão por página</h2></div>
     <div class="tbl-wrap">
       <table id="paginas">
-        <thead><tr><th>Página de destino</th><th>Gasto</th><th>Visualizações</th><th>Checkout</th><th>Tx. checkout</th><th>Vendas</th><th>Conv. página</th><th>CPA</th></tr></thead>
+        <thead><tr><th>Página de destino</th><th>Gasto</th><th>CPM</th><th>CTR</th><th>CPC</th><th>Visualizações</th><th>Checkout</th><th>Tx. checkout</th><th>Vendas</th><th>Conv. página</th><th>CPA</th></tr></thead>
         <tbody></tbody><tfoot></tfoot>
       </table>
     </div>
@@ -458,10 +464,9 @@
   <section class="card" aria-labelledby="h-creatives">
     <div class="card-head">
       <h2 id="h-creatives">Criativos</h2>
-      <div class="right" role="group" aria-label="Filtrar por temperatura">
-        <button class="chip" data-tfilter="all" aria-pressed="true">Todos</button>
-        <button class="chip" data-tfilter="frio" aria-pressed="false">Frio</button>
-        <button class="chip" data-tfilter="quente" aria-pressed="false">Quente</button>
+      <div class="right">
+        <label class="sel-label" for="filtroPagina">Página</label>
+        <select id="filtroPagina" class="sel"></select>
       </div>
     </div>
     <div class="tbl-wrap">
@@ -685,7 +690,7 @@ const D = /*__DATA__*/{};
   }
 
   /* ---------- estado ---------- */
-  const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, eventos: [], evento: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, tempFilter: 'all' };
+  const state = { live: false, campaigns: [], rows: [], until: todaySP(), periodo: null, eventos: [], evento: null, from: null, to: null, preset: 'max', creativeSort: { key: 'spend', dir: 'desc' }, paginaFiltro: null };
   const el = { paginas: $('paginas'), origens: $('origens'), dbPublicos: $('db-publicos'), dbCriativos: $('db-criativos'), dbCampanhas: $('db-campanhas'), dbJornada: $('db-jornada'), funnel: $('funnel'), chartSvg: $('chart-svg'), tip: $('tip'), chart: $('chart'), temps: $('temps'), daily: $('daily'), creatives: $('creatives'), tickets: $('tickets') };
 
   // Período completo = do início da campanha mais antiga do lançamento até o fim da mais recente (ou hoje)
@@ -728,7 +733,7 @@ const D = /*__DATA__*/{};
   function sum(rows) {
     const t = { spend: 0, impressions: 0, link_clicks: 0, lp_views: 0, checkouts: 0, sales: 0, bumps: 0, revenue: 0 };
     for (const r of rows) for (const k in t) t[k] += Number(r[k]) || 0;
-    t.cpa = div(t.spend, t.sales); t.cpm = t.impressions ? t.spend / t.impressions * 1000 : null;
+    t.cpa = div(t.spend, t.sales); t.cpm = t.impressions ? t.spend / t.impressions * 1000 : null; t.cpc = div(t.spend, t.link_clicks);
     t.ctr = div(t.link_clicks, t.impressions); t.connect = div(t.lp_views, t.link_clicks);
     t.conv = div(t.sales, t.lp_views); t.roas = div(t.revenue, t.spend); t.ticket = div(t.revenue, t.sales); // ticket e ROAS são do total (ingresso + OB)
     t.ob_rate = div(t.bumps, t.sales); // taxa de conversão do order bump = OB ÷ ingressos
@@ -899,7 +904,9 @@ const D = /*__DATA__*/{};
 
   /* ---------- criativos ---------- */
   function renderCreatives(rows) {
-    const filtered = state.tempFilter === 'all' ? rows : rows.filter(r => tempOf(r) === state.tempFilter);
+    // a tabela já agrupa pelo nome do criativo (o mesmo criativo roda em vários conjuntos e
+    // páginas); o seletor de página permite ver o desempenho dele numa página específica
+    const filtered = !state.paginaFiltro ? rows : rows.filter(r => (r.pagina || SEM_PAGINA) === state.paginaFiltro);
     // agrupa pelo nome do criativo: o mesmo criativo roda em vários conjuntos (ids de anúncio diferentes)
     const byName = groupBy(filtered, r => (r.ad_name || r.ad_id).trim().toLowerCase());
     let list = [...byName.entries()].map(([id, rs]) => {
@@ -1041,12 +1048,15 @@ const D = /*__DATA__*/{};
       .filter(o => o.lp_views > 0 || o.sales > 0 || o.spend > 0)
       .sort((a, b) => b.sales - a.sales || b.lp_views - a.lp_views);
     if (!lista.length) {
-      tb.innerHTML = '<tr><td colspan="8" class="empty">Sem dados de página no período.</td></tr>'; tf.innerHTML = ''; return;
+      tb.innerHTML = '<tr><td colspan="11" class="empty">Sem dados de página no período.</td></tr>'; tf.innerHTML = ''; return;
     }
     const maxGasto = Math.max(1, ...lista.map(o => o.spend));
     tb.innerHTML = lista.map(o => `<tr>
       <td>${o.pagina === SEM_PAGINA ? '<span class="dim">' + SEM_PAGINA + '</span>' : esc(o.pagina)}</td>
       <td class="num"><span class="bar-cell"><i style="width:${(o.spend / maxGasto * 56).toFixed(0)}px"></i>${fmtMoney(o.spend)}</span></td>
+      <td class="num">${fmtMoney(o.cpm)}</td>
+      <td class="num">${fmtPct(o.ctr)}</td>
+      <td class="num">${fmtMoney(o.cpc)}</td>
       <td class="num">${fmtInt(o.lp_views)}</td>
       <td class="num">${fmtInt(o.checkouts)}</td>
       <td class="num"><span class="pill-rate" data-on="${o.checkouts ? 1 : 0}">${fmtPct(o.checkout_rate, 1)}</span></td>
@@ -1055,13 +1065,26 @@ const D = /*__DATA__*/{};
       <td class="num">${o.spend ? fmtMoney(o.cpa) : '—'}</td>
     </tr>`).join('');
     const t = sum(rows);
-    tf.innerHTML = `<tr><td>${lista.length} ${lista.length === 1 ? 'página' : 'páginas'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtInt(t.lp_views)}</td><td class="num">${fmtInt(t.checkouts)}</td><td class="num">${fmtPct(t.checkout_rate, 1)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtMoney(t.cpa)}</td></tr>`;
+    tf.innerHTML = `<tr><td>${lista.length} ${lista.length === 1 ? 'página' : 'páginas'}</td><td class="num">${fmtMoney(t.spend)}</td><td class="num">${fmtMoney(t.cpm)}</td><td class="num">${fmtPct(t.ctr)}</td><td class="num">${fmtMoney(t.cpc)}</td><td class="num">${fmtInt(t.lp_views)}</td><td class="num">${fmtInt(t.checkouts)}</td><td class="num">${fmtPct(t.checkout_rate, 1)}</td><td class="num">${fmtInt(t.sales)}</td><td class="num">${fmtPct(t.conv)}</td><td class="num">${fmtMoney(t.cpa)}</td></tr>`;
+  }
+
+  // opções do seletor de página: o que existe no período, com o gasto de cada uma
+  function renderFiltroPagina(rows) {
+    const sel = $('filtroPagina');
+    const porPagina = groupBy(rows, r => r.pagina || SEM_PAGINA);
+    const paginas = [...porPagina.entries()]
+      .map(([pagina, rs]) => ({ pagina, ...sum(rs) }))
+      .filter(o => o.spend > 0 || o.sales > 0)
+      .sort((a, b) => b.spend - a.spend);
+    if (state.paginaFiltro && !paginas.some(o => o.pagina === state.paginaFiltro)) state.paginaFiltro = null;
+    sel.innerHTML = '<option value="">Todas as páginas</option>' + paginas.map(o =>
+      `<option value="${esc(o.pagina)}"${o.pagina === state.paginaFiltro ? ' selected' : ''}>${esc(o.pagina)} · ${fmtInt(o.sales)} ${o.sales === 1 ? 'venda' : 'vendas'}</option>`).join('');
   }
 
   function renderAll() {
     updatePeriodButton();
     const rows = filteredRows();
-    renderKpis(rows); renderGoal(); renderTickets(rows); renderFunnel(rows); renderChart(rows); renderTemps(rows); renderPaginas(rows); renderOrigens(); renderDaily(rows); renderCreatives(rows);
+    renderKpis(rows); renderGoal(); renderTickets(rows); renderFunnel(rows); renderChart(rows); renderTemps(rows); renderPaginas(rows); renderFiltroPagina(rows); renderOrigens(); renderDaily(rows); renderCreatives(rows);
   }
 
   /* ---------- seletor de período (menu suspenso com presets + calendário) ---------- */
@@ -1157,11 +1180,10 @@ const D = /*__DATA__*/{};
 
   /* ---------- outros controles ---------- */
   function initControls() {
-    document.querySelectorAll('.chip[data-tfilter]').forEach(b => b.addEventListener('click', () => {
-      state.tempFilter = b.dataset.tfilter;
-      document.querySelectorAll('.chip[data-tfilter]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('filtroPagina').addEventListener('change', e => {
+      state.paginaFiltro = e.target.value || null;
       renderCreatives(filteredRows());
-    }));
+    });
     el.creatives.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
       const k = th.dataset.key;
       if (state.creativeSort.key === k) state.creativeSort.dir = state.creativeSort.dir === 'desc' ? 'asc' : 'desc';
