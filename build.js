@@ -145,5 +145,17 @@ const cfgOf = d => JSON.parse(fs.readFileSync(path.join(here, 'clientes', d, 'co
 // "suspenso" no config: a página sai do site (o Actions publica public/ do zero a cada execução)
 const clients = (only ? [only] : fs.readdirSync(path.join(here, 'clientes')).filter(d => fs.existsSync(path.join(here, 'clientes', d, 'config.json'))))
   .filter(d => { const s = cfgOf(d).suspenso; if (s) console.log(`[${d}] suspenso desde ${s} — página não publicada`); return !s; });
-for (const c of clients) buildClient(c);
+// Cliente cuja coleta falhou nesta execução fica de fora da publicação em vez de derrubar o
+// site inteiro — os outros continuam no ar com os dados que têm.
+const falharam = [];
+for (const c of clients) {
+  try {
+    buildClient(c);
+  } catch (e) {
+    falharam.push(c);
+    console.error(`[${c}] sem dados para publicar: ${e.message}`);
+  }
+}
+if (falharam.length) console.error(`clientes fora desta publicação: ${falharam.join(', ')}`);
+if (falharam.length === clients.length) { console.error('nenhum cliente pôde ser publicado'); process.exit(1); }
 if (!FULL && !only) buildRoot();

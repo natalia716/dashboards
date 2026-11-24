@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy2.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -71,11 +71,21 @@ jobs:
           META_TOKEN_ACT_538876983472217: ${{ secrets.META_TOKEN_ACT_538876983472217 }}
           PAYT_READ_KEY_CHEFBERNADETE: ${{ secrets.PAYT_READ_KEY_CHEFBERNADETE }}
         run: |
-          set -e
+          # Um cliente que falha (API fora do ar, planilha trocada, token expirado) não pode
+          # derrubar a publicação dos outros: o erro é registrado e o build segue com os dados
+          # que esse cliente já tinha. Se nenhum cliente coletar, aí sim a execução falha.
+          ok=0; falhou=""
           for dir in clientes/*/; do
             cliente=$(basename "$dir")
-            node refresh.js "$cliente"
+            if node refresh.js "$cliente"; then
+              ok=$((ok+1))
+            else
+              falhou="$falhou $cliente"
+              echo "::warning title=Coleta falhou::$cliente não coletou nesta execução"
+            fi
           done
+          if [ -n "$falhou" ]; then echo "clientes com falha:$falhou"; fi
+          [ "$ok" -gt 0 ] || { echo "::error::nenhum cliente coletou"; exit 1; }
 
       - name: Salvar cache do Meta
         if: always()
@@ -93,5 +103,27 @@ jobs:
         with:
           path: public
 
+      # O deploy do Pages falha de forma intermitente (chega a 60% das execuções em alguns dias).
+      # A primeira tentativa não derruba o run; se ela falhar, espera e tenta de novo.
       - id: deploy
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Esperar antes de tentar o deploy de novo
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 45
+
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Resultado do deploy
+        if: always()
+        run: |
+          if [ "${{ steps.deploy.outcome }}" = "success" ]; then
+            echo "publicado na primeira tentativa"
+          elif [ "${{ steps.deploy2.outcome }}" = "success" ]; then
+            echo "::warning title=Deploy instável::publicado só na segunda tentativa"
+          else
+            echo "::error::as duas tentativas de deploy falharam"; exit 1
+          fi
