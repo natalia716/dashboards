@@ -111,6 +111,12 @@
   .seg button:last-child { border-right: 0; }
   .seg button:hover { background: var(--surface-2); color: var(--ink); }
   .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+  /* perpétuo: os produtos ficam numa barra própria, acima dos KPIs */
+  .prod-bar { margin-bottom: 18px; }
+  /* perpétuo: conversão por página só com as métricas da página (sem CPM, CTR e CPC — 3ª a 5ª colunas) */
+  body.perpetuo #paginas tr > :nth-child(3), body.perpetuo #paginas tr > :nth-child(4), body.perpetuo #paginas tr > :nth-child(5) { display: none; }
+  .prod-bar .seg { max-width: 100%; overflow-x: auto; }
+  .prod-bar .seg button { min-height: 42px; padding: 0 22px; font-size: 14.5px; white-space: nowrap; }
 
   .periodWrap { position: relative; }
   .periodBtn {
@@ -329,6 +335,7 @@
       <div class="periodPop" id="periodPop" role="dialog" aria-label="Selecionar período" hidden>
         <div class="periodPresets" id="periodPresets">
           <button data-p="max">Período completo</button>
+          <button data-p="month">Este mês</button>
           <button data-p="today">Hoje</button>
           <button data-p="7">Últimos 7 dias</button>
           <button data-p="14">Últimos 14 dias</button>
@@ -363,6 +370,7 @@
     <span id="status-text"></span>
   </div>
 
+  <div class="prod-bar" id="prodBar" hidden></div>
   <section aria-label="Resultado do período">
     <div class="kpis">
       <div class="card kpi">
@@ -576,6 +584,9 @@ const D = /*__DATA__*/{};
   const OB = !(D && D.summary && D.summary.orderBump === false);     // Hotmart: sem order bump no painel
   if (!OB) document.body.classList.add('sem-ob');
   // config "vendasSemRastreio": "trafego" — só havia tráfego pago, então venda sem anúncio identificado também é do tráfego
+  // config "perpetuo": true — abas por produto acima dos KPIs, período padrão = mês atual, criativos sem filtro de página
+  const PERPETUO = !!(D && D.summary && D.summary.perpetuo);
+  if (PERPETUO) document.body.classList.add('perpetuo');
   const SEM_RASTREIO_TRAFEGO = !!(D && D.summary && D.summary.semRastreio === 'trafego');
 
   /* ---------- temperatura pelo nome do conjunto ---------- */
@@ -669,12 +680,15 @@ const D = /*__DATA__*/{};
     // vendas da Hubla: casadas com o anúncio pelo utm_content (= ad id); sem UTM válida → "Não atribuído"
     for (const s of (D.sales || [])) {
       const adId = s.adId && adById.has(s.adId) ? s.adId : null;
-      const k = key(s.date, adId || NAO_ATRIBUIDO);
+      let k = key(s.date, adId || NAO_ATRIBUIDO);
+      // perpétuo com uma aba por produto: a venda já vem com o evento (= produto). Se o anúncio é de outra aba
+      // (clicou no anúncio de um produto e comprou outro), a venda ganha uma linha própria, sem gasto, na aba do produto.
+      if (s.evento && map.has(k) && map.get(k).evento !== s.evento) k += '|' + s.evento;
       if (!map.has(k)) {
         const ad = adId ? adById.get(adId) : null;
         map.set(k, {
           campaign_id: ad ? ad.campaignId : null,
-          evento: eventoDaData(s.date) || (ad && eventoDaCampanha.get(ad.campaignId)) || null,
+          evento: s.evento || eventoDaData(s.date) || (ad && eventoDaCampanha.get(ad.campaignId)) || null,
           date: s.date, ad_id: adId || NAO_ATRIBUIDO,
           ad_name: ad ? ad.name : SEM_RASTREIO_TRAFEGO ? 'Tráfego · anúncio não identificado' : PLAT === 'Hotmart' ?'Não atribuído (sem rastreio do anúncio)' : 'Não atribuído (sem UTM do anúncio)', adset_name: ad ? ad.adsetName : '', temp: ad ? (ad.temp || undefined) : null,
           preview_url: ad ? (ad.igUrl || ad.previewUrl || '') : '', thumb: ad ? (ad.thumb || '') : '', pagina: ad ? (ad.pagina || null) : null,
@@ -722,6 +736,7 @@ const D = /*__DATA__*/{};
     const p = state.preset, U = state.until;
     if (p === 'max') [state.from, state.to] = maxRange();
     else if (p === 'today') { state.from = U; state.to = U; }
+    else if (p === 'month') { state.from = U.slice(0, 8) + '01'; state.to = U; }
     else if (p === '7' || p === '14' || p === '30') { state.to = U; state.from = addDays(U, -(+p - 1)); }
     // custom: mantém o que foi escolhido no calendário
   }
@@ -1004,7 +1019,7 @@ const D = /*__DATA__*/{};
     const nota = $('origens-nota');
     const vendas = (D && D.sales ? D.sales : []).filter(v =>
       v.main !== false && v.date >= state.from && v.date <= state.to &&
-      (!state.evento || !state.eventos.length || eventoDaData(v.date) === state.evento));
+      (!state.evento || !state.eventos.length || (v.evento || eventoDaData(v.date)) === state.evento));
     if (!D || !D.sales) { // dados de exemplo: não há lista de vendas individual
       const t = sum(filteredRows());
       tb.innerHTML = t.sales
@@ -1088,7 +1103,7 @@ const D = /*__DATA__*/{};
   }
 
   /* ---------- seletor de período (menu suspenso com presets + calendário) ---------- */
-  const PRESET_LABEL = { max: 'Período completo', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
+  const PRESET_LABEL = { max: 'Período completo', month: 'Este mês', today: 'Hoje', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 30: 'Últimos 30 dias', custom: 'Personalizado' };
   const cal = { y: 0, m: 0 };            // mês exibido
   const pick = { from: null, to: null };  // seleção em andamento no calendário
   const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -1180,6 +1195,12 @@ const D = /*__DATA__*/{};
 
   /* ---------- outros controles ---------- */
   function initControls() {
+    // perpétuo: criativos sem filtro de página e sem as seções de dados diários e de público frio/quente
+    if (PERPETUO) {
+      $('filtroPagina').closest('.right').hidden = true;
+      el.daily.closest('section').hidden = true;
+      el.temps.closest('section').hidden = true;
+    }
     $('filtroPagina').addEventListener('change', e => {
       state.paginaFiltro = e.target.value || null;
       renderCreatives(filteredRows());
@@ -1299,6 +1320,7 @@ const D = /*__DATA__*/{};
     const seg = $('segEvento');
     if (state.eventos.length < 2) { seg.hidden = true; return; }
     seg.hidden = false;
+    if (PERPETUO) { $('prodBar').appendChild(seg); $('prodBar').hidden = false; }
     seg.innerHTML = state.eventos.map(ev =>
       `<button data-ev="${esc(ev.id)}" class="${ev.id === state.evento ? 'on' : ''}" title="${fmtDate(ev.inicio)} – ${ev.fim ? fmtDate(ev.fim) : 'hoje'}">${esc(ev.nome)}</button>`).join('');
     seg.addEventListener('click', e => {
@@ -1306,7 +1328,7 @@ const D = /*__DATA__*/{};
       state.evento = b.dataset.ev;
       for (const x of seg.children) x.classList.toggle('on', x === b);
       try { localStorage.setItem('ato-evento', state.evento); } catch (err) {}
-      applyPreset('max');
+      applyPreset(PERPETUO ? undefined : 'max');
       renderAll();
       atualizaAbaDebrief();
     });
@@ -1380,16 +1402,20 @@ const D = /*__DATA__*/{};
       $('updatedAt').textContent = 'Atualizado ' + up.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       $('liveline').hidden = false;
       // Hotmart: sem debriefing (ele cruza os exports da Hubla) — some a barra de abas
-      if (PLAT === 'Hotmart' && !D.debrief) document.querySelector('.tabs').hidden = true;
+      if (PLAT !== 'Hubla' && !D.debrief) document.querySelector('.tabs').hidden = true;
       const vendas = (D.sales || []).filter(s => s.main !== false), semAnuncio = vendas.filter(s => !s.adId).length;
-      if (PLAT === 'Hotmart' && !SEM_RASTREIO_TRAFEGO && vendas.length && semAnuncio / vendas.length > .5) {
+      if (PLAT !== 'Hubla' && !SEM_RASTREIO_TRAFEGO && vendas.length && semAnuncio / vendas.length > .5) {
         $('status-pill').textContent = 'Rastreio';
-        $('status-text').textContent = `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Hotmart sem o código do anúncio (SCK/xcod). Elas contam nos totais, na meta e nos tickets, mas ficam em "Não atribuído" nos criativos e fora do funil.`;
+        $('status-text').textContent = PLAT === 'Kiwify'
+          ? `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Kiwify sem o utm_content do anúncio. Elas contam nos totais, mas ficam em "Não atribuído" nos criativos e fora do funil — confira se a página repassa as UTMs ao checkout.`
+          : `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Hotmart sem o código do anúncio (SCK/xcod). Elas contam nos totais, na meta e nos tickets, mas ficam em "Não atribuído" nos criativos e fora do funil.`;
         $('status').hidden = false;
       }
       if (!D.summary.hubla) {
-        $('status-pill').textContent = 'Hubla pendente';
-        $('status-text').textContent = 'Gasto, impressões e cliques já vêm do Meta Ads. As vendas aparecem quando o webhook da Hubla estiver ligado.';
+        $('status-pill').textContent = PLAT + ' pendente';
+        $('status-text').textContent = PLAT === 'Kiwify'
+          ? 'Gasto, impressões e cliques já vêm do Meta Ads. As vendas aparecem quando a chave de API da Kiwify for cadastrada.'
+          : 'Gasto, impressões e cliques já vêm do Meta Ads. As vendas aparecem quando o webhook da Hubla estiver ligado.';
         $('status').hidden = false;
       }
     } else {
@@ -1397,6 +1423,7 @@ const D = /*__DATA__*/{};
       $('status-text').textContent = 'Números fictícios para mostrar o painel funcionando — a versão publicada usa os dados reais do Meta Ads e da Hubla.';
       $('status').hidden = false;
     }
+    if (PERPETUO) state.preset = 'month';
     applyPreset();
     initPeriodPicker();
     initControls();

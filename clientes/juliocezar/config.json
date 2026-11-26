@@ -1,0 +1,38 @@
+{
+  "nome": "Júlio Cezar",
+  "tipo": "lancamento",
+  "perpetuo": true,
+  "conta": "act_1216725503926209",
+  "desde": "2026-06-01",
+  "vendas": "kiwify",
+  "eventos": [
+    {
+      "id": "pmpe-questoes",
+      "nome": "PMPE Questões",
+      "filtroCampanha": "PMPE-QU",
+      "campanhaDesde": "2026-06-01",
+      "desde": "2026-06-01",
+      "ate": null,
+      "produtos": ["PMPE 100 QUESTÕES LEGISLAÇÃO EXTRAVAGANTE"]
+    },
+    {
+      "id": "pmpe-legislacao",
+      "nome": "PMPE Legislação",
+      "filtroCampanha": "PMPE-LEGISLA",
+      "campanhaDesde": "2026-06-01",
+      "desde": "2026-06-01",
+      "ate": null,
+      "produtos": ["Legislação Extravagante para PMPE"]
+    },
+    {
+      "id": "pcpe",
+      "nome": "PCPE",
+      "filtroCampanha": "PCPE",
+      "campanhaDesde": "2026-06-01",
+      "desde": "2026-06-01",
+      "ate": null,
+      "produtos": ["PCPE (Agente e Escrivão)"]
+    }
+  ],
+  "eventoPadrao": "pmpe-legislacao"
+}

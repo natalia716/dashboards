@@ -2,7 +2,7 @@
 
 Dashboards de Meta Ads, um por cliente, publicados em **dash.atodigital.com.br/&lt;cliente&gt;**
 como páginas estáticas no GitHub Pages e atualizados a cada 15 minutos pelo GitHub Actions.
-Quatro tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla ou da Hotmart),
+Quatro tipos: **leads** (Meta + planilha de leads), **lançamento** (Meta em nível de anúncio + vendas da Hubla, da Hotmart ou da Kiwify; serve também ao perpétuo),
 **captação** (Meta em nível de anúncio + planilha de leads de um lançamento: orgânico/quente/frio, país, origem e criativos)
 e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 
@@ -14,6 +14,7 @@ e **criativos** (Meta por anúncio e por dia + vendas da Hotmart ou da Payt).
 | Chef Bernadete | criativos (Payt) | **suspenso** desde 07/11/2026 (saiu da operação) |
 | Emilia (Black OUT-26) | captação | https://dash.atodigital.com.br/emilia — **captação encerrada** em 22/11/2026 (só as vendas, 1x por dia) |
 | Ghenady Tec (Semana Diagnóstico Android, OUT-26) | lançamento (Hotmart) | https://dash.atodigital.com.br/ghenady |
+| Prof. Júlio Cezar (perpétuo: PMPE Questões, PMPE Legislação, PCPE) | perpétuo (Kiwify) | https://dash.atodigital.com.br/juliocezar — **Kiwify pendente** (falta a chave de API) |
 
 ## Como funciona
 
@@ -142,6 +143,22 @@ Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não a
   sem isso a venda conta nos totais, mas fica "Não atribuído" nos criativos e o painel mostra um aviso.
 - Conta de anúncio em outra moeda (ex.: USD): o gasto é convertido para reais pela PTAX de venda do dia.
 - Sem order bump e sem a aba Debriefing (que cruza os exports da Hubla).
+
+### Perpétuo com vendas da Kiwify, uma aba por produto (ex.: juliocezar)
+
+- `config.json`: `"tipo": "lancamento"`, `"perpetuo": true`, `"vendas": "kiwify"`, `desde` e um item em `eventos` por
+  produto (= aba), cada um com `filtroCampanha` (regex sobre o nome da campanha), `desde`/`campanhaDesde`, `"ate": null` e
+  `"produtos": ["<nome do produto na Kiwify>"]` (nome exato, sem diferença de maiúscula/acento; o id do produto também vale).
+  Os botões no topo trocam de produto. Venda de produto fora de todas as abas não entra (o refresh lista quais ficaram de fora).
+- `"perpetuo": true` troca "ingressos" por "vendas" nos rótulos, e o seletor de evento vira o seletor de produto.
+- Na Kiwify: *Apps → API → Criar API Key*. Client ID, Client Secret e Account ID viram `KIWIFY_CLIENT_ID_<SLUG>`,
+  `KIWIFY_CLIENT_SECRET_<SLUG>` e `KIWIFY_ACCOUNT_ID_<SLUG>` (.env, Secrets do GitHub e `env:` do workflow).
+  Sem eles, o painel sai só com o Meta e o aviso "Kiwify pendente".
+- Venda = status `paid`/`approved`, na data de criação do pedido (fuso de SP); valor = `payment.charge_amount` (o que o
+  comprador pagou, em centavos). Reembolso e chargeback somem. A primeira execução busca desde `desde`; as seguintes, os
+  últimos 35 dias sobre o cache (`out/cache/kiwify-sales.json`, sem dado do comprador).
+- Anúncio pelo `utm_content` (`{{ad.name}}|{{ad.id}}` nos parâmetros de URL do Meta). **A página precisa repassar as UTMs ao
+  checkout da Kiwify.** Venda que veio do anúncio de outro produto conta na aba do produto comprado.
 
 ## Adicionar um cliente de captação (leads de lançamento)
 

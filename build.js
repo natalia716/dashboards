@@ -84,7 +84,15 @@ function buildClient(slug) {
       sales: json('sales.json').rows,
       debrief: json('debrief.json'),
     };
-    const html = templateLancamento
+    // perpétuo: não há ingresso — os rótulos do lançamento viram "vendas" e o seletor de evento vira o de produto
+    const tpl = !cfg.perpetuo ? templateLancamento : [
+      ['Vendas de ingressos e order bump por dia e CPA de ingressos', 'Vendas e CPA por dia'],
+      ['Vendas e CPA de ingressos por dia', 'Vendas e CPA por dia'],
+      ['Vendas ingressos', 'Vendas'], ['CPA ingressos', 'CPA'],
+      ['<span>Ingressos</span>', '<span>Vendas</span>'], [' dos ingressos</span>', ' das vendas</span>'],
+      ['aria-label="Evento"', 'aria-label="Produto"'],
+    ].reduce((t, [de, para]) => t.split(de).join(para), templateLancamento);
+    const html = tpl
       .split('{{NOME}}').join(esc(cfg.nome))
       .replace('/*__DATA__*/{}', JSON.stringify(data).replace(/<\/script/gi, '<\\/script'));
     const outFile = FULL ? path.join(dir, 'dashboard-completo.html') : path.join(PUBLIC, slug, 'index.html');

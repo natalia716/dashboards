@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const hotmart = require('./hotmart');
 const payt = require('./payt');
+const kiwify = require('./kiwify');
 
 const slug = process.argv[2];
 if (!slug || !/^[a-z0-9-]+$/.test(slug)) { console.error('uso: node refresh.js <cliente>   (ex.: omundoclinico)'); process.exit(1); }
@@ -340,6 +341,37 @@ function origemDaVenda({ adId, utmSource, utmMedium, src }) {
   return 'Sem rastreio';
 }
 
+// Anúncio da venda pelo utm_content, que chega como "NOME-DO-ANUNCIO|<ad id>::<rastreio do Facebook>" (ou só o nome,
+// ou só o id). Serve à Hubla e à Kiwify.
+function casadorDeAnuncio(ads, entregaNoDia = new Set()) {
+  const adsPorNome = new Map();
+  for (const a of ads) {
+    const k = normKey(a.name);
+    if (!adsPorNome.has(k)) adsPorNome.set(k, []);
+    adsPorNome.get(k).push(a);
+  }
+  const adIds = new Set(ads.map(a => a.id));
+  return (utmContent, date) => {
+    const uct = decode(utmContent || '').split('::')[0].trim();
+    const partes = uct.split('|').map(x => x.trim()).filter(Boolean);
+    // O ID vem primeiro: o mesmo criativo roda em campanhas de temperaturas diferentes com o
+    // mesmo NOME, então casar pelo nome creditava a venda ao anúncio errado (ex.: venda de
+    // público quente marcada como fria). O nome só entra quando nenhuma parte é um id conhecido.
+    let adId = partes.find(x => adIds.has(x)) || null;
+    if (!adId) {
+      const candidatos = partes.flatMap(x => adsPorNome.get(normKey(x)) || []);
+      if (candidatos.length === 1) adId = candidatos[0].id;
+      else if (candidatos.length > 1) {
+        // nome ambíguo: fica com quem entregou no dia da venda; sem isso, com o anúncio mais novo
+        const noDia = candidatos.filter(a => entregaNoDia.has(a.id + '|' + date));
+        const escolha = (noDia.length ? noDia : candidatos).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
+        adId = escolha.id;
+      }
+    }
+    return { adId, uct };
+  };
+}
+
 async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   if (!CFG.hubla || !CFG.hubla.planilha || !CFG.hubla.planilha.id) return null;
   const csvText = await (await fetch(sheetCsvUrl(CFG.hubla.planilha), { redirect: 'follow' })).text();
@@ -362,13 +394,7 @@ async function fetchHublaSales(ads, entregaNoDia = new Set()) {
   const byInvoice = new Map();
   for (const r of rows.slice(1)) { const id = g(r, col.invoice); if (id) byInvoice.set(id, r); }
 
-  const adsPorNome = new Map();
-  for (const a of ads) {
-    const k = normKey(a.name);
-    if (!adsPorNome.has(k)) adsPorNome.set(k, []);
-    adsPorNome.get(k).push(a);
-  }
-  const adIds = new Set(ads.map(a => a.id));
+  const adDaVenda = casadorDeAnuncio(ads, entregaNoDia);
   const sales = [];
   for (const [invoiceId, r] of byInvoice) {
     if (g(r, col.status).toLowerCase() !== 'paid') continue;
@@ -385,23 +411,7 @@ async function fetchHublaSales(ads, entregaNoDia = new Set()) {
     if (!main && !bump) continue;
     const date = saleDateSP(g(r, col.sale));
     if (!date) continue;
-    // utm_content chega como "NOME-DO-ANUNCIO|<ad id>::<rastreio do Facebook>" (ou só o nome, ou só o id)
-    const uct = decode(g(r, col.uct)).split('::')[0].trim();
-    const partes = uct.split('|').map(x => x.trim()).filter(Boolean);
-    // O ID vem primeiro: o mesmo criativo roda em campanhas de temperaturas diferentes com o
-    // mesmo NOME, então casar pelo nome creditava a venda ao anúncio errado (ex.: venda de
-    // público quente marcada como fria). O nome só entra quando nenhuma parte é um id conhecido.
-    let adId = partes.find(x => adIds.has(x)) || null;
-    if (!adId) {
-      const candidatos = partes.flatMap(x => adsPorNome.get(normKey(x)) || []);
-      if (candidatos.length === 1) adId = candidatos[0].id;
-      else if (candidatos.length > 1) {
-        // nome ambíguo: fica com quem entregou no dia da venda; sem isso, com o anúncio mais novo
-        const noDia = candidatos.filter(a => entregaNoDia.has(a.id + '|' + date));
-        const escolha = (noDia.length ? noDia : candidatos).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
-        adId = escolha.id;
-      }
-    }
+    const { adId, uct } = adDaVenda(g(r, col.uct), date);
     const rastreio = {
       utmSource: g(r, col.usrc) || null, utmMedium: g(r, col.umed) || null,
       utmTerm: g(r, col.uterm) || null, src: g(r, col.srcp) || null, sck: g(r, col.sck) || null,
@@ -489,18 +499,21 @@ async function mainLancamento() {
     igUrl: a.creative && a.creative.instagram_permalink_url || null
   }));
 
-  // ---- vendas: Hubla (planilha do webhook) ou Hotmart (API) ----
-  const HOTMART = CFG.vendas === 'hotmart';
-  // quem entregou em cada dia: desempata venda cujo utm_content só traz o nome do criativo
-  const entregaNoDia = new Set(insights.filter(r => r[5] > 0 || r[4] > 0).map(r => r[3] + '|' + r[0]));
-  const sales = HOTMART ? await fetchHotmartLaunchSales(ads, until) : await fetchHublaSales(ads, entregaNoDia);
-
-  // ---- câmbio: conta fora do real (ex.: USD) tem o gasto convertido pela PTAX de venda do dia ----
   const CACHE = path.join(OUT, 'cache');
   fs.mkdirSync(CACHE, { recursive: true });
   const readCache = name => { try { return JSON.parse(fs.readFileSync(path.join(CACHE, name), 'utf8')); } catch (e) { return null; } };
   const writeCache = (name, obj) => fs.writeFileSync(path.join(CACHE, name), JSON.stringify(obj));
   const warnings = [];
+
+  // ---- vendas: Hubla (planilha do webhook), Hotmart (API) ou Kiwify (API) ----
+  const HOTMART = CFG.vendas === 'hotmart', KIWIFY = CFG.vendas === 'kiwify';
+  // quem entregou em cada dia: desempata venda cujo utm_content só traz o nome do criativo
+  const entregaNoDia = new Set(insights.filter(r => r[5] > 0 || r[4] > 0).map(r => r[3] + '|' + r[0]));
+  const sales = HOTMART ? await fetchHotmartLaunchSales(ads, until)
+    : KIWIFY ? await fetchKiwifyLaunchSales(ads, until, EVENTOS, entregaNoDia, readCache, writeCache, warnings)
+    : await fetchHublaSales(ads, entregaNoDia);
+
+  // ---- câmbio: conta fora do real (ex.: USD) tem o gasto convertido pela PTAX de venda do dia ----
   const contaMoeda = await accountCurrency(ACCOUNT, TOKEN);
   if (contaMoeda !== 'BRL') {
     const rates = await ptax(contaMoeda, since, until, readCache, writeCache, warnings);
@@ -521,7 +534,7 @@ async function mainLancamento() {
   // com o gasto do lançamento seguinte (config: "debrief": { "congelado": true })
   const debriefCongelado = !!(CFG.debrief && CFG.debrief.congelado);
   let debrief = null;
-  if (!HOTMART && !debriefCongelado) try {
+  if (!HOTMART && !KIWIFY && !debriefCongelado) try {
     debrief = require('./lib/debrief').gerar({ dir: DIR, ads: keptAds, gastoPorAdId, gastoTotal, vendasWebhook: sales || [], campaigns });
   } catch (e) {
     console.error(`[${slug}] debriefing ignorado: ${e.message}`);
@@ -542,7 +555,8 @@ async function mainLancamento() {
   write('sales.json', { rows: sales || [] });
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
-    plataforma: HOTMART ? 'Hotmart' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
+    plataforma: HOTMART ? 'Hotmart' : KIWIFY ? 'Kiwify' : 'Hubla', orderBump: !HOTMART && !KIWIFY, contaMoeda, warnings,
+    perpetuo: !!CFG.perpetuo,
     metaVendas: CFG.metaVendas || null, semRastreio: CFG.vendasSemRastreio === 'trafego' ? 'trafego' : null,
     // uma janela por evento: é o que o painel usa no seletor e no "Período completo"
     eventos: EVENTOS.map(ev => ({ id: ev.id, nome: ev.nome, inicio: ev.desde, fim: ev.ate || null, metaVendas: ev.metaVendas !== undefined ? ev.metaVendas : CFG.metaVendas || null })),
@@ -553,7 +567,7 @@ async function mainLancamento() {
     counts: { campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.filter(s => s.main).length : null, bumps: sales ? sales.filter(s => s.bump).length : null, debriefMba: debrief ? debrief.mba.vendas : null }
   });
   for (const w of warnings) console.error(`[${slug}] aviso: ${w}`);
-  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'hubla não configurada', comAnuncio: sales ? sales.filter(s => s.adId).length : null, contaMoeda }));
+  console.log(`[${slug}] OK`, JSON.stringify({ campaigns: campaigns.length, insightRows: insights.length, ads: keptAds.length, sales: sales ? sales.length : 'vendas não configuradas', comAnuncio: sales ? sales.filter(s => s.adId).length : null, contaMoeda }));
 }
 
 // Vendas da Hotmart do lançamento (config: "vendas": "hotmart", "hotmart": { "produtos": [ids] }), desde o início
@@ -577,6 +591,54 @@ async function fetchHotmartLaunchSales(ads, until) {
       valueCents: Math.round((cur === 'BRL' ? price : ticket || 0) * 100), ticketCents: ticket == null ? null : Math.round(ticket * 100)
     };
   });
+}
+
+// Vendas da Kiwify (config: "vendas": "kiwify"). Cada evento do config lista em "produtos" os nomes (ou ids) dos produtos
+// da Kiwify que entram nele: é assim que o perpétuo vira uma aba por produto. Venda de produto fora de todos os eventos não
+// entra. Primeira execução busca desde `desde`; as seguintes, os últimos 35 dias sobre o cache (reembolso e chargeback
+// mudam o status da venda nesse prazo). Sem credencial: null — o painel sai com o gasto e o aviso "Kiwify pendente".
+const KIWIFY_RECENTES = 35;
+async function fetchKiwifyLaunchSales(ads, until, eventos, entregaNoDia, readCache, writeCache, warnings) {
+  const cred = kiwify.credentials(slug);
+  if (!cred) return null;
+  const cache = readCache('kiwify-sales.json');
+  const inc = !!(cache && cache.since === SINCE);
+  const recente = (() => { const t = new Date(until + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - KIWIFY_RECENTES); return t.toISOString().slice(0, 10); })();
+  const from = inc && recente > SINCE ? recente : SINCE;
+  let rows;
+  try {
+    const fresh = await kiwify.fetchSales(cred, from, until);
+    rows = (inc ? cache.rows.filter(v => v.date < from) : []).concat(fresh);
+    writeCache('kiwify-sales.json', { since: SINCE, until, rows });
+  } catch (e) {
+    if (!inc) throw e;
+    rows = cache.rows;
+    warnings.push(`vendas da Kiwify não atualizaram (${e.message}) — usadas as de ${cache.until}`);
+  }
+
+  const doEvento = eventos.map(ev => ({ id: ev.id, produtos: new Set((ev.produtos || []).map(normKey)) }));
+  const eventoDoProduto = s => {
+    const hit = doEvento.find(ev => ev.produtos.has(normKey(s.productName)) || ev.produtos.has(normKey(s.productId)));
+    return hit ? hit.id : (doEvento.length === 1 && !doEvento[0].produtos.size ? doEvento[0].id : null);
+  };
+  const adDaVenda = casadorDeAnuncio(ads, entregaNoDia);
+  const fora = new Map();
+  const sales = [];
+  for (const s of rows) {
+    if (!kiwify.PAGO.has(s.status)) continue;
+    const evento = eventoDoProduto(s);
+    if (!evento) { fora.set(s.productName, (fora.get(s.productName) || 0) + 1); continue; }
+    const t = s.tracking || {};
+    const { adId, uct } = adDaVenda(t.utmContent, s.date);
+    sales.push({
+      date: s.date, invoiceId: s.id, adId, main: true, bump: false, evento, productId: s.productId,
+      origem: origemDaVenda({ adId, utmSource: t.utmSource, utmMedium: t.utmMedium, src: t.src }),
+      utmSource: t.utmSource, utmMedium: t.utmMedium, utmTerm: t.utmTerm, src: t.src, sck: t.sck,
+      valueCents: s.valueCents, utmCampaign: normKey(t.utmCampaign) || null, utmContent: uct || null,
+    });
+  }
+  if (fora.size) console.log(`[${slug}] Kiwify: produtos fora das abas (não entram):`, JSON.stringify(Object.fromEntries(fora)));
+  return sales;
 }
 
 // ================= CAPTAÇÃO: Meta em nível de anúncio + planilha de leads de um lançamento =================
