@@ -154,9 +154,14 @@ Vendas com `utm_content` que não bate com nenhum anúncio aparecem como "Não a
 - Na Kiwify: *Apps → API → Criar API Key*. Client ID, Client Secret e Account ID viram `KIWIFY_CLIENT_ID_<SLUG>`,
   `KIWIFY_CLIENT_SECRET_<SLUG>` e `KIWIFY_ACCOUNT_ID_<SLUG>` (.env, Secrets do GitHub e `env:` do workflow).
   Sem eles, o painel sai só com o Meta e o aviso "Kiwify pendente".
-- Venda = status `paid`/`approved`, na data de criação do pedido (fuso de SP); valor = `payment.charge_amount` (o que o
-  comprador pagou, em centavos). Reembolso e chargeback somem. A primeira execução busca desde `desde`; as seguintes, os
-  últimos 35 dias sobre o cache (`out/cache/kiwify-sales.json`, sem dado do comprador).
+- Venda = status `paid`/`approved`, na data de criação do pedido (fuso de SP); valor = `payment.product_base_price`
+  (preço do produto em centavos, **sem** os juros do parcelamento que entram no `charge_amount`). Reembolso e chargeback
+  somem. A primeira execução busca desde `desde`; as seguintes, os últimos 35 dias sobre o cache
+  (`out/cache/kiwify-sales.json`, sem dado do comprador).
+- **Order bump**: a Kiwify manda cada bump como um pedido à parte, com `type: "bump"` e `parent_order_id` = pedido principal.
+  Ele conta como OB (e soma no faturamento) da aba do produto **principal** — PMPE Questões comprado como bump de PMPE
+  Legislação é OB de Legislação, não venda de Questões. Bump de produto principal fora das abas não entra.
+- `utm_content=link_in_bio` vira a origem "Instagram (bio)", não tráfego pago.
 - Anúncio pelo `utm_content` (`{{ad.name}}|{{ad.id}}` nos parâmetros de URL do Meta). **A página precisa repassar as UTMs ao
   checkout da Kiwify.** Venda que veio do anúncio de outro produto conta na aba do produto comprado.
 

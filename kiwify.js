@@ -55,12 +55,14 @@ async function fetchSales(cred, since, until) {
         const date = daySP(s.created_at);
         if (date < since || date > until) continue;
         const p = s.payment || {}, t = s.tracking || {};
-        // valor = o que o comprador pagou (bruto). A Kiwify manda os valores em centavos.
-        const cents = p.charge_amount != null ? p.charge_amount : p.product_base_price != null ? p.product_base_price : s.net_amount;
+        // valor = preço do produto (product_base_price), em centavos. O charge_amount soma os juros do parcelamento
+        // (R$ 137 em 12x vira R$ 170,03), que não são receita do produtor.
+        const cents = p.product_base_price != null ? p.product_base_price : p.charge_amount != null ? p.charge_amount : s.net_amount;
         out.set(s.id, {
           id: s.id, date, approvedDate: s.approved_date ? daySP(s.approved_date) : null, status: s.status,
           productId: s.product ? String(s.product.id) : null, productName: s.product ? s.product.name : null,
-          parentOrderId: s.parent_order_id || null, currency: p.charge_currency || s.currency || 'BRL',
+          // order bump: type "bump" e parent_order_id = id do pedido principal
+          type: s.type || null, parentOrderId: s.parent_order_id || null, currency: p.charge_currency || s.currency || 'BRL',
           valueCents: Math.round(Number(cents) || 0),
           tracking: { utmSource: t.utm_source || null, utmMedium: t.utm_medium || null, utmCampaign: t.utm_campaign || null, utmContent: t.utm_content || null, utmTerm: t.utm_term || null, src: t.src || null, sck: t.sck || null },
         });

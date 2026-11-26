@@ -322,8 +322,10 @@ const ORIGENS = CFG.origens || [
 const REGRAS_ORIGEM = ORIGENS.map(o => ({ label: o.label, re: new RegExp(o.match, 'i') }));
 const titulo = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-function origemDaVenda({ adId, utmSource, utmMedium, src }) {
+function origemDaVenda({ adId, utmSource, utmMedium, src, utmContent }) {
   if (adId) return 'Tráfego pago';                      // casou com um anúncio: é tráfego, ponto
+  // link da bio do Instagram (utm_source=ig&utm_content=link_in_bio) é orgânico, apesar do "ig" no utm_source
+  if (/link_in_bio/i.test(String(utmContent || ''))) return 'Instagram (bio)';
   const limpo = String(utmSource || '').trim().replace(LIMPA_SESSAO, '').replace(/[._-]+$/, '').trim();
   if (limpo) {
     const hit = REGRAS_ORIGEM.find(r => r.re.test(limpo));
@@ -555,7 +557,7 @@ async function mainLancamento() {
   write('sales.json', { rows: sales || [] });
   write('summary.json', {
     updatedAt: new Date().toISOString(), account: ACCOUNT, since, until, hubla: sales !== null,
-    plataforma: HOTMART ? 'Hotmart' : KIWIFY ? 'Kiwify' : 'Hubla', orderBump: !HOTMART && !KIWIFY, contaMoeda, warnings,
+    plataforma: HOTMART ? 'Hotmart' : KIWIFY ? 'Kiwify' : 'Hubla', orderBump: !HOTMART, contaMoeda, warnings,
     perpetuo: !!CFG.perpetuo,
     metaVendas: CFG.metaVendas || null, semRastreio: CFG.vendasSemRastreio === 'trafego' ? 'trafego' : null,
     // uma janela por evento: é o que o painel usa no seletor e no "Período completo"
@@ -602,14 +604,15 @@ async function fetchKiwifyLaunchSales(ads, until, eventos, entregaNoDia, readCac
   const cred = kiwify.credentials(slug);
   if (!cred) return null;
   const cache = readCache('kiwify-sales.json');
-  const inc = !!(cache && cache.since === SINCE);
+  // v2: vendas com type/parentOrderId (order bump) e valor sem juros — cache anterior é buscado de novo
+  const inc = !!(cache && cache.v === 2 && cache.since === SINCE);
   const recente = (() => { const t = new Date(until + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - KIWIFY_RECENTES); return t.toISOString().slice(0, 10); })();
   const from = inc && recente > SINCE ? recente : SINCE;
   let rows;
   try {
     const fresh = await kiwify.fetchSales(cred, from, until);
     rows = (inc ? cache.rows.filter(v => v.date < from) : []).concat(fresh);
-    writeCache('kiwify-sales.json', { since: SINCE, until, rows });
+    writeCache('kiwify-sales.json', { v: 2, since: SINCE, until, rows });
   } catch (e) {
     if (!inc) throw e;
     rows = cache.rows;
@@ -622,17 +625,23 @@ async function fetchKiwifyLaunchSales(ads, until, eventos, entregaNoDia, readCac
     return hit ? hit.id : (doEvento.length === 1 && !doEvento[0].produtos.size ? doEvento[0].id : null);
   };
   const adDaVenda = casadorDeAnuncio(ads, entregaNoDia);
+  // Order bump (type "bump") vai para a aba do pedido principal, como OB: produto de uma aba comprado como bump de outra
+  // (ex.: PMPE Questões no checkout de PMPE Legislação) é OB da aba do principal, não venda da própria aba.
+  const porId = new Map(rows.map(s => [s.id, s]));
   const fora = new Map();
   const sales = [];
   for (const s of rows) {
     if (!kiwify.PAGO.has(s.status)) continue;
-    const evento = eventoDoProduto(s);
-    if (!evento) { fora.set(s.productName, (fora.get(s.productName) || 0) + 1); continue; }
-    const t = s.tracking || {};
+    const bump = s.type === 'bump' && !!s.parentOrderId;
+    const principal = bump ? porId.get(s.parentOrderId) : s;
+    if (!principal || !kiwify.PAGO.has(principal.status)) continue;
+    const evento = eventoDoProduto(principal);
+    if (!evento) { if (!bump) fora.set(s.productName, (fora.get(s.productName) || 0) + 1); continue; }
+    const t = (s.tracking && s.tracking.utmContent) || !bump ? (s.tracking || {}) : (principal.tracking || {});
     const { adId, uct } = adDaVenda(t.utmContent, s.date);
     sales.push({
-      date: s.date, invoiceId: s.id, adId, main: true, bump: false, evento, productId: s.productId,
-      origem: origemDaVenda({ adId, utmSource: t.utmSource, utmMedium: t.utmMedium, src: t.src }),
+      date: s.date, invoiceId: s.id, adId, main: !bump, bump, evento, productId: s.productId,
+      origem: origemDaVenda({ adId, utmSource: t.utmSource, utmMedium: t.utmMedium, src: t.src, utmContent: t.utmContent }),
       utmSource: t.utmSource, utmMedium: t.utmMedium, utmTerm: t.utmTerm, src: t.src, sck: t.sck,
       valueCents: s.valueCents, utmCampaign: normKey(t.utmCampaign) || null, utmContent: uct || null,
     });

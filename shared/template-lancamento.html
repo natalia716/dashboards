@@ -1018,7 +1018,7 @@ const D = /*__DATA__*/{};
     const tb = el.origens.querySelector('tbody'), tf = el.origens.querySelector('tfoot');
     const nota = $('origens-nota');
     const vendas = (D && D.sales ? D.sales : []).filter(v =>
-      v.main !== false && v.date >= state.from && v.date <= state.to &&
+      (v.main !== false || v.bump) && v.date >= state.from && v.date <= state.to &&
       (!state.evento || !state.eventos.length || (v.evento || eventoDaData(v.date)) === state.evento));
     if (!D || !D.sales) { // dados de exemplo: não há lista de vendas individual
       const t = sum(filteredRows());
@@ -1035,9 +1035,11 @@ const D = /*__DATA__*/{};
       const k = v.origem || 'Sem rastreio';
       if (!porOrigem.has(k)) porOrigem.set(k, { origem: k, vendas: 0, bumps: 0, receita: 0 });
       const o = porOrigem.get(k);
-      o.vendas++; if (v.bump) o.bumps++; o.receita += (Number(v.valueCents) || 0) / 100;
+      // order bump num pedido à parte (Kiwify; fatura só de OB na Hubla) soma OB e faturamento, não venda
+      if (v.main !== false) o.vendas++;
+      if (v.bump) o.bumps++; o.receita += (Number(v.valueCents) || 0) / 100;
     }
-    const lista = [...porOrigem.values()].sort((a, b) => b.vendas - a.vendas);
+    const lista = [...porOrigem.values()].sort((a, b) => b.vendas - a.vendas || b.bumps - a.bumps);
     const total = lista.reduce((t, o) => t + o.vendas, 0);
     const receitaTotal = lista.reduce((t, o) => t + o.receita, 0);
     const bumpsTotal = lista.reduce((t, o) => t + o.bumps, 0);
