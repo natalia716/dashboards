@@ -1406,7 +1406,8 @@ const D = /*__DATA__*/{};
       // Hotmart: sem debriefing (ele cruza os exports da Hubla) — some a barra de abas
       if (PLAT !== 'Hubla' && !D.debrief) document.querySelector('.tabs').hidden = true;
       const vendas = (D.sales || []).filter(s => s.main !== false), semAnuncio = vendas.filter(s => !s.adId).length;
-      if (PLAT !== 'Hubla' && !SEM_RASTREIO_TRAFEGO && vendas.length && semAnuncio / vendas.length > .5) {
+      // perpétuo: sem o aviso de rastreio no topo (o painel conta todas as vendas do produto, com ou sem anúncio)
+      if (PLAT !== 'Hubla' && !PERPETUO && !SEM_RASTREIO_TRAFEGO && vendas.length && semAnuncio / vendas.length > .5) {
         $('status-pill').textContent = 'Rastreio';
         $('status-text').textContent = PLAT === 'Kiwify'
           ? `${fmtInt(semAnuncio)} de ${fmtInt(vendas.length)} vendas chegaram da Kiwify sem o utm_content do anúncio. Elas contam nos totais, mas ficam em "Não atribuído" nos criativos e fora do funil — confira se a página repassa as UTMs ao checkout.`
